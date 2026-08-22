@@ -117,6 +117,8 @@ Before considering the MVP complete:
 
 ## Current next step
 
-Milestone 2 is complete. The next approved unit of work is milestone 3,
-investigation and interface. Do not begin it without a new task that confirms
-the intended API and dashboard boundary.
+Milestone 3 implementation is complete. Rendered browser verification remains
+pending because no browser backend was available in the implementation
+environment. Complete that visual check before starting milestone 4 demo
+hardening. Do not expand the target, event, storage, monitoring, or deployment
+scope during hardening.

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Evidence-backed Base upgrade incident review">
+    <title>Watchtower · Base evidence monitor</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Watchtower home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>WATCHTOWER</span>
+        </a>
+        <div class="network-pill">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="network-label">Base mainnet</span>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="page-title">
+          <div>
+            <p class="eyebrow">Bounded incident evidence</p>
+            <h1 id="page-title">One target. One event. Verifiable facts.</h1>
+            <p class="hero-copy">
+              Review the approved Aave V3 Base Pool proxy upgrade through its
+              block, transaction, receipt, log, and deterministic policy evidence.
+            </p>
+          </div>
+          <div class="scan-control">
+            <dl class="scope-summary">
+              <div><dt>Target</dt><dd id="target-label">Loading…</dd></div>
+              <div><dt>Range</dt><dd id="range-label">Loading…</dd></div>
+              <div><dt>Event</dt><dd id="event-label">Loading…</dd></div>
+            </dl>
+            <button id="scan-button" class="scan-button" type="button">
+              <span>Run verified scan</span>
+              <span aria-hidden="true">→</span>
+            </button>
+            <p id="scan-status" class="scan-status" role="status">Ready for an opt-in historical scan.</p>
+          </div>
+        </section>
+
+        <section id="failure-panel" class="failure-panel" aria-labelledby="failure-title" hidden>
+          <div>
+            <p class="eyebrow danger">Scan visibility</p>
+            <h2 id="failure-title">Failures require review</h2>
+          </div>
+          <ul id="failure-list"></ul>
+        </section>
+
+        <section class="workspace" aria-label="Alert investigation workspace">
+          <aside class="alert-rail">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Detected evidence</p>
+                <h2>Alerts</h2>
+              </div>
+              <span id="alert-count" class="count">0</span>
+            </div>
+            <div id="alert-list" class="alert-list">
+              <div class="empty-state">
+                <p>No scan results in memory.</p>
+                <span>Run the approved historical scan to populate this list.</span>
+              </div>
+            </div>
+          </aside>
+
+          <article id="detail-panel" class="detail-panel" aria-live="polite">
+            <div class="detail-placeholder">
+              <span class="placeholder-index">01</span>
+              <h2>Evidence appears here</h2>
+              <p>Select an alert after the scan to inspect facts, interpretation, and source links.</p>
+            </div>
+          </article>
+        </section>
+      </main>
+
+      <footer>
+        <span>READ-ONLY · BASE MAINNET</span>
+        <span>NO WALLET CONNECTION · NO TRANSACTIONS</span>
+      </footer>
+    </div>
+  </body>
+</html>

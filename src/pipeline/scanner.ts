@@ -3,6 +3,7 @@ import type { TargetConfig } from "../config/schema.js";
 import type { Alert, Evidence, ScanFailure, ScanResult } from "../domain/schemas.js";
 import { scanResultSchema } from "../domain/schemas.js";
 import { decodeUpgradeLog } from "../events/upgrade.js";
+import { explainEvidence } from "../investigation/explain.js";
 import { createAlertId, createScanId } from "./ids.js";
 import { classifyUpgrade } from "./severity.js";
 
@@ -201,6 +202,7 @@ async function buildEvidence(
     severityRuleId: severity.ruleId,
     title: "Configured Aave Pool proxy implementation updated",
     summary: `The configured Pool proxy emitted ${detector.eventSignature}. The decoded implementation is ${implementation}. The ${severity.ruleId} policy rule classified this alert as ${severity.severity}.`,
+    investigation: explainEvidence(evidence),
     observedAt: blockVerified ? new Date(Number(block?.timestamp) * 1_000).toISOString() : null,
     evidenceStatus,
     evidenceId,

@@ -7,15 +7,19 @@
     "node": ">=24"
   },
   "scripts": {
+    "dev": "node --env-file-if-exists=.env --import tsx src/server/main.ts",
     "scan": "node --env-file-if-exists=.env --import tsx src/cli/scan.ts",
+    "start": "node --env-file-if-exists=.env --import tsx src/server/main.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "express": "5.2.1",
     "viem": "2.55.19",
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@types/express": "5.0.6",
     "@types/node": "24.10.1",
     "tsx": "4.20.6",
     "typescript": "5.9.3",

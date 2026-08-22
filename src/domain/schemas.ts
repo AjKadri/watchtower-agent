@@ -9,6 +9,15 @@ const sourceLinks = z.object({
   addresses: z.record(z.string(), z.url()),
 });
 
+export const investigationSchema = z.object({
+  observedFacts: z.array(z.string().min(1)).min(1),
+  interpretation: z.object({
+    severityRuleId: z.string().min(1),
+    text: z.string().min(1),
+  }),
+  limitations: z.array(z.string().min(1)).min(1),
+});
+
 export const evidenceSchema = z.object({
   id: z.string().min(1),
   status: z.enum(["complete", "incomplete"]),
@@ -42,6 +51,7 @@ export const alertSchema = z.object({
   severityRuleId: z.string().min(1),
   title: z.string().min(1),
   summary: z.string().min(1),
+  investigation: investigationSchema,
   observedAt: z.iso.datetime().nullable(),
   evidenceStatus: z.enum(["complete", "incomplete"]),
   evidenceId: z.string().min(1),

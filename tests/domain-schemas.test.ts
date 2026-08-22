@@ -54,6 +54,14 @@ describe("normalized records", () => {
         severityRuleId: "target-is-approved",
         title: "Configured Aave pool proxy implementation updated",
         summary: "The configured pool proxy emitted Upgraded(address) with an approved implementation target.",
+        investigation: {
+          observedFacts: ["The configured pool proxy emitted Upgraded(address)."],
+          interpretation: {
+            severityRuleId: "target-is-approved",
+            text: "The configured address comparison produced an informational result.",
+          },
+          limitations: ["The classification does not establish intent."],
+        },
         observedAt: "2026-01-21T13:12:07.000Z",
         evidenceStatus: "complete",
         evidenceId: "evidence:8453:748f:641",

@@ -8,10 +8,12 @@ import { targetConfigSchema, type TargetConfig } from "./schema.js";
 const runtimeEnvironmentSchema = z.object({
   BASE_RPC_URL: z.url().refine((url) => url.startsWith("https://") || url.startsWith("http://"), "must be an HTTP URL"),
   WATCHTOWER_CONFIG_PATH: z.string().min(1).default("config/target.json"),
+  PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
 });
 
 export type RuntimeConfig = {
   rpcUrl: string;
+  port: number;
   target: TargetConfig;
 };
 
@@ -24,6 +26,7 @@ export async function loadRuntimeConfig(environment: NodeJS.ProcessEnv = process
   const parsed = runtimeEnvironmentSchema.parse(environment);
   return {
     rpcUrl: parsed.BASE_RPC_URL,
+    port: parsed.PORT,
     target: await loadTargetConfig(parsed.WATCHTOWER_CONFIG_PATH),
   };
 }

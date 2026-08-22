@@ -103,6 +103,13 @@ describe("bounded evidence scan", () => {
       severityRuleId: "target-is-approved",
       evidenceStatus: "complete",
       observedAt: fixtureBlock.timestamp,
+      investigation: {
+        interpretation: {
+          severityRuleId: "target-is-approved",
+          text: expect.stringContaining("configured approved target list"),
+        },
+        limitations: [expect.stringContaining("does not establish identity")],
+      },
     });
     expect(result.evidence[0].event).toEqual({
       signature: "Upgraded(address)",
@@ -159,6 +166,9 @@ describe("bounded evidence scan", () => {
 
     expect(result.status).toBe("partial");
     expect(result.alerts[0]).toMatchObject({ evidenceStatus: "incomplete", observedAt: null });
+    expect(result.alerts[0].investigation.limitations).toContain(
+      "Some required evidence could not be retrieved or verified. Review the recorded evidence errors before relying on this alert.",
+    );
     expect(result.evidence[0]).toMatchObject({
       status: "incomplete",
       block: { timestamp: null },

@@ -232,3 +232,29 @@ structured scan result. It does not retain results between processes.
 Reason: The milestone request explicitly limits implementation to the verified
 Aave Pool upgrade fixture. Removing the previously documented custom ownership
 event keeps the runnable evidence claim aligned with that narrower instruction.
+
+## 2026-08-22: Keep investigation output evidence-bounded
+
+Status: Accepted
+
+Each normalized alert now contains an investigation object with three separate
+parts:
+
+- `observedFacts`, copied from the verified evidence record
+- `interpretation`, generated from the recorded deterministic severity rule
+- `limitations`, which state that address comparison does not establish identity,
+  intent, causality, or implementation safety
+
+Incomplete evidence adds a further limitation and remains visible in the alert,
+evidence record, scan failures, API, and dashboard. No LLM generates or rewrites
+the investigation.
+
+The Express API uses one process-local store. `POST /api/scans` runs the existing
+synchronous scanner and replaces records with the same deterministic IDs. Scan
+requests accept only optional decimal `fromBlock` and `toBlock` values. The
+pipeline still enforces the approved one-block boundary. Public configuration is
+assembled field by field and never includes the RPC URL or environment values.
+
+Reason: Separating facts from rule-based interpretation keeps every displayed
+claim traceable to evidence while the in-memory API remains sufficient for the
+single-operator historical demo.
