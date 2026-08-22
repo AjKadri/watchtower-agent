@@ -2,18 +2,18 @@
 
 Last updated: 2026-08-22
 
-- Current milestone: MVP scope refinement and implementation gating.
-- Completed: Initialized the collaboration workflow, challenged the proposed MVP scope, removed the duplicate completed task, narrowed the MVP to one explicit target profile and bounded historical scan, defined the evidence contract, and split delivery into verified milestones.
-- Tests run: `git diff --check -- .agent/TASK.md` plus structural checks for one active task, implementation gates, evidence requirements, acceptance criteria, and the current next step.
-- Result: Passed. No application code, framework, services, or infrastructure have been added.
-- Current commit: This scope milestone is committed with this status update. See Git history for its hash.
-- Next step: Resolve and record every implementation-gate decision in `.agent/DECISIONS.md` before coding.
-- Blockers: The network, target addresses, demo range, qualifying transactions, supported signatures, transfer rule, severity policy, and technology stack are not yet approved.
-- Decisions needed: Complete the seven choices under `.agent/TASK.md` "Implementation gate."
+- Current milestone: Record the approved MVP technology and architecture decisions.
+- Completed: Approved Node.js 24 LTS, TypeScript, npm, Express 5, viem, Zod, Vitest, and a vanilla dashboard. Recorded the API, configuration, schemas, bounded scan, strict decoding, deterministic severity, structured failure, and in-memory storage decisions. No application code was added.
+- Tests run: Documentation whitespace validation, required decision-section checks, secret-pattern scan, and staged diff review.
+- Result: Passed. The approved architecture is recorded and target-specific unknowns remain explicitly pending.
+- Current commit: This documentation milestone is committed with this status update. See Git history for its hash.
+- Next step: Research and approve the exact Base target, demo range, qualifying transactions, signatures, transfer thresholds, and policy addresses.
+- Blockers: Application implementation is blocked by the six pending target-specific gates in `.agent/DECISIONS.md`.
+- Decisions needed: Resolve each item under `.agent/DECISIONS.md` "Pending target-specific implementation gates."
 
 ## Setup and run instructions
 
-There is no application to install or run yet. Read `AGENTS.md` and every file in `.agent/` before starting work.
+There is no application to install or run yet. The approved future local command is `npm run dev`. Read `AGENTS.md` and every file in `.agent/` before starting work.
 
 ## Existing validation
 
