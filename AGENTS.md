@@ -1,36 +1,82 @@
-# Watchtower Agent Collaboration Guide
+# Project Collaboration Rules
 
-This repository is shared by the user, Hermes Agent, and other coding agents. Treat the repository, Git history, and `.agent/` handoff files as the source of truth.
+## Working relationship
+
+This project is being developed collaboratively with Hermes Agent and Codex.
+Hermes coordinates priorities, reviews progress, checks requirements, and verifies
+results. Codex is responsible for implementation inside the repository.
+
+Do not invent product requirements or assume the project theme. Follow the current
+task specification in `.agent/TASK.md`.
 
 ## Before starting work
 
-1. Read this file and all files in `.agent/`.
-2. Inspect the repository and current Git status before making changes.
-3. Confirm the active task and respect the scope recorded in `.agent/TASK.md`.
-4. Check `.agent/BLOCKERS.md` before starting implementation.
+1. Read this file.
+2. Read `.agent/TASK.md`.
+3. Read `.agent/STATUS.md`, `.agent/DECISIONS.md`, and `.agent/BLOCKERS.md` if they exist.
+4. Inspect the current Git status and recent commit history.
+5. State a short implementation plan before making changes.
 
-## Working agreement
+## Task discipline
 
-- Work in small, verified milestones.
-- Keep the structure simple and maintainable. Add services or infrastructure only when the task requires them.
-- Do not invent product scope or claim completion without real validation results.
-- Preserve unrelated work already present in the repository.
-- Use Conventional Commits for meaningful milestones.
-- Never rewrite Git history or force-push without explicit permission.
-- Never commit secrets. Keep local credentials in ignored environment files and document variable names in `.env.example`.
-- Record durable technical or product choices in `.agent/DECISIONS.md`.
-- Record active impediments in `.agent/BLOCKERS.md`.
-- Update `.agent/STATUS.md` after each milestone with completed work, validation results, and the next step.
+- Work in small, independently verifiable milestones.
+- Do not make broad changes without explaining why.
+- Do not silently change product scope, architecture, APIs, or requirements.
+- If a requirement is ambiguous, record the assumption in `.agent/DECISIONS.md`.
+- If blocked, record the blocker in `.agent/BLOCKERS.md` instead of guessing.
+- Prefer a working narrow MVP over unfinished breadth.
 
-## Handoff expectations
+## Git workflow
 
-Before handing work to another agent:
+- Make meaningful, frequent commits after each coherent milestone.
+- Never leave a large batch of unrelated changes uncommitted.
+- Use Conventional Commit messages:
+  - `feat: ...`
+  - `fix: ...`
+  - `test: ...`
+  - `docs: ...`
+  - `refactor: ...`
+  - `chore: ...`
+- Do not rewrite history, force-push, or delete branches unless explicitly asked.
+- Before each commit, review the diff and run relevant tests.
+- Never claim a task is complete without reporting the actual test result.
 
-- Make the working tree state clear.
-- Update `.agent/STATUS.md` with the current state, setup or run instructions, checks performed, and remaining work.
-- Update `.agent/TASK.md`, `.agent/DECISIONS.md`, and `.agent/BLOCKERS.md` when their contents have changed.
-- Commit completed milestones unless the user asks otherwise.
+## Progress tracking
 
-## Current product boundary
+After every meaningful milestone:
 
-Watchtower will eventually be an evidence-backed Base incident monitoring agent. The final feature set, architecture, data sources, and user experience have not been decided. Do not assume them without an approved task or recorded decision.
+1. Update `.agent/STATUS.md` with:
+   - what changed
+   - what was tested
+   - current Git commit
+   - what remains
+   - any risks or blockers
+2. Commit the implementation and progress update together.
+
+Use this status format:
+
+- Current milestone:
+- Completed:
+- Tests run:
+- Result:
+- Current commit:
+- Next step:
+- Blockers:
+- Decisions needed:
+
+## Handoff protocol
+
+At the end of each task, report:
+
+- Files changed
+- Commits created
+- Tests run and their real results
+- Known limitations
+- Suggested next task
+
+Do not modify secrets, credentials, or unrelated files.
+
+Public repository rule:
+All tracked documentation must be safe for public viewing. Never place secrets,
+private conversation context, personal notes, or credentials in tracked files.
+Use .agent/private/ for local-only notes, and keep that directory ignored.
