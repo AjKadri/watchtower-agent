@@ -3,107 +3,101 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Watchtower Base incident investigation console">
-    <title>Watchtower | Security Console</title>
+    <meta name="description" content="Watchtower evidence review workspace for Base incidents">
+    <title>Watchtower | Evidence Workspace</title>
     <link rel="stylesheet" href="/styles.css">
     <script src="/app.js" defer></script>
   </head>
   <body>
-    <div class="console-shell">
-      <header class="topbar">
-        <a class="brand" href="/" aria-label="Watchtower security console">
-          <span class="brand-mark" aria-hidden="true"><i></i></span>
-          <span class="brand-copy">
-            <strong>WATCHTOWER</strong>
-            <small>SECURITY INVESTIGATION CONSOLE</small>
-          </span>
-        </a>
+    <header class="masthead">
+      <a class="brand" href="/" aria-label="Watchtower evidence workspace">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span>
+          <strong>WATCHTOWER</strong>
+          <small>INVESTIGATION CONSOLE</small>
+        </span>
+      </a>
 
-        <div class="system-status" aria-label="System status">
-          <span id="system-status" class="status-item status-system" data-state="loading"><i aria-hidden="true"></i>INITIALIZING</span>
-          <span class="status-item">BASE / 8453</span>
-          <span class="status-item">READ ONLY</span>
-        </div>
-      </header>
+      <div class="system-context" aria-label="System context">
+        <span id="system-status" class="system-status" data-state="loading"><i aria-hidden="true"></i><span>Initializing</span></span>
+        <span>Base mainnet</span>
+        <span>Read only</span>
+      </div>
+    </header>
 
-      <section class="scope-bar" aria-labelledby="scope-title">
-        <div class="scope-primary">
-          <p class="kicker">ACTIVE DETECTION SCOPE</p>
-          <h1 id="scope-title"><span id="target-label">Loading target</span></h1>
+    <main class="page-shell">
+      <section class="research-header" aria-labelledby="page-title">
+        <div class="research-intro">
+          <p class="overline">Research file / bounded historical review</p>
+          <h1 id="page-title"><span id="target-label">Loading configured target</span></h1>
+          <p class="research-summary">Review the configured upgrade event through deterministic classification and independently verifiable Base evidence.</p>
           <p id="target-address" class="contract-address">Resolving configured contract</p>
         </div>
 
-        <dl class="scope-facts">
-          <div><dt>Network</dt><dd id="network-label">Base mainnet</dd></div>
-          <div><dt>Block range</dt><dd id="range-label">Loading</dd></div>
-          <div><dt>Event signature</dt><dd id="event-label">Loading</dd></div>
-        </dl>
-
-        <div class="scan-control">
-          <button id="scan-button" class="scan-button" type="button">
-            <span class="scan-button-indicator" aria-hidden="true"></span>
-            <span>RUN BOUNDED SCAN</span>
-          </button>
-          <p id="scan-status" class="scan-status" role="status" data-state="idle">IDLE / READY</p>
-        </div>
+        <aside class="scope-sheet" aria-label="Review scope">
+          <div class="scope-sheet-heading">
+            <span>Review scope</span>
+            <span>01</span>
+          </div>
+          <dl class="scope-facts">
+            <div><dt>Network</dt><dd id="network-label">Base mainnet</dd></div>
+            <div><dt>Block range</dt><dd id="range-label">Loading</dd></div>
+            <div><dt>Event</dt><dd id="event-label">Loading</dd></div>
+            <div><dt>Access</dt><dd>RPC / read only</dd></div>
+          </dl>
+          <div class="scan-control">
+            <button id="scan-button" class="scan-button" type="button">
+              <span class="scan-indicator" aria-hidden="true"></span>
+              <span>RUN BOUNDED SCAN</span>
+            </button>
+            <p id="scan-status" class="scan-status" role="status" data-state="idle">Ready for review</p>
+          </div>
+        </aside>
       </section>
 
       <section id="failure-panel" class="failure-panel" aria-labelledby="failure-title" hidden>
-        <div class="failure-heading">
-          <span class="failure-code">SCAN FAILURE</span>
-          <h2 id="failure-title">Review required</h2>
+        <div>
+          <p class="overline">Scan notice</p>
+          <h2 id="failure-title">Some evidence needs review</h2>
         </div>
         <ul id="failure-list"></ul>
       </section>
 
-      <main class="workspace" aria-label="Alert investigation workspace">
-        <section class="alert-panel" aria-labelledby="alert-title">
-          <header class="panel-heading">
+      <section class="workspace" aria-label="Evidence investigation workspace">
+        <aside class="findings-panel" aria-labelledby="findings-title">
+          <header class="section-heading">
             <div>
-              <p class="kicker">SESSION RESULTS</p>
-              <h2 id="alert-title">Alert queue</h2>
+              <p class="overline">Recorded findings</p>
+              <h2 id="findings-title">Alerts</h2>
             </div>
-            <div class="queue-summary"><span id="alert-count">0</span> RECORDS</div>
+            <span class="finding-count"><b id="alert-count">0</b> total</span>
           </header>
 
-          <div class="alert-table" aria-label="Detected alerts">
-            <div class="alert-table-head" aria-hidden="true">
-              <span>Severity</span>
-              <span>Evidence</span>
-              <span>Detection</span>
-              <span>Observed</span>
-              <span>Alert ID</span>
-            </div>
-            <div id="alert-list" class="alert-list">
-              <div class="empty-state">
-                <span class="empty-rule" aria-hidden="true"></span>
-                <div>
-                  <p>NO ALERTS IN SESSION</p>
-                  <small>Run the approved historical scan to load deterministic evidence.</small>
-                </div>
+          <div id="alert-list" class="alert-list">
+            <div class="empty-state">
+              <span class="empty-index" aria-hidden="true">00</span>
+              <div>
+                <h3>No findings in this session</h3>
+                <p>Run the bounded scan to collect and verify the configured historical event.</p>
               </div>
             </div>
           </div>
-        </section>
+        </aside>
 
         <article id="detail-panel" class="detail-panel" aria-live="polite" aria-labelledby="detail-title">
           <div class="detail-placeholder">
-            <span class="placeholder-index" aria-hidden="true">00</span>
-            <div>
-              <p class="kicker">INVESTIGATION RECORD</p>
-              <h2 id="detail-title">No alert selected</h2>
-              <p>Alert evidence, deterministic interpretation, and verifiable sources will appear here after a completed detection.</p>
-            </div>
+            <p class="overline">Evidence dossier</p>
+            <h2 id="detail-title">Select a finding to begin</h2>
+            <p>The investigation will separate observed facts from deterministic interpretation and provide direct links to each available source.</p>
           </div>
         </article>
-      </main>
+      </section>
+    </main>
 
-      <footer class="statusbar">
-        <span>HISTORICAL SCAN MODE</span>
-        <span>1 TARGET</span>
-        <span>1 EVENT TYPE</span>
-        <span class="statusbar-end">NO WALLET / NO WRITES</span>
-      </footer>
-    </div>
+    <footer class="page-footer">
+      <span>Historical evidence review</span>
+      <span>One target / one event</span>
+      <span>No wallet access or transactions</span>
+    </footer>
   </body>
 </html>

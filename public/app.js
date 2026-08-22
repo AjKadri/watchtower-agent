@@ -39,7 +39,7 @@ function sourceLink(label, href) {
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.setAttribute("aria-label", `${label}, open verifiable source`);
-  link.append(node("span", "source-value", label), node("span", "source-action", "VERIFY SOURCE"));
+  link.append(node("span", "source-value", label), node("span", "source-action", "Verify source"));
   return link;
 }
 
@@ -80,29 +80,31 @@ function renderAlertList() {
   elements.alertList.replaceChildren();
   if (state.alerts.length === 0) {
     const empty = node("div", "empty-state");
-    empty.append(node("span", "empty-rule"));
+    empty.append(node("span", "empty-index", "00"));
     const message = node("div");
-    message.append(node("p", "", "NO ALERTS IN SESSION"));
-    message.append(node("small", "", "Run the approved historical scan to load deterministic evidence."));
+    message.append(node("h3", "", "No findings in this session"));
+    message.append(node("p", "", "Run the bounded scan to collect and verify the configured historical event."));
     empty.append(message);
     elements.alertList.append(empty);
     return;
   }
 
   for (const alert of state.alerts) {
-    const button = node("button", `alert-row${state.selectedAlertId === alert.id ? " active" : ""}`);
+    const button = node("button", `finding-card${state.selectedAlertId === alert.id ? " active" : ""}`);
     button.type = "button";
     button.dataset.alertId = alert.id;
     button.setAttribute("aria-pressed", String(state.selectedAlertId === alert.id));
-    button.append(
-      node("span", "alert-cell severity-cell"),
-      node("span", "alert-cell evidence-cell"),
-      node("span", "alert-cell detection-cell", alert.title),
-      node("span", "alert-cell observed-cell", alert.observedAt ? new Date(alert.observedAt).toLocaleString() : "Time unavailable"),
-      node("span", "alert-cell id-cell", shortHash(alert.id)),
+    const labels = node("span", "finding-labels");
+    labels.append(badge(alert.severity, alert.severity), badge(alert.evidenceStatus, alert.evidenceStatus));
+    button.append(labels);
+    button.append(node("h3", "", alert.title));
+    button.append(node("span", "finding-summary", alert.summary));
+    const metadata = node("span", "finding-meta");
+    metadata.append(
+      node("span", "", alert.observedAt ? new Date(alert.observedAt).toLocaleString() : "Time unavailable"),
+      node("span", "", shortHash(alert.id)),
     );
-    button.children[0].append(badge(alert.severity, alert.severity));
-    button.children[1].append(badge(alert.evidenceStatus, alert.evidenceStatus));
+    button.append(metadata);
     button.addEventListener("click", () => selectAlert(alert.id));
     elements.alertList.append(button);
   }
@@ -140,7 +142,7 @@ function renderDetail(detail) {
 
   const header = node("header", "detail-header");
   const heading = node("div");
-  heading.append(node("p", "kicker", `ALERT RECORD / ${shortHash(alert.id)}`));
+  heading.append(node("p", "overline", `Evidence dossier / ${shortHash(alert.id)}`));
   const alertTitle = node("h2", "", alert.title);
   alertTitle.id = "detail-title";
   heading.append(alertTitle);
@@ -190,7 +192,7 @@ function renderDetail(detail) {
   investigation.append(facts, interpretation, limits);
   elements.detail.append(investigation);
 
-  elements.detail.append(node("p", "evidence-title", "VERIFIABLE EVIDENCE SOURCES"));
+  elements.detail.append(node("p", "evidence-title", "Sources and evidence"));
   const grid = node("dl", "evidence-grid");
   grid.append(
     evidenceItem("Severity rule", evidence.severity.ruleId),
@@ -228,7 +230,7 @@ async function selectAlert(alertId) {
     renderFailures(detail.scanFailures);
   } catch (error) {
     const errorState = node("div", "detail-error");
-    errorState.append(node("p", "kicker", "ALERT RETRIEVAL FAILED"));
+    errorState.append(node("p", "overline", "Alert retrieval failed"));
     errorState.append(node("h2", "", "Investigation record unavailable"));
     errorState.append(node("p", "", error.message));
     elements.detail.replaceChildren(errorState);
@@ -246,7 +248,7 @@ async function refreshAlerts(selectFirst = false) {
 
 async function runScan() {
   elements.scanButton.disabled = true;
-  setScanStatus("RUNNING / QUERYING BLOCK 41105890", "running");
+  setScanStatus("Scanning approved block 41,105,890", "running");
   renderFailures([]);
   try {
     const result = await request("/api/scans", {
@@ -256,11 +258,11 @@ async function runScan() {
     });
     const alertLabel = result.alerts.length === 1 ? "ALERT" : "ALERTS";
     const failureLabel = result.failures.length === 1 ? "FAILURE" : "FAILURES";
-    setScanStatus(`${result.status.toUpperCase()} / ${result.alerts.length} ${alertLabel} / ${result.failures.length} ${failureLabel}`, result.status === "complete" ? "complete" : "error");
+    setScanStatus(`${result.status} · ${result.alerts.length} ${alertLabel.toLowerCase()} · ${result.failures.length} ${failureLabel.toLowerCase()}`, result.status === "complete" ? "complete" : result.status === "partial" ? "partial" : "error");
     renderFailures(result.failures);
     await refreshAlerts(true);
   } catch (error) {
-    setScanStatus(`FAILED / ${error.message}`, "error");
+    setScanStatus(`Scan failed · ${error.message}`, "error");
     renderFailures(error.payload?.failures ?? [{ code: "request-failed", message: error.message }]);
   } finally {
     elements.scanButton.disabled = false;
@@ -277,10 +279,10 @@ async function initialize() {
     elements.rangeLabel.textContent = `${config.scan.fromBlock} → ${config.scan.toBlock}`;
     elements.eventLabel.textContent = config.detector.eventSignature;
     await refreshAlerts(true);
-    setSystemStatus("SYSTEM READY", "ready");
+    setSystemStatus("Ready", "ready");
   } catch (error) {
-    setSystemStatus("SYSTEM DEGRADED", "error");
-    setScanStatus(`INITIALIZATION FAILED / ${error.message}`, "error");
+    setSystemStatus("Unavailable", "error");
+    setScanStatus(`Initialization failed · ${error.message}`, "error");
     renderFailures([{ code: "initialization-failed", message: error.message }]);
   }
 }
