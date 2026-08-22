@@ -1,0 +1,12 @@
+{
+  "fixtureVersion": 1,
+  "network": "base-mainnet",
+  "chainId": 8453,
+  "verifiedAt": "2026-08-22",
+  "curation": "selected-logs",
+  "sources": {
+    "transaction": "https://basescan.org/tx/0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a",
+    "block": "https://basescan.org/block/41105890",
+    "addressBook": "https://github.com/aave-dao/aave-address-book/blob/main/src/AaveV3Base.sol"
+  }
+}

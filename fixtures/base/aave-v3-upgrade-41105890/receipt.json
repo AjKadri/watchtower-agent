@@ -1,0 +1,28 @@
+{
+  "transactionHash": "0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a",
+  "transactionIndex": "122",
+  "blockNumber": "41105890",
+  "blockHash": "0x3f8b9a19d39bdf97178f6f7e7117138ec5cb7c5fe292afcac914a250568428ff",
+  "status": "success",
+  "selectedLogs": [
+    {
+      "logIndex": "641",
+      "address": "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5",
+      "topics": [
+        "0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b",
+        "0x000000000000000000000000db578d67a83e94de73c9e0c14280f804f6c1c3e4"
+      ],
+      "data": "0x"
+    },
+    {
+      "logIndex": "642",
+      "address": "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D",
+      "topics": [
+        "0x90affc163f1a2dfedcd36aa02ed992eeeba8100a4014f0b4cdc20ea265a66627",
+        "0x00000000000000000000000079ab8fc5ba13daf37b4e978a543286bc2a16508c",
+        "0x000000000000000000000000db578d67a83e94de73c9e0c14280f804f6c1c3e4"
+      ],
+      "data": "0x"
+    }
+  ]
+}

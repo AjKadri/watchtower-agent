@@ -1,0 +1,19 @@
+[
+  {
+    "type": "event",
+    "name": "Upgraded",
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "implementation", "type": "address" }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "PoolUpdated",
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "oldAddress", "type": "address" },
+      { "indexed": true, "name": "newAddress", "type": "address" }
+    ]
+  }
+]

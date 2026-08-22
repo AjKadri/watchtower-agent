@@ -1,13 +1,21 @@
 # Blockers
 
-## 2026-08-22: Target-specific implementation inputs are unresolved
+## 2026-08-22: Target-specific implementation inputs are resolved
 
-Status: Active
+Status: Resolved
 
 Affected task: Watchtower MVP milestone 1, target and contract definition.
 
-Application implementation cannot start until the Base network, target addresses, verified demo range, qualifying transactions, exact event signatures, ERC-20 transfer thresholds, and concrete severity-policy addresses are approved.
+The Base network, target addresses, verified demo range, qualifying transaction,
+exact supported event signatures, and deterministic severity policy are recorded
+in `.agent/DECISIONS.md`.
 
-The technology stack and architecture are approved. No technical workaround can supply the missing product and evidence choices without inventing scope.
+Large-movement and pause or unpause detection were removed from this target
+profile because the selected history does not provide representative events.
+This resolves the gate without fabricating fixtures or thresholds.
 
-Decision needed: Resolve the six pending target-specific gates in `.agent/DECISIONS.md`.
+Decision needed: None for milestone 1.
+
+## Active blockers
+
+None.

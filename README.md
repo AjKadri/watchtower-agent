@@ -1,8 +1,12 @@
 # Watchtower
 
-Watchtower will eventually be an evidence-backed Base incident monitoring agent.
+Watchtower is being developed as an evidence-backed Base incident monitoring
+agent.
 
-The repository currently contains only the collaboration workflow and handoff documents needed for development with Hermes Agent and other coding agents. Product scope, architecture, data sources, user experience, and technology choices remain open.
+Milestone 1 defines one narrow target profile for a verified Aave V3 Base core
+upgrade. It contains validated configuration, exact event ABI fragments,
+normalized alert and evidence schemas, and curated fixtures. It does not contain
+an RPC scanner, API, dashboard, or continuous monitor.
 
 ## Start here
 
@@ -14,10 +18,42 @@ Before making changes:
 4. Work only within the approved task scope.
 5. Validate the milestone, update `.agent/STATUS.md`, and commit it with a Conventional Commit message.
 
-## Development
+## Milestone 1 setup
 
-There is no application setup or run command yet. Add those instructions here after the first approved implementation task selects a technology stack.
+Requirements:
 
-## Environment
+- Node.js 24 or newer
+- npm
 
-No environment variables are required yet. When variables are introduced, document their names and purpose in `.env.example`. Keep real values in ignored local environment files and never commit secrets.
+Install and validate:
+
+```sh
+npm install
+npm test
+npm run typecheck
+```
+
+There is no application run command in milestone 1. The approved future command
+is `npm run dev`, which will be added only when the application server exists.
+
+## Supported target
+
+The committed profile scans Base mainnet block `41105890` for two events from
+one verified transaction:
+
+- `Upgraded(address)` from the configured Aave V3 Base Pool proxy
+- `PoolUpdated(address,address)` from its configured PoolAddressesProvider
+
+The fixture contains selected logs and records its BaseScan and official Aave
+address-book sources. Large transfers, pause events, unpause events, arbitrary
+addresses, and arbitrary signatures are excluded.
+
+## Configuration
+
+Non-secret target settings live in `config/target.json`. The future RPC client
+will read `BASE_RPC_URL` from a local `.env` file and default
+`WATCHTOWER_CONFIG_PATH` to the committed target file. No RPC call is made in
+milestone 1.
+
+Keep real values in ignored local environment files. Never commit secrets or
+place RPC credentials in target configuration or fixtures.

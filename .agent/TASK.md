@@ -117,4 +117,6 @@ Before considering the MVP complete:
 
 ## Current next step
 
-Resolve the implementation-gate decisions. No application coding is approved until those decisions are recorded.
+Milestone 1 is complete. The next approved unit of work is milestone 2, the
+deterministic evidence pipeline. Do not start the API or dashboard as part of
+that milestone.

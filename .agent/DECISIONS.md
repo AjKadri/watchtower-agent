@@ -163,17 +163,44 @@ Persistent storage will be reconsidered only if the scope adds continuous monito
 
 Reason: Base is the durable evidence source. A database would add migrations, deployment state, and cleanup behavior without improving the bounded single-operator demo.
 
-## Pending target-specific implementation gates
+## 2026-08-22: Monitor a verified Aave V3 Base core upgrade
 
-Status: Pending
+Status: Accepted
 
-Application implementation remains blocked until the following facts are selected, verified against Base, and recorded here:
+Milestone 1 resolves the target-specific implementation gates as follows:
 
-1. Base network and chain ID.
-2. Primary contract and the purpose of every related address.
-3. Bounded demo block range and known qualifying transactions.
-4. Exact event signatures supported for that target.
-5. ERC-20 asset, watched addresses, standard threshold, critical threshold, and base units.
-6. Concrete policy addresses and one verified example for each severity.
+1. The network is Base mainnet with chain ID `8453`.
+2. The primary contract is the Aave V3 Base Pool proxy at
+   `0xA238Dd80C259a72e81d7e4664a9801593F98d1c5`. The only related contract in
+   this profile is its PoolAddressesProvider at
+   `0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D`.
+3. The demo range is the single block `41105890`. The qualifying transaction is
+   `0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a`.
+4. The only supported signatures are the standard proxy event
+   `Upgraded(address)` emitted by the configured Pool proxy and the
+   target-specific `PoolUpdated(address,address)` emitted by the configured
+   PoolAddressesProvider. The exact ABI fragments, topic-zero values, emitting
+   addresses, and indexed arguments are committed with the target profile.
+5. Large-movement detection is excluded from this target profile. The verified
+   transaction does not contain a representative large-transfer event, so no
+   ERC-20 asset, watched address, or threshold is invented. Pause and unpause
+   events are excluded for the same evidence reason.
+6. Severity rules run in this order: a zero decoded target is `high`, a nonzero
+   decoded target outside the approved target list is `suspicious`, and an
+   approved decoded target is `informational`. The verified transaction is the
+   informational example because both decoded new targets are the approved
+   implementation `0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4`. High and
+   suspicious examples are explicitly labeled counterfactual policy cases and
+   are not presented as historical incidents.
+7. The previously approved single-process TypeScript stack and future
+   `npm run dev` command remain unchanged. Milestone 1 has no runnable
+   application. Its commands are `npm test` and `npm run typecheck`.
 
-These values were not part of the approved architecture proposal and must not be invented.
+The fixture is a curated subset of two verified transaction logs rather than a
+complete RPC receipt. It records its BaseScan and official Aave address-book
+sources. No other contracts or event types are implied by this decision.
+
+Reason: A one-block, one-transaction target makes the first evidence boundary
+small and independently checkable. Narrowing unsupported incident classes is
+more reliable than constructing a demo around events that the selected history
+does not contain.
