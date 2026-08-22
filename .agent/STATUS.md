@@ -2,35 +2,19 @@
 
 Last updated: 2026-08-22
 
-## Current state
-
-Repository workflow initialization is complete. No application features, framework, services, or infrastructure have been added.
-
-## Completed
-
-- Added collaboration and handoff document structure.
-- Added minimal repository, environment, and ignore documentation.
-- Reviewed the complete initialization diff.
-
-## Validation
-
-Passed on 2026-08-22:
-
-- Confirmed all eight requested files exist and are non-empty.
-- Confirmed the files have no whitespace errors.
-- Confirmed the product wording stays within the approved boundary.
-- Scanned tracked content for credential assignments and found none.
-- Confirmed `.env` and `.env.local` are ignored while `.env.example` remains trackable.
+- Current milestone: MVP scope refinement and implementation gating.
+- Completed: Initialized the collaboration workflow, challenged the proposed MVP scope, removed the duplicate completed task, narrowed the MVP to one explicit target profile and bounded historical scan, defined the evidence contract, and split delivery into verified milestones.
+- Tests run: `git diff --check -- .agent/TASK.md` plus structural checks for one active task, implementation gates, evidence requirements, acceptance criteria, and the current next step.
+- Result: Passed. No application code, framework, services, or infrastructure have been added.
+- Current commit: This scope milestone is committed with this status update. See Git history for its hash.
+- Next step: Resolve and record every implementation-gate decision in `.agent/DECISIONS.md` before coding.
+- Blockers: The network, target addresses, demo range, qualifying transactions, supported signatures, transfer rule, severity policy, and technology stack are not yet approved.
+- Decisions needed: Complete the seven choices under `.agent/TASK.md` "Implementation gate."
 
 ## Setup and run instructions
 
-There is no application to install or run yet. Read `AGENTS.md` and every file in `.agent/` before starting a development task.
+There is no application to install or run yet. Read `AGENTS.md` and every file in `.agent/` before starting work.
 
-## Remaining work
+## Existing validation
 
-- Define and approve the first product milestone before starting implementation.
-
-## Caveats
-
-- Product scope is intentionally limited to the statement in `README.md`.
-- The technology stack and operational design remain undecided.
+Repository initialization validation passed on 2026-08-22. The requested workflow files were non-empty and whitespace-clean, no credential assignments were detected, and environment ignore rules behaved correctly.
