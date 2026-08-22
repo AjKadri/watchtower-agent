@@ -1,0 +1,22 @@
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Logs and local runtime output
+*.log
+logs/
+tmp/
+.cache/
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+
+# Editor and operating system files
+.DS_Store
+.idea/
+.vscode/
+*.swp
