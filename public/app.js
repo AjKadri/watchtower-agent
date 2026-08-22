@@ -9,6 +9,7 @@ const elements = {
   rangeLabel: document.querySelector("#range-label"),
   scanButton: document.querySelector("#scan-button"),
   scanStatus: document.querySelector("#scan-status"),
+  targetAddress: document.querySelector("#target-address"),
   targetLabel: document.querySelector("#target-label"),
 };
 
@@ -33,9 +34,15 @@ function badge(label, variant) {
 function sourceLink(label, href) {
   const link = node("a", "source-link", label);
   link.href = href;
+  link.title = href;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   return link;
+}
+
+function setScanStatus(message, stateName) {
+  elements.scanStatus.textContent = message;
+  elements.scanStatus.dataset.state = stateName;
 }
 
 async function request(path, options) {
@@ -65,8 +72,9 @@ function renderAlertList() {
   elements.alertList.replaceChildren();
   if (state.alerts.length === 0) {
     const empty = node("div", "empty-state");
-    empty.append(node("p", "", "No scan results in memory."));
-    empty.append(node("span", "", "Run the approved historical scan to populate this list."));
+    empty.append(node("span", "empty-glyph", "∅"));
+    empty.append(node("p", "", "NO ALERTS IN SESSION"));
+    empty.append(node("small", "", "Run the approved historical scan to load evidence into memory."));
     elements.alertList.append(empty);
     return;
   }
@@ -94,8 +102,25 @@ function evidenceItem(label, value, link) {
   const wrapper = node("div", "evidence-item");
   const term = node("dt", "", label);
   const description = node("dd");
+  description.title = value;
   description.append(link ? sourceLink(value, link) : document.createTextNode(value));
   wrapper.append(term, description);
+  return wrapper;
+}
+
+function signalCell(label, value) {
+  const wrapper = node("div", "signal-cell");
+  wrapper.append(node("dt", "", label), node("dd", "", value));
+  return wrapper;
+}
+
+function eventNode(label, value, href) {
+  const wrapper = node("div", "event-node");
+  wrapper.append(node("span", "", label));
+  const strong = node("strong");
+  strong.append(href ? sourceLink(shortHash(value), href) : document.createTextNode(value));
+  strong.title = value;
+  wrapper.append(strong);
   return wrapper;
 }
 
@@ -105,13 +130,33 @@ function renderDetail(detail) {
 
   const header = node("header", "detail-header");
   const heading = node("div");
-  heading.append(node("p", "eyebrow", "Normalized alert"));
+  heading.append(node("p", "section-code", `ALERT RECORD / ${shortHash(alert.id)}`));
   heading.append(node("h2", "", alert.title));
   heading.append(node("p", "detail-summary", alert.summary));
   const badgeStack = node("div", "badge-stack");
   badgeStack.append(badge(alert.severity, alert.severity), badge(alert.evidenceStatus, alert.evidenceStatus));
   header.append(heading, badgeStack);
   elements.detail.append(header);
+
+  const signalStrip = node("dl", "signal-strip");
+  signalStrip.append(
+    signalCell("Severity rule", alert.severityRuleId),
+    signalCell("Evidence state", alert.evidenceStatus.toUpperCase()),
+    signalCell("Block", evidence.block.number),
+    signalCell("Log index", evidence.log.index),
+  );
+  elements.detail.append(signalStrip);
+
+  const implementation = evidence.event.decodedArguments.implementation ?? "Unavailable";
+  const eventPath = node("section", "event-path");
+  const edge = node("div", "event-edge");
+  edge.append(node("span", "", "DECODED EVENT"), node("b", "", evidence.event.signature));
+  eventPath.append(
+    eventNode("EMITTING PROXY", evidence.log.emitter, evidence.sources.addresses.emitter),
+    edge,
+    eventNode("IMPLEMENTATION TARGET", implementation, evidence.sources.addresses.implementation),
+  );
+  elements.detail.append(eventPath);
 
   const investigation = node("section", "investigation-grid");
   const facts = node("div", "investigation-card");
@@ -133,9 +178,8 @@ function renderDetail(detail) {
   investigation.append(facts, interpretation, limits);
   elements.detail.append(investigation);
 
-  elements.detail.append(node("p", "eyebrow evidence-title", "Evidence record"));
+  elements.detail.append(node("p", "evidence-title", "EVIDENCE LEDGER / VERIFIED SOURCES"));
   const grid = node("dl", "evidence-grid");
-  const implementation = evidence.event.decodedArguments.implementation ?? "Unavailable";
   grid.append(
     evidenceItem("Severity rule", evidence.severity.ruleId),
     evidenceItem("Evidence status", evidence.status),
@@ -186,7 +230,7 @@ async function refreshAlerts(selectFirst = false) {
 
 async function runScan() {
   elements.scanButton.disabled = true;
-  elements.scanStatus.textContent = "Scanning approved Base block 41105890…";
+  setScanStatus("RUNNING / QUERYING BLOCK 41105890", "running");
   renderFailures([]);
   try {
     const result = await request("/api/scans", {
@@ -194,11 +238,13 @@ async function runScan() {
       headers: { "content-type": "application/json" },
       body: "{}",
     });
-    elements.scanStatus.textContent = `Scan ${result.status}. ${result.alerts.length} alert, ${result.failures.length} failures.`;
+    const alertLabel = result.alerts.length === 1 ? "ALERT" : "ALERTS";
+    const failureLabel = result.failures.length === 1 ? "FAILURE" : "FAILURES";
+    setScanStatus(`${result.status.toUpperCase()} / ${result.alerts.length} ${alertLabel} / ${result.failures.length} ${failureLabel}`, result.status === "complete" ? "complete" : "error");
     renderFailures(result.failures);
     await refreshAlerts(true);
   } catch (error) {
-    elements.scanStatus.textContent = error.message;
+    setScanStatus(`FAILED / ${error.message}`, "error");
     renderFailures(error.payload?.failures ?? [{ code: "request-failed", message: error.message }]);
   } finally {
     elements.scanButton.disabled = false;
@@ -211,11 +257,12 @@ async function initialize() {
     const config = await request("/api/config");
     elements.networkLabel.textContent = `${config.network.name} · ${config.network.chainId}`;
     elements.targetLabel.textContent = config.target.name;
+    elements.targetAddress.textContent = config.target.primaryContract.address;
     elements.rangeLabel.textContent = `${config.scan.fromBlock} → ${config.scan.toBlock}`;
     elements.eventLabel.textContent = config.detector.eventSignature;
     await refreshAlerts(true);
   } catch (error) {
-    elements.scanStatus.textContent = `Dashboard initialization failed: ${error.message}`;
+    setScanStatus(`INITIALIZATION FAILED / ${error.message}`, "error");
   }
 }
 

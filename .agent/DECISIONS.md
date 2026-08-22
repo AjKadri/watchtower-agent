@@ -258,3 +258,19 @@ assembled field by field and never includes the RPC URL or environment values.
 Reason: Separating facts from rule-based interpretation keeps every displayed
 claim traceable to evidence while the in-memory API remains sufficient for the
 single-operator historical demo.
+
+## 2026-08-23: Use an operational SOC console presentation
+
+Status: Accepted
+
+The dashboard uses a dense investigation-console layout with a compact command
+bar, active detection profile, session alert queue, deterministic signal strip,
+event path, and source-linked evidence ledger. Status color is reserved for
+service health, scan state, severity, evidence completeness, and failures.
+
+The interface does not add live-monitoring claims, fabricated metrics, extra
+detectors, or controls that imply write access. It presents the existing bounded
+historical scan and process-local data model as they are.
+
+Reason: The evidence workflow should read like an analyst tool, while every
+visible capability remains accurate to the approved MVP scope.

@@ -1,14 +1,14 @@
 # Project Status
 
-Last updated: 2026-08-22
+Last updated: 2026-08-23
 
-- Current milestone: Milestone 3, investigation output and minimal interface.
-- Completed: Added evidence-bounded investigation output with separate facts, deterministic interpretation, and limitations. Added the approved Express API, process-local scan storage, sanitized public configuration, static vanilla dashboard, alert list and detail views, evidence links, and visible failure and incomplete-evidence states. The API rejects arbitrary addresses, event selectors, and other scope-expanding fields. Added a responsive CSS fix so long evidence values wrap at narrow widths. No new detector, authentication, notification, monitoring, wallet, transaction, database, deployment, or LLM feature was added.
-- Tests run: `npm test`, `npm run typecheck`, `node --check public/app.js`, `npm run dev`, localhost HTTP checks for the dashboard assets and all API routes, a live `POST /api/scans`, dependency audit, secret and unsupported-scope scans, `git diff --check`, desktop browser QA, and 390px mobile browser QA.
-- Result: All automated, live HTTP, and rendered browser checks passed. Vitest reported 6 test files passed and 21 tests passed. TypeScript and browser JavaScript syntax checks completed with no errors. The live API and browser scans returned status `complete`, one informational alert, one complete evidence record, and zero failures. The dashboard scan button, alert list, evidence detail view, desktop layout, and narrow layout were verified. Mobile horizontal overflow was fixed and rechecked at 390px with zero overflow.
-- Current commit: `f0ae5d8 fix: prevent mobile evidence overflow`, following milestone commit `0e57335 feat: add Watchtower API and dashboard`.
-- Next step: Proceed to milestone 4 hardening: clean-checkout verification, documented demo run, latency/RPC limitation capture, and final scope review.
-- Blockers: None for milestone 3.
+- Current milestone: Milestone 3 interface refinement, SOC analyst console.
+- Completed: Reworked only the existing vanilla frontend into a dense operational console. The interface now has a compact command and health bar, explicit read-only and process-memory states, an active detection profile, session alert queue, deterministic signal strip, decoded proxy-to-implementation event path, separate investigation sections, and a source-linked evidence ledger. The API, target, event, pipeline, and storage scope are unchanged.
+- Tests run: `npm test`, `npm run typecheck`, `node --check public/app.js`, `git diff --check`, `npm run dev`, localhost health and configuration checks, and a live `POST /api/scans`.
+- Result: Vitest reported 6 test files passed and 21 tests passed. TypeScript, browser JavaScript syntax, and diff checks completed with no errors. The server returned healthy status and sanitized approved configuration. The live bounded scan returned `failed`, zero alerts, and one visible `latest-block-rpc-failed` failure because the configured RPC could not return the latest Base block. The in-app browser runtime exposed no connected browser, so the revised layout still needs rendered desktop and narrow-width QA.
+- Current commit: The SOC console refinement commit recorded in Git history. Previous commit: `f0ae5d8 fix: prevent mobile evidence overflow`.
+- Next step: Connect a browser, visually verify the revised console in its empty, populated fixture-equivalent, and failure states at desktop and 390px widths, then proceed to milestone 4 hardening.
+- Blockers: Rendered verification is blocked by the unavailable browser connection. The live demo is also blocked by the current RPC response failure.
 - Decisions needed: None for the implemented milestone 3 scope.
 
 ## Setup and run instructions
@@ -19,10 +19,8 @@ run `npm test`, `npm run typecheck`, and `npm run dev`. Open
 
 ## Existing validation
 
-Milestone 3 automated and live HTTP validation passed on 2026-08-22. Tests cover
-the existing deterministic pipeline, investigation separation, sanitized public
-configuration, API scope rejection, in-memory retrieval, structured failures,
-and dashboard asset delivery. The live API scan reproduced alert
-`alert_f2cdc9894350f2e6cd280508dad9edb4d63707c5cc6efdeb2c8d53aab7812c3e`.
+The 2026-08-23 refinement retained all 21 passing tests for the deterministic
+pipeline, investigation separation, sanitized public configuration, API scope
+rejection, in-memory retrieval, structured failures, and dashboard delivery.
 The fixture remains a selected-log subset rather than a complete raw receipt.
-Visual browser QA is still required because no browser backend was connected.
+Current rendered QA and a successful live RPC reproduction remain pending.

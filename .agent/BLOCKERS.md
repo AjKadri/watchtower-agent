@@ -18,4 +18,25 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
-None. Rendered desktop and 390px mobile browser QA passed after commit `f0ae5d8`.
+### 2026-08-23: Revised SOC console needs rendered verification
+
+Status: Active
+
+The in-app browser runtime reported no available browser connection. Automated
+tests, JavaScript syntax, TypeScript, asset delivery, and API checks passed, but
+the revised layout has not been inspected at desktop or 390px widths.
+
+Required resolution: Connect an in-app browser and verify empty, populated, and
+failure states without horizontal overflow, clipping, or misleading controls.
+
+### 2026-08-23: Configured Base RPC failed the live bounded scan
+
+Status: Active
+
+The local server started and returned healthy and sanitized configuration
+responses. `POST /api/scans` returned a visible `latest-block-rpc-failed`
+failure before scanning block `41105890` because the configured RPC could not
+return the latest Base block.
+
+Required resolution: Confirm the local `BASE_RPC_URL` is reachable and supports
+the required Base JSON-RPC methods, then rerun the documented bounded scan.
