@@ -18,16 +18,4 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
-## 2026-08-22: Rendered dashboard verification needs a browser connection
-
-Status: Active
-
-Affected task: Watchtower MVP milestone 3, investigation and interface.
-
-The server, dashboard assets, API routes, and live API scan were verified on
-`http://localhost:3000`. The configured browser workflow reported that no
-browser backend was available, so responsive layout, rendered content, and
-interactive scan behavior could not be visually inspected in a real browser.
-
-Decision needed: Connect an available browser and complete visual verification
-before declaring milestone 3 fully verified or beginning milestone 4.
+None. Rendered desktop and 390px mobile browser QA passed after commit `f0ae5d8`.

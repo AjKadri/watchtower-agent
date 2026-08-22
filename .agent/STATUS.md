@@ -3,12 +3,12 @@
 Last updated: 2026-08-22
 
 - Current milestone: Milestone 3, investigation output and minimal interface.
-- Completed: Added evidence-bounded investigation output with separate facts, deterministic interpretation, and limitations. Added the approved Express API, process-local scan storage, sanitized public configuration, static vanilla dashboard, alert list and detail views, evidence links, and visible failure and incomplete-evidence states. The API rejects arbitrary addresses, event selectors, and other scope-expanding fields. No new detector, authentication, notification, monitoring, wallet, transaction, database, deployment, or LLM feature was added.
-- Tests run: `npm test`, `npm run typecheck`, `node --check public/app.js`, `npm run dev`, localhost HTTP checks for the dashboard assets and all API routes, a live `POST /api/scans`, dependency audit, secret and unsupported-scope scans, and `git diff --check`.
-- Result: Automated and live HTTP checks passed. Vitest reported 6 test files passed and 21 tests passed in 581 ms. TypeScript and browser JavaScript syntax checks completed with no errors. The server listened on `http://localhost:3000`. The live API scan returned status `complete`, one informational alert, one complete evidence record, and zero failures. Health, sanitized config, stored scan, alert list, alert detail, HTML, CSS, and JavaScript responses succeeded. Rendered browser verification did not run because the browser workflow reported no available browser backend.
-- Current commit: The milestone commit contains this status update. Use `git log -1 --oneline` for its immutable hash.
-- Next step: Connect a browser, verify the dashboard visually at desktop and narrow widths, exercise the scan button, then proceed to milestone 4 hardening.
-- Blockers: Rendered browser verification is pending. Server and HTTP-level verification passed.
+- Completed: Added evidence-bounded investigation output with separate facts, deterministic interpretation, and limitations. Added the approved Express API, process-local scan storage, sanitized public configuration, static vanilla dashboard, alert list and detail views, evidence links, and visible failure and incomplete-evidence states. The API rejects arbitrary addresses, event selectors, and other scope-expanding fields. Added a responsive CSS fix so long evidence values wrap at narrow widths. No new detector, authentication, notification, monitoring, wallet, transaction, database, deployment, or LLM feature was added.
+- Tests run: `npm test`, `npm run typecheck`, `node --check public/app.js`, `npm run dev`, localhost HTTP checks for the dashboard assets and all API routes, a live `POST /api/scans`, dependency audit, secret and unsupported-scope scans, `git diff --check`, desktop browser QA, and 390px mobile browser QA.
+- Result: All automated, live HTTP, and rendered browser checks passed. Vitest reported 6 test files passed and 21 tests passed. TypeScript and browser JavaScript syntax checks completed with no errors. The live API and browser scans returned status `complete`, one informational alert, one complete evidence record, and zero failures. The dashboard scan button, alert list, evidence detail view, desktop layout, and narrow layout were verified. Mobile horizontal overflow was fixed and rechecked at 390px with zero overflow.
+- Current commit: `f0ae5d8 fix: prevent mobile evidence overflow`, following milestone commit `0e57335 feat: add Watchtower API and dashboard`.
+- Next step: Proceed to milestone 4 hardening: clean-checkout verification, documented demo run, latency/RPC limitation capture, and final scope review.
+- Blockers: None for milestone 3.
 - Decisions needed: None for the implemented milestone 3 scope.
 
 ## Setup and run instructions
