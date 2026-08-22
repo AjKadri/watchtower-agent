@@ -18,25 +18,27 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
-### 2026-08-23: Revised SOC console needs rendered verification
+### 2026-08-23: Redesigned security console needs rendered verification
 
 Status: Active
 
 The in-app browser runtime reported no available browser connection. Automated
-tests, JavaScript syntax, TypeScript, asset delivery, and API checks passed, but
-the revised layout has not been inspected at desktop or 390px widths.
+tests, JavaScript syntax, TypeScript, asset delivery, and the live scan flow
+passed, but the redesigned layout has not been inspected at desktop or 390px
+widths.
 
 Required resolution: Connect an in-app browser and verify empty, populated, and
 failure states without horizontal overflow, clipping, or misleading controls.
 
-### 2026-08-23: Configured Base RPC failed the live bounded scan
+## Resolved blockers
 
-Status: Active
+## 2026-08-23: Configured Base RPC scan recovered
 
-The local server started and returned healthy and sanitized configuration
-responses. `POST /api/scans` returned a visible `latest-block-rpc-failed`
-failure before scanning block `41105890` because the configured RPC could not
-return the latest Base block.
+Status: Resolved
 
-Required resolution: Confirm the local `BASE_RPC_URL` is reachable and supports
-the required Base JSON-RPC methods, then rerun the documented bounded scan.
+The local server returned healthy and sanitized configuration responses. A new
+`POST /api/scans` completed against Base block `41105890` with one
+informational alert, complete evidence, and zero failures. Alert list and detail
+retrieval also passed.
+
+Decision needed: None.

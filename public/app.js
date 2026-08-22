@@ -9,6 +9,7 @@ const elements = {
   rangeLabel: document.querySelector("#range-label"),
   scanButton: document.querySelector("#scan-button"),
   scanStatus: document.querySelector("#scan-status"),
+  systemStatus: document.querySelector("#system-status"),
   targetAddress: document.querySelector("#target-address"),
   targetLabel: document.querySelector("#target-label"),
 };
@@ -32,17 +33,24 @@ function badge(label, variant) {
 }
 
 function sourceLink(label, href) {
-  const link = node("a", "source-link", label);
+  const link = node("a", "source-link");
   link.href = href;
   link.title = href;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
+  link.setAttribute("aria-label", `${label}, open verifiable source`);
+  link.append(node("span", "source-value", label), node("span", "source-action", "VERIFY SOURCE"));
   return link;
 }
 
 function setScanStatus(message, stateName) {
   elements.scanStatus.textContent = message;
   elements.scanStatus.dataset.state = stateName;
+}
+
+function setSystemStatus(message, stateName) {
+  elements.systemStatus.lastChild.textContent = message;
+  elements.systemStatus.dataset.state = stateName;
 }
 
 async function request(path, options) {
@@ -72,27 +80,29 @@ function renderAlertList() {
   elements.alertList.replaceChildren();
   if (state.alerts.length === 0) {
     const empty = node("div", "empty-state");
-    empty.append(node("span", "empty-glyph", "∅"));
-    empty.append(node("p", "", "NO ALERTS IN SESSION"));
-    empty.append(node("small", "", "Run the approved historical scan to load evidence into memory."));
+    empty.append(node("span", "empty-rule"));
+    const message = node("div");
+    message.append(node("p", "", "NO ALERTS IN SESSION"));
+    message.append(node("small", "", "Run the approved historical scan to load deterministic evidence."));
+    empty.append(message);
     elements.alertList.append(empty);
     return;
   }
 
   for (const alert of state.alerts) {
-    const button = node("button", `alert-card${state.selectedAlertId === alert.id ? " active" : ""}`);
+    const button = node("button", `alert-row${state.selectedAlertId === alert.id ? " active" : ""}`);
     button.type = "button";
     button.dataset.alertId = alert.id;
     button.setAttribute("aria-pressed", String(state.selectedAlertId === alert.id));
-    const top = node("div", "alert-card-top");
-    top.append(badge(alert.severity, alert.severity));
-    top.append(badge(alert.evidenceStatus, alert.evidenceStatus));
-    button.append(top);
-    button.append(node("h3", "", alert.title));
-    const meta = node("div", "alert-meta");
-    meta.append(node("span", "", alert.observedAt ? new Date(alert.observedAt).toLocaleString() : "Time unavailable"));
-    meta.append(node("span", "", shortHash(alert.id)));
-    button.append(meta);
+    button.append(
+      node("span", "alert-cell severity-cell"),
+      node("span", "alert-cell evidence-cell"),
+      node("span", "alert-cell detection-cell", alert.title),
+      node("span", "alert-cell observed-cell", alert.observedAt ? new Date(alert.observedAt).toLocaleString() : "Time unavailable"),
+      node("span", "alert-cell id-cell", shortHash(alert.id)),
+    );
+    button.children[0].append(badge(alert.severity, alert.severity));
+    button.children[1].append(badge(alert.evidenceStatus, alert.evidenceStatus));
     button.addEventListener("click", () => selectAlert(alert.id));
     elements.alertList.append(button);
   }
@@ -130,8 +140,10 @@ function renderDetail(detail) {
 
   const header = node("header", "detail-header");
   const heading = node("div");
-  heading.append(node("p", "section-code", `ALERT RECORD / ${shortHash(alert.id)}`));
-  heading.append(node("h2", "", alert.title));
+  heading.append(node("p", "kicker", `ALERT RECORD / ${shortHash(alert.id)}`));
+  const alertTitle = node("h2", "", alert.title);
+  alertTitle.id = "detail-title";
+  heading.append(alertTitle);
   heading.append(node("p", "detail-summary", alert.summary));
   const badgeStack = node("div", "badge-stack");
   badgeStack.append(badge(alert.severity, alert.severity), badge(alert.evidenceStatus, alert.evidenceStatus));
@@ -178,7 +190,7 @@ function renderDetail(detail) {
   investigation.append(facts, interpretation, limits);
   elements.detail.append(investigation);
 
-  elements.detail.append(node("p", "evidence-title", "EVIDENCE LEDGER / VERIFIED SOURCES"));
+  elements.detail.append(node("p", "evidence-title", "VERIFIABLE EVIDENCE SOURCES"));
   const grid = node("dl", "evidence-grid");
   grid.append(
     evidenceItem("Severity rule", evidence.severity.ruleId),
@@ -215,7 +227,11 @@ async function selectAlert(alertId) {
     renderDetail(detail);
     renderFailures(detail.scanFailures);
   } catch (error) {
-    elements.detail.replaceChildren(node("p", "detail-summary", error.message));
+    const errorState = node("div", "detail-error");
+    errorState.append(node("p", "kicker", "ALERT RETRIEVAL FAILED"));
+    errorState.append(node("h2", "", "Investigation record unavailable"));
+    errorState.append(node("p", "", error.message));
+    elements.detail.replaceChildren(errorState);
   } finally {
     elements.detail.removeAttribute("aria-busy");
   }
@@ -261,8 +277,11 @@ async function initialize() {
     elements.rangeLabel.textContent = `${config.scan.fromBlock} → ${config.scan.toBlock}`;
     elements.eventLabel.textContent = config.detector.eventSignature;
     await refreshAlerts(true);
+    setSystemStatus("SYSTEM READY", "ready");
   } catch (error) {
+    setSystemStatus("SYSTEM DEGRADED", "error");
     setScanStatus(`INITIALIZATION FAILED / ${error.message}`, "error");
+    renderFailures([{ code: "initialization-failed", message: error.message }]);
   }
 }
 

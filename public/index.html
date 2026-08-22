@@ -4,89 +4,105 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Watchtower Base incident investigation console">
-    <title>Watchtower // Investigation Console</title>
+    <title>Watchtower | Security Console</title>
     <link rel="stylesheet" href="/styles.css">
     <script src="/app.js" defer></script>
   </head>
   <body>
     <div class="console-shell">
-      <header class="command-bar">
-        <a class="brand" href="/" aria-label="Watchtower investigation console">
-          <span class="brand-mark" aria-hidden="true">W</span>
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Watchtower security console">
+          <span class="brand-mark" aria-hidden="true"><i></i></span>
           <span class="brand-copy">
             <strong>WATCHTOWER</strong>
-            <small>INVESTIGATION CONSOLE</small>
+            <small>SECURITY INVESTIGATION CONSOLE</small>
           </span>
         </a>
-        <div class="system-state" aria-label="System state">
-          <span class="system-state-item"><i class="status-light" aria-hidden="true"></i>SERVICE ONLINE</span>
-          <span class="system-state-item">READ ONLY</span>
-          <span class="system-state-item">MEMORY STORE</span>
+
+        <div class="system-status" aria-label="System status">
+          <span id="system-status" class="status-item status-system" data-state="loading"><i aria-hidden="true"></i>INITIALIZING</span>
+          <span class="status-item">BASE / 8453</span>
+          <span class="status-item">READ ONLY</span>
         </div>
       </header>
 
-      <section class="profile-bar" aria-labelledby="profile-title">
-        <div class="profile-identity">
-          <p class="section-code">ACTIVE DETECTION PROFILE / 01</p>
-          <h1 id="profile-title"><span id="target-label">Loading target…</span></h1>
-          <p id="target-address" class="target-address">Resolving configured contract…</p>
+      <section class="scope-bar" aria-labelledby="scope-title">
+        <div class="scope-primary">
+          <p class="kicker">ACTIVE DETECTION SCOPE</p>
+          <h1 id="scope-title"><span id="target-label">Loading target</span></h1>
+          <p id="target-address" class="contract-address">Resolving configured contract</p>
         </div>
 
-        <dl class="profile-grid">
+        <dl class="scope-facts">
           <div><dt>Network</dt><dd id="network-label">Base mainnet</dd></div>
-          <div><dt>Block range</dt><dd id="range-label">Loading…</dd></div>
-          <div><dt>Detection rule</dt><dd id="event-label">Loading…</dd></div>
-          <div><dt>Access mode</dt><dd>RPC / READ ONLY</dd></div>
+          <div><dt>Block range</dt><dd id="range-label">Loading</dd></div>
+          <div><dt>Event signature</dt><dd id="event-label">Loading</dd></div>
         </dl>
 
-        <div class="scan-command">
+        <div class="scan-control">
           <button id="scan-button" class="scan-button" type="button">
-            <span class="button-icon" aria-hidden="true">▶</span>
+            <span class="scan-button-indicator" aria-hidden="true"></span>
             <span>RUN BOUNDED SCAN</span>
           </button>
-          <p id="scan-status" class="scan-status" role="status" data-state="idle">IDLE / AWAITING OPERATOR</p>
+          <p id="scan-status" class="scan-status" role="status" data-state="idle">IDLE / READY</p>
         </div>
       </section>
 
       <section id="failure-panel" class="failure-panel" aria-labelledby="failure-title" hidden>
         <div class="failure-heading">
-          <span class="failure-code">SCAN EXCEPTION</span>
-          <h2 id="failure-title">Evidence gaps require analyst review</h2>
+          <span class="failure-code">SCAN FAILURE</span>
+          <h2 id="failure-title">Review required</h2>
         </div>
         <ul id="failure-list"></ul>
       </section>
 
       <main class="workspace" aria-label="Alert investigation workspace">
-        <aside class="alert-rail">
-          <div class="rail-heading">
-            <div><p class="section-code">SESSION QUEUE</p><h2>Alerts</h2></div>
-            <span id="alert-count" class="count" aria-label="Alert count">0</span>
-          </div>
-          <div class="rail-filter" aria-hidden="true">
-            <span class="active">ALL EVENTS</span><span>DETERMINISTIC</span>
-          </div>
-          <div id="alert-list" class="alert-list">
-            <div class="empty-state">
-              <span class="empty-glyph" aria-hidden="true">∅</span>
-              <p>NO ALERTS IN SESSION</p>
-              <small>Run the approved historical scan to load evidence into memory.</small>
+        <section class="alert-panel" aria-labelledby="alert-title">
+          <header class="panel-heading">
+            <div>
+              <p class="kicker">SESSION RESULTS</p>
+              <h2 id="alert-title">Alert queue</h2>
+            </div>
+            <div class="queue-summary"><span id="alert-count">0</span> RECORDS</div>
+          </header>
+
+          <div class="alert-table" aria-label="Detected alerts">
+            <div class="alert-table-head" aria-hidden="true">
+              <span>Severity</span>
+              <span>Evidence</span>
+              <span>Detection</span>
+              <span>Observed</span>
+              <span>Alert ID</span>
+            </div>
+            <div id="alert-list" class="alert-list">
+              <div class="empty-state">
+                <span class="empty-rule" aria-hidden="true"></span>
+                <div>
+                  <p>NO ALERTS IN SESSION</p>
+                  <small>Run the approved historical scan to load deterministic evidence.</small>
+                </div>
+              </div>
             </div>
           </div>
-        </aside>
+        </section>
 
-        <article id="detail-panel" class="detail-panel" aria-live="polite">
+        <article id="detail-panel" class="detail-panel" aria-live="polite" aria-labelledby="detail-title">
           <div class="detail-placeholder">
-            <div class="placeholder-reticle" aria-hidden="true"><span></span></div>
-            <p class="section-code">INVESTIGATION PANE / STANDBY</p>
-            <h2>No alert selected</h2>
-            <p>Completed detections will expose observed facts, deterministic interpretation, limitations, and source-linked evidence here.</p>
+            <span class="placeholder-index" aria-hidden="true">00</span>
+            <div>
+              <p class="kicker">INVESTIGATION RECORD</p>
+              <h2 id="detail-title">No alert selected</h2>
+              <p>Alert evidence, deterministic interpretation, and verifiable sources will appear here after a completed detection.</p>
+            </div>
           </div>
         </article>
       </main>
 
-      <footer class="status-bar">
-        <span>CHAIN_ID 8453</span><span>TARGETS 01</span><span>EVENT TYPES 01</span><span>HISTORICAL MODE</span>
-        <span class="status-bar-end">NO WALLET · NO WRITES</span>
+      <footer class="statusbar">
+        <span>HISTORICAL SCAN MODE</span>
+        <span>1 TARGET</span>
+        <span>1 EVENT TYPE</span>
+        <span class="statusbar-end">NO WALLET / NO WRITES</span>
       </footer>
     </div>
   </body>
