@@ -15,15 +15,29 @@ describe("target configuration", () => {
     ]);
   });
 
-  it("limits detection to the two verified target event signatures", () => {
+  it("limits detection to the verified Pool upgrade signature", () => {
     expect(config.detectors.map(({ eventSignature }) => eventSignature)).toEqual([
       "Upgraded(address)",
-      "PoolUpdated(address,address)",
     ]);
     expect(config.excludedIncidentClasses.map(({ id }) => id)).toEqual([
+      "ownership_admin",
       "large_movement",
       "pause_unpause",
     ]);
+  });
+
+  it("rejects additional detectors and related contracts", () => {
+    const expanded = structuredClone(config) as unknown as {
+      detectors: unknown[];
+      target: { relatedContracts: unknown[] };
+    };
+    expanded.detectors.push({ id: "unsupported" });
+    expanded.target.relatedContracts.push({
+      address: "0x1111111111111111111111111111111111111111",
+      role: "unsupported",
+    });
+
+    expect(targetConfigSchema.safeParse(expanded).success).toBe(false);
   });
 
   it("contains one explicit example for every deterministic severity", () => {

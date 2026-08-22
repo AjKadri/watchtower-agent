@@ -117,6 +117,6 @@ Before considering the MVP complete:
 
 ## Current next step
 
-Milestone 1 is complete. The next approved unit of work is milestone 2, the
-deterministic evidence pipeline. Do not start the API or dashboard as part of
-that milestone.
+Milestone 2 is complete. The next approved unit of work is milestone 3,
+investigation and interface. Do not begin it without a new task that confirms
+the intended API and dashboard boundary.

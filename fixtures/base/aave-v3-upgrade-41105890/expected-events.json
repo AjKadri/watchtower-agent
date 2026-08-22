@@ -11,19 +11,5 @@
     },
     "expectedSeverity": "informational",
     "expectedSeverityRuleId": "target-is-approved"
-  },
-  {
-    "detectorId": "aave-pool-address-updated",
-    "incidentClass": "ownership_admin",
-    "eventName": "PoolUpdated",
-    "eventSignature": "PoolUpdated(address,address)",
-    "logIndex": "642",
-    "emitter": "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D",
-    "decodedArguments": {
-      "oldAddress": "0x79ab8FC5BA13DaF37b4e978a543286bc2A16508C",
-      "newAddress": "0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4"
-    },
-    "expectedSeverity": "informational",
-    "expectedSeverityRuleId": "target-is-approved"
   }
 ]

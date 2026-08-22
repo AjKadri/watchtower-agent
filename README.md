@@ -3,10 +3,11 @@
 Watchtower is being developed as an evidence-backed Base incident monitoring
 agent.
 
-Milestone 1 defines one narrow target profile for a verified Aave V3 Base core
-upgrade. It contains validated configuration, exact event ABI fragments,
-normalized alert and evidence schemas, and curated fixtures. It does not contain
-an RPC scanner, API, dashboard, or continuous monitor.
+Milestone 2 provides a deterministic, read-only evidence pipeline for one
+verified Aave V3 Base Pool proxy upgrade. It contains validated configuration,
+strict event decoding, normalized alert and evidence records, structured
+failures, and curated fixtures. It does not contain an API, dashboard,
+continuous monitor, notification service, database, or LLM integration.
 
 ## Start here
 
@@ -18,7 +19,7 @@ Before making changes:
 4. Work only within the approved task scope.
 5. Validate the milestone, update `.agent/STATUS.md`, and commit it with a Conventional Commit message.
 
-## Milestone 1 setup
+## Setup
 
 Requirements:
 
@@ -33,27 +34,65 @@ npm test
 npm run typecheck
 ```
 
-There is no application run command in milestone 1. The approved future command
-is `npm run dev`, which will be added only when the application server exists.
+There is no application server yet. The approved future `npm run dev` command
+will be added only when the server exists.
+
+## Opt-in live demo scan
+
+Copy `.env.example` to `.env` and set `BASE_RPC_URL` to a read-only Base mainnet
+HTTP RPC URL. Never use a URL containing credentials in a committed file or
+shared command output.
+
+Run the fixed historical scan:
+
+```sh
+npm run scan
+```
+
+For a temporary public endpoint, the equivalent one-command form is:
+
+```sh
+BASE_RPC_URL=https://base-mainnet.public.blastapi.io npm run scan
+```
+
+The command scans only block `41105890`. It writes the structured result to
+standard output and exits with a nonzero status if the scan fails. The endpoint
+is not embedded in application code, and no scan runs unless this command is
+invoked.
 
 ## Supported target
 
-The committed profile scans Base mainnet block `41105890` for two events from
-one verified transaction:
+The committed profile scans Base mainnet block `41105890` for one event from one
+verified transaction:
 
 - `Upgraded(address)` from the configured Aave V3 Base Pool proxy
-- `PoolUpdated(address,address)` from its configured PoolAddressesProvider
 
 The fixture contains selected logs and records its BaseScan and official Aave
-address-book sources. Large transfers, pause events, unpause events, arbitrary
-addresses, and arbitrary signatures are excluded.
+address-book sources. Ownership changes, administrative events, large transfers,
+pause events, unpause events, related contracts, arbitrary addresses, and
+arbitrary signatures are excluded.
+
+## Evidence pipeline
+
+The synchronous scanner:
+
+1. Validates the fixed target and requested bounds.
+2. Checks the configured confirmation count.
+3. Requests logs using the approved Pool address and upgrade topic.
+4. Strictly decodes `Upgraded(address)`.
+5. Retrieves the block, transaction, and receipt once per evidence key.
+6. Builds normalized evidence and applies the fixed severity policy.
+7. Uses content-derived scan and alert IDs to prevent duplicates.
+
+RPC, filter, decoding, and evidence failures remain visible in the JSON result.
+An alert with missing block, transaction, receipt, or receipt-log evidence is
+marked `incomplete` rather than discarded.
 
 ## Configuration
 
 Non-secret target settings live in `config/target.json`. The future RPC client
 will read `BASE_RPC_URL` from a local `.env` file and default
-`WATCHTOWER_CONFIG_PATH` to the committed target file. No RPC call is made in
-milestone 1.
+`WATCHTOWER_CONFIG_PATH` to the committed target file.
 
 Keep real values in ignored local environment files. Never commit secrets or
 place RPC credentials in target configuration or fixtures.

@@ -12,12 +12,7 @@
       "address": "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5",
       "role": "pool-proxy"
     },
-    "relatedContracts": [
-      {
-        "address": "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D",
-        "role": "pool-addresses-provider"
-      }
-    ]
+    "relatedContracts": []
   },
   "scan": {
     "fromBlock": "41105890",
@@ -29,8 +24,12 @@
       "0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a"
     ]
   },
-  "supportedIncidentClasses": ["upgrade_pause", "ownership_admin"],
+  "supportedIncidentClasses": ["contract_upgrade"],
   "excludedIncidentClasses": [
+    {
+      "id": "ownership_admin",
+      "reason": "Milestone 2 is limited to the configured Pool proxy upgrade event."
+    },
     {
       "id": "large_movement",
       "reason": "The approved transaction does not provide a representative large-transfer fixture for this target."
@@ -43,23 +42,13 @@
   "detectors": [
     {
       "id": "aave-pool-upgraded",
-      "incidentClass": "upgrade_pause",
+      "incidentClass": "contract_upgrade",
       "eventName": "Upgraded",
       "eventSignature": "Upgraded(address)",
       "topic0": "0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b",
       "contractAddresses": ["0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"],
       "abiFile": "config/abis/aave-base-upgrade-events.json",
       "decodedTargetArgument": "implementation"
-    },
-    {
-      "id": "aave-pool-address-updated",
-      "incidentClass": "ownership_admin",
-      "eventName": "PoolUpdated",
-      "eventSignature": "PoolUpdated(address,address)",
-      "topic0": "0x90affc163f1a2dfedcd36aa02ed992eeeba8100a4014f0b4cdc20ea265a66627",
-      "contractAddresses": ["0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D"],
-      "abiFile": "config/abis/aave-base-upgrade-events.json",
-      "decodedTargetArgument": "newAddress"
     }
   ],
   "severityPolicy": {
@@ -104,7 +93,7 @@
         "kind": "verified-onchain",
         "targetAddress": "0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4",
         "transactionHash": "0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a",
-        "note": "The verified pool implementation and provider pool target match the approved address."
+        "note": "The verified pool implementation target matches the approved address."
       }
     ]
   },

@@ -204,3 +204,31 @@ Reason: A one-block, one-transaction target makes the first evidence boundary
 small and independently checkable. Narrowing unsupported incident classes is
 more reliable than constructing a demo around events that the selected history
 does not contain.
+
+## 2026-08-22: Narrow milestone 2 to the Pool proxy upgrade event
+
+Status: Accepted
+
+Milestone 2 supersedes the earlier runtime approval for the related
+PoolAddressesProvider and its `PoolUpdated(address,address)` event. The executable
+target profile now contains only:
+
+- the Aave V3 Base Pool proxy at
+  `0xA238Dd80C259a72e81d7e4664a9801593F98d1c5`
+- Base mainnet block `41105890`
+- `Upgraded(address)` with topic zero
+  `0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b`
+- approved implementation
+  `0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4`
+
+The configuration schema fixes these values and rejects related contracts,
+additional detectors, arbitrary topics, and broader block ranges. Ownership,
+administrative, pause, unpause, and large-movement detection are excluded.
+
+The scanner uses a viem public client through the required `BASE_RPC_URL`. The
+CLI is opt-in through `npm run scan`, performs no writes, and outputs one
+structured scan result. It does not retain results between processes.
+
+Reason: The milestone request explicitly limits implementation to the verified
+Aave Pool upgrade fixture. Removing the previously documented custom ownership
+event keeps the runnable evidence claim aligned with that narrower instruction.

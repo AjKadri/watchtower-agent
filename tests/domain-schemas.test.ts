@@ -48,7 +48,7 @@ describe("normalized records", () => {
         id: "8453:748f:641:aave-pool-upgraded",
         scanId: "demo-41105890",
         targetId: "aave-v3-base-core",
-        incidentClass: "upgrade_pause",
+        incidentClass: "contract_upgrade",
         eventType: "proxy_upgraded",
         severity: "informational",
         severityRuleId: "target-is-approved",
