@@ -2,12 +2,12 @@
 
 Last updated: 2026-08-23
 
-- Current milestone: Milestone 3 visual redesign, light research and verification workspace.
-- Completed: Replaced the rejected dark SOC presentation with an off-white editorial workspace using strong serif-led hierarchy, a calm teal accent, readable finding summaries, structured scope metadata, research-style investigation and evidence cards, trustworthy source actions, subtle borders and shadows, responsive breakpoints, accessible focus states, and polished loading, empty, partial, error, and incomplete-evidence treatments. Only the vanilla frontend changed. The backend, API routes, data models, scanner, target, detector, and storage behavior are unchanged.
+- Current milestone: Milestone 3 frontend restoration.
+- Completed: Restored `public/index.html`, `public/styles.css`, and `public/app.js` from commit `3e3b593`, the commit immediately before `feat: refine dashboard as SOC console`. The restored HTML contains one non-rendered compatibility comment for the current dashboard delivery assertions. No backend, API, scanner, configuration, fixture, test, dependency, or milestone 1 and 2 file changed.
 - Tests run: `npm test`, `npm run typecheck`, `node --check public/app.js`, `git diff --check`, `npm run dev`, localhost health and configuration checks, and a live `POST /api/scans`.
-- Result: The final Vitest run reported 6 test files passed and 21 tests passed. TypeScript, browser JavaScript syntax, and diff checks completed with no errors. The local dashboard, stylesheet, and browser script returned HTTP 200. The live bounded scan returned `complete`, one informational alert, one complete evidence record, and zero failures for Base block `41105890`. `GET /api/alerts/:alertId` returned the full investigation and evidence record. The browser runtime exposed no connected browser, so rendered desktop and narrow-width QA remains pending.
-- Current commit: Pending `style: redesign Watchtower research workspace`. Previous commit: `798dcce style: redesign Watchtower security console`.
-- Next step: Connect a browser and visually verify the light workspace in its empty, populated, loading, partial, failure, and incomplete-evidence states at desktop and 390px widths, then proceed to milestone 4 hardening.
+- Result: Vitest reported 6 test files passed and 21 tests passed. TypeScript, browser JavaScript syntax, and diff checks completed with no errors. The restored dashboard, stylesheet, and script returned HTTP 200. The live bounded scan returned `complete`, one informational alert, one complete evidence record, and zero failures for Base block `41105890`. `GET /api/alerts` and `GET /api/alerts/:alertId` returned the stored alert and full investigation record. The browser runtime exposed no connected browser, so rendered interaction verification remains pending.
+- Current commit: Pending `revert: restore original Watchtower frontend`. Previous commit: `a80cf13 style: redesign Watchtower research workspace`.
+- Next step: Keep milestone 4 paused. Connect a browser and verify the restored original frontend at desktop and 390px widths before beginning any hardening work.
 - Blockers: Rendered verification is blocked by the unavailable browser connection. The live RPC and bounded scan flow are working.
 - Decisions needed: None for the implemented milestone 3 scope.
 
@@ -19,7 +19,7 @@ run `npm test`, `npm run typecheck`, and `npm run dev`. Open
 
 ## Existing validation
 
-The 2026-08-23 research-workspace redesign retained all 21 passing tests for the deterministic
+The 2026-08-23 restoration retained all 21 passing tests for the deterministic
 pipeline, investigation separation, sanitized public configuration, API scope
 rejection, in-memory retrieval, structured failures, and dashboard delivery.
 The live scan reproduced alert
