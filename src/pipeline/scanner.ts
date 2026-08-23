@@ -9,6 +9,8 @@ import { classifyUpgrade } from "./severity.js";
 
 export type ScanBounds = { fromBlock?: bigint; toBlock?: bigint };
 
+const BASE_MAINNET_CHAIN_ID = 8453;
+
 type EvidenceCaches = {
   blocks: Map<Hash, Promise<ChainBlock>>;
   transactions: Map<Hash, Promise<ChainTransaction>>;
@@ -223,6 +225,16 @@ export async function scanApprovedRange(
   const invalidBounds = validateBounds(config, fromBlock, toBlock);
   if (invalidBounds) return failedResult(config, fromBlock, toBlock, invalidBounds);
 
+  let chainId: number;
+  try {
+    chainId = await reader.getChainId();
+  } catch {
+    return failedResult(config, fromBlock, toBlock, failure("chain-id-rpc-failed", "rpc", "The RPC chain ID could not be retrieved."));
+  }
+  if (chainId !== BASE_MAINNET_CHAIN_ID) {
+    return failedResult(config, fromBlock, toBlock, failure("rpc-chain-id-mismatch", "rpc", "The RPC endpoint is not Base mainnet chain ID 8453."));
+  }
+
   let latestBlock: bigint;
   try {
     latestBlock = await reader.getLatestBlockNumber();
@@ -292,6 +304,28 @@ export async function scanApprovedRange(
     alerts.push(built.alert);
     evidence.push(built.evidence);
     failures.push(...built.failures);
+  }
+
+  if (successfulChunks > 0) {
+    for (const knownTransaction of config.scan.knownTransactions) {
+      const matchingEvidence = evidence.find(({ transaction }) =>
+        transaction.hash.toLowerCase() === knownTransaction.toLowerCase());
+      if (!matchingEvidence) {
+        failures.push({
+          code: "known-upgrade-event-not-observed",
+          stage: "evidence",
+          message: "The configured known transaction did not produce a verified qualifying Upgraded(address) event.",
+          transactionHash: knownTransaction,
+        });
+      } else if (matchingEvidence.status !== "complete") {
+        failures.push({
+          code: "known-transaction-evidence-incomplete",
+          stage: "evidence",
+          message: "The qualifying event from the configured known transaction does not have complete verified evidence.",
+          transactionHash: knownTransaction,
+        });
+      }
+    }
   }
 
   const status = successfulChunks === 0 ? "failed" : failures.length > 0 ? "partial" : "complete";

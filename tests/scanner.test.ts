@@ -46,11 +46,17 @@ const fixtureLog: ChainLog = {
 };
 
 class FixtureReader implements ChainReader {
+  chainId = 8453;
   filters: LogFilter[] = [];
   logs: ChainLog[] = [fixtureLog];
+  receiptLogs: ChainLog[] = [fixtureLog];
   blockError = false;
   logsError = false;
   evidenceCalls = { block: 0, transaction: 0, receipt: 0 };
+
+  async getChainId(): Promise<number> {
+    return this.chainId;
+  }
 
   async getLatestBlockNumber(): Promise<bigint> {
     return 50_000_000n;
@@ -83,7 +89,7 @@ class FixtureReader implements ChainReader {
 
   async getTransactionReceipt(): Promise<ChainReceipt> {
     this.evidenceCalls.receipt += 1;
-    return { transactionHash: fixtureReceipt.transactionHash, status: fixtureReceipt.status, logs: [fixtureLog] };
+    return { transactionHash: fixtureReceipt.transactionHash, status: fixtureReceipt.status, logs: this.receiptLogs };
   }
 }
 
@@ -157,6 +163,69 @@ describe("bounded evidence scan", () => {
     expect(result.status).toBe("partial");
     expect(result.alerts).toEqual([]);
     expect(result.failures).toContainEqual(expect.objectContaining({ code: "strict-upgrade-decode-failed", stage: "decode" }));
+  });
+
+  it("does not report complete when the known upgrade event is absent", async () => {
+    const reader = new FixtureReader();
+    reader.logs = [];
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result).toMatchObject({
+      status: "partial",
+      alerts: [],
+      evidence: [],
+      failures: [{
+        code: "known-upgrade-event-not-observed",
+        stage: "evidence",
+        transactionHash: config.scan.knownTransactions[0],
+      }],
+    });
+  });
+
+  it("does not report complete when logs omit the configured known transaction", async () => {
+    const reader = new FixtureReader();
+    reader.logs = [{
+      ...fixtureLog,
+      transactionHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+    }];
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result.status).toBe("partial");
+    expect(result.failures).toContainEqual(expect.objectContaining({
+      code: "known-upgrade-event-not-observed",
+      stage: "evidence",
+      transactionHash: config.scan.knownTransactions[0],
+    }));
+  });
+
+  it("does not report complete when known transaction evidence is incomplete", async () => {
+    const reader = new FixtureReader();
+    reader.receiptLogs = [];
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result.status).toBe("partial");
+    expect(result.alerts[0].evidenceStatus).toBe("incomplete");
+    expect(result.failures).toContainEqual(expect.objectContaining({ code: "receipt-log-missing", stage: "evidence" }));
+    expect(result.failures).toContainEqual(expect.objectContaining({
+      code: "known-transaction-evidence-incomplete",
+      stage: "evidence",
+      transactionHash: config.scan.knownTransactions[0],
+    }));
+  });
+
+  it("fails before scanning when the RPC chain ID is not Base mainnet", async () => {
+    const reader = new FixtureReader();
+    reader.chainId = 1;
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result).toMatchObject({
+      status: "failed",
+      alerts: [],
+      evidence: [],
+      failures: [{ code: "rpc-chain-id-mismatch", stage: "rpc" }],
+    });
+    expect(reader.filters).toEqual([]);
+    expect(reader.evidenceCalls).toEqual({ block: 0, transaction: 0, receipt: 0 });
   });
 
   it("keeps an alert visible when evidence retrieval is incomplete", async () => {

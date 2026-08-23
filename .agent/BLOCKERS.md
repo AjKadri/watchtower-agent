@@ -30,6 +30,19 @@ at desktop or 390px widths.
 Required resolution: Connect an in-app browser and verify empty, populated, and
 failure states without horizontal overflow, clipping, or misleading controls.
 
+### 2026-08-23: Public origin contains no repository history
+
+Status: Active
+
+The configured remote is `https://github.com/AjKadri/watchtower-agent.git`, and
+the unauthenticated GitHub page returned HTTP 200. A read-only
+`git ls-remote --heads origin` check returned no refs, so the public repository
+does not contain a branch or the local milestone history.
+
+Required resolution: The repository owner must publish the intended branch and
+verify it from an unauthenticated checkout. No remote URL or remote state was
+changed during this task.
+
 ## Resolved blockers
 
 ## 2026-08-23: Configured Base RPC scan recovered

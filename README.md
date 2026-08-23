@@ -150,12 +150,15 @@ the configured Pool proxy and `Upgraded(address)` event.
 The synchronous scanner:
 
 1. Validates the fixed target and requested bounds.
-2. Checks the configured confirmation count.
-3. Requests logs using the approved Pool address and upgrade topic.
-4. Strictly decodes `Upgraded(address)`.
-5. Retrieves the block, transaction, and receipt once per evidence key.
-6. Builds normalized evidence and applies the fixed severity policy.
-7. Uses content-derived scan and alert IDs to prevent duplicates.
+2. Reads the RPC chain ID and requires Base mainnet chain ID `8453`.
+3. Checks the configured confirmation count.
+4. Requests logs using the approved Pool address and upgrade topic.
+5. Strictly decodes `Upgraded(address)`.
+6. Retrieves the block, transaction, and receipt once per evidence key.
+7. Requires the configured known transaction to produce complete qualifying
+   event evidence before reporting `complete`.
+8. Builds normalized evidence and applies the fixed severity policy.
+9. Uses content-derived scan and alert IDs to prevent duplicates.
 
 RPC, filter, decoding, and evidence failures remain visible in the JSON result.
 An alert with missing block, transaction, receipt, or receipt-log evidence is
@@ -214,7 +217,8 @@ Automated tests verify all three scan states:
 
 - `complete`: the approved log and all evidence are available
 - `partial`: a bounded chunk succeeds but strict decoding or evidence retrieval
-  fails; supported alerts remain visible and incomplete evidence explains gaps
+  fails, the known event is absent, or the known transaction lacks complete
+  evidence; supported alerts remain visible and incomplete evidence explains gaps
 - `failed`: validation, latest-block access, or every bounded log chunk fails;
   alerts and evidence are empty and structured failures remain visible
 

@@ -12,6 +12,11 @@ export class ScanStore {
   readonly #evidence = new Map<string, Evidence>();
 
   save(result: ScanResult): void {
+    const previous = this.#scans.get(result.scanId);
+    if (previous) {
+      for (const alert of previous.alerts) this.#alerts.delete(alert.id);
+      for (const evidence of previous.evidence) this.#evidence.delete(evidence.id);
+    }
     this.#scans.set(result.scanId, result);
     for (const evidence of result.evidence) this.#evidence.set(evidence.id, evidence);
     for (const alert of result.alerts) this.#alerts.set(alert.id, alert);

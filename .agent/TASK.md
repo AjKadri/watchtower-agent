@@ -117,9 +117,9 @@ Before considering the MVP complete:
 
 ## Current next step
 
-Milestone 4 demo hardening is complete at the command, live RPC, evidence,
-explorer-link, failure-state, security, and documentation levels. The restored
-original frontend remains the approved interface. Rendered browser inspection
-is still pending because no browser connection was available. Do not expand the
-target, event, storage, monitoring, frontend, or deployment scope without a new
-approved task.
+The P0 integrity review fixes are complete. A complete result now requires a
+live Base mainnet chain ID and complete evidence for the configured known
+upgrade transaction. Repeated scans atomically replace prior in-memory
+artifacts. The configured public origin has no branch or milestone history and
+must be published by the repository owner. Do not expand the target, event,
+storage, monitoring, frontend, or deployment scope without a new approved task.

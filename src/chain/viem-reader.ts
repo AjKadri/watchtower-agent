@@ -51,6 +51,14 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
   });
 
   return {
+    async getChainId() {
+      try {
+        return await client.getChainId();
+      } catch {
+        throw rpcError("chain-ID request");
+      }
+    },
+
     async getLatestBlockNumber() {
       try {
         return await client.getBlockNumber();

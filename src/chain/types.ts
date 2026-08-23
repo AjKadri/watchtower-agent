@@ -39,6 +39,7 @@ export type LogFilter = {
 };
 
 export interface ChainReader {
+  getChainId(): Promise<number>;
   getLatestBlockNumber(): Promise<bigint>;
   getLogs(filter: LogFilter): Promise<ChainLog[]>;
   getBlock(blockHash: Hash): Promise<ChainBlock>;

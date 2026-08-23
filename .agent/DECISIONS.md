@@ -274,3 +274,21 @@ historical scan and process-local data model as they are.
 
 Reason: The evidence workflow should read like an analyst tool, while every
 visible capability remains accurate to the approved MVP scope.
+
+## 2026-08-23: Require live chain and known-event proof for completion
+
+Status: Accepted
+
+A scan may be `complete` only when the RPC reports chain ID `8453` and every
+configured known transaction produces a strictly decoded qualifying
+`Upgraded(address)` event with complete evidence. A successful empty log query,
+a log set that omits the known transaction, or incomplete evidence for that
+transaction produces a structured non-complete result.
+
+When a result replaces an existing deterministic scan ID, the in-memory store
+removes that scan's previous alert and evidence indexes before saving the new
+attempt. A failed or partial retry cannot expose stale artifacts as current.
+
+Reason: The fixed demo is reproducible only if success proves the expected
+historical incident on the expected chain and every API view represents the
+latest attempt consistently.

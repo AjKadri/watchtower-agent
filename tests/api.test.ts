@@ -39,6 +39,7 @@ class ApiFixtureReader implements ChainReader {
   filters: LogFilter[] = [];
   failLogs = false;
 
+  async getChainId(): Promise<number> { return 8453; }
   async getLatestBlockNumber(): Promise<bigint> { return 50_000_000n; }
   async getLogs(filter: LogFilter): Promise<ChainLog[]> {
     this.filters.push(filter);
@@ -154,5 +155,30 @@ describe("Watchtower API", () => {
       alerts: [],
       failures: [{ code: "log-chunk-rpc-failed", stage: "rpc" }],
     });
+  });
+
+  it("atomically replaces a successful scan with a failed rescan", async () => {
+    const reader = new ApiFixtureReader();
+    const baseUrl = await serve(reader);
+    const successful = await (await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    })).json();
+    const previousAlertId = successful.alerts[0].id;
+
+    reader.failLogs = true;
+    const failedResponse = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const failed = await failedResponse.json();
+
+    expect(failed.scanId).toBe(successful.scanId);
+    expect(failed).toMatchObject({ status: "failed", alerts: [], evidence: [] });
+    expect(await (await fetch(`${baseUrl}/api/scans/${failed.scanId}`)).json()).toMatchObject({ status: "failed" });
+    expect(await (await fetch(`${baseUrl}/api/alerts`)).json()).toEqual({ alerts: [] });
+    expect((await fetch(`${baseUrl}/api/alerts/${previousAlertId}`)).status).toBe(404);
   });
 });
