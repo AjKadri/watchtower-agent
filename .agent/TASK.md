@@ -117,11 +117,11 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The reviewed P0 and P1 fixes and remaining cleanup are complete. Scan requests
-require `application/json`. Missing or unsupported content types return HTTP
-415, malformed JSON or invalid JSON fields return HTTP 400, and bodies larger
-than 16 KB return HTTP 413. The fixture and runtime use the approved
-`contract_upgrade` incident class. The rendered browser inspection passed. The
-configured public origin still has no branch or milestone history. Do not
-expand the target, event, storage, monitoring, frontend, or deployment scope
-without a new approved task.
+The reviewed P0 and P1 fixes and remaining cleanup are complete at public HEAD
+`7587cce1b439038b0354217bfd265a96f1b367e8`. The public GitHub origin is
+available, an unauthenticated clone passed, `npm ci` passed from that clean
+checkout, and the technical re-review passed. Fixture incident classes use
+`contract_upgrade`. Scan requests return HTTP 415 for missing or unsupported
+content types, HTTP 400 for malformed JSON or invalid fields, and HTTP 413 for
+oversized bodies. There are no active blockers. Do not expand the target, event,
+storage, monitoring, frontend, or deployment scope without a new approved task.

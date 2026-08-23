@@ -18,20 +18,19 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
-### 2026-08-23: Public origin contains no repository history
-
-Status: Active
-
-The configured remote is `https://github.com/AjKadri/watchtower-agent.git`, and
-the unauthenticated GitHub page returned HTTP 200. A read-only
-`git ls-remote --heads origin` check returned no refs, so the public repository
-does not contain a branch or the local milestone history.
-
-Required resolution: The repository owner must publish the intended branch and
-verify it from an unauthenticated checkout. No remote URL or remote state was
-changed during this task.
+None.
 
 ## Resolved blockers
+
+### 2026-08-23: Public origin and clean checkout verified
+
+Status: Resolved
+
+The public GitHub origin is available at verified public HEAD
+`7587cce1b439038b0354217bfd265a96f1b367e8`. An unauthenticated clone passed,
+and `npm ci` passed from that clean checkout. The technical re-review passed.
+
+Decision needed: None.
 
 ### 2026-08-23: Restored original frontend rendered inspection passed
 
