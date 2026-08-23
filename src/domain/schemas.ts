@@ -3,6 +3,7 @@ import { z } from "zod";
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const hash = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 const decimalString = z.string().regex(/^(0|[1-9][0-9]*)$/);
+const blockTag = z.string().regex(/^0x[0-9a-f]+$/);
 const sourceLinks = z.object({
   transaction: z.url(),
   block: z.url(),
@@ -18,6 +19,46 @@ export const investigationSchema = z.object({
   limitations: z.array(z.string().min(1)).min(1),
 });
 
+const rpcFailureCategory = z.enum(["dns", "timeout", "rate-limit", "malformed-response", "unsupported", "unavailable"]);
+
+export const upgradeInvestigationCheckSchema = z.object({
+  id: z.enum([
+    "implementation-before",
+    "implementation-at-upgrade",
+    "implementation-bytecode",
+    "configured-pool",
+    "pool-revision-before",
+    "pool-revision-at-upgrade",
+  ]),
+  required: z.boolean(),
+  method: z.enum(["eth_getStorageAt", "eth_getCode", "eth_call"]),
+  parameters: z.record(z.string(), z.string().min(1)),
+  blockTag,
+  result: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("address"), value: address }),
+    z.object({ kind: z.literal("bytecode"), present: z.boolean(), byteLength: decimalString, hash }),
+    z.object({ kind: z.literal("uint256"), value: decimalString }),
+  ]).nullable(),
+  assertion: z.object({
+    description: z.string().min(1),
+    expected: z.string().min(1),
+    actual: z.string().min(1).nullable(),
+    matches: z.boolean().nullable(),
+  }),
+  status: z.enum(["passed", "mismatch", "failed", "unsupported"]),
+  failure: z.object({
+    code: z.string().min(1),
+    category: rpcFailureCategory,
+    message: z.string().min(1),
+  }).nullable(),
+});
+
+export const upgradeInvestigationSchema = z.object({
+  disposition: z.enum(["corroborated", "contradicted", "incomplete"]),
+  evidenceStatus: z.enum(["complete", "incomplete"]),
+  checks: z.array(upgradeInvestigationCheckSchema).length(6),
+});
+
 export const evidenceSchema = z.object({
   id: z.string().min(1),
   status: z.enum(["complete", "incomplete"]),
@@ -29,6 +70,7 @@ export const evidenceSchema = z.object({
   relevantAddresses: z.array(z.object({ address, role: z.string().min(1) })).min(1),
   detector: z.object({ id: z.string().min(1), inputs: z.record(z.string(), z.string()) }),
   severity: z.object({ ruleId: z.string().min(1), inputs: z.record(z.string(), z.string()), result: z.enum(["high", "suspicious", "informational"]) }),
+  upgradeInvestigation: upgradeInvestigationSchema,
   observedFacts: z.array(z.string().min(1)).min(1),
   sources: sourceLinks,
   errors: z.array(z.object({ code: z.string().min(1), message: z.string().min(1) })),
@@ -61,11 +103,13 @@ export const alertSchema = z.object({
 
 export type Evidence = z.infer<typeof evidenceSchema>;
 export type Alert = z.infer<typeof alertSchema>;
+export type UpgradeInvestigation = z.infer<typeof upgradeInvestigationSchema>;
+export type UpgradeInvestigationCheck = z.infer<typeof upgradeInvestigationCheckSchema>;
 
 export const scanFailureSchema = z.object({
   code: z.string().min(1),
   stage: z.enum(["validation", "rpc", "decode", "evidence"]),
-  category: z.enum(["dns", "timeout", "rate-limit", "wrong-chain", "malformed-response", "incomplete-evidence", "unavailable"]).optional(),
+  category: z.enum(["dns", "timeout", "rate-limit", "wrong-chain", "malformed-response", "incomplete-evidence", "unsupported", "unavailable"]).optional(),
   message: z.string().min(1),
   blockNumber: decimalString.optional(),
   transactionHash: hash.optional(),

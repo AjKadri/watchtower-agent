@@ -58,4 +58,7 @@ export interface ChainReader {
   getBlock(blockHash: Hash): Promise<ChainBlock>;
   getTransaction(transactionHash: Hash): Promise<ChainTransaction>;
   getTransactionReceipt(transactionHash: Hash): Promise<ChainReceipt>;
+  getStorageAt(address: Address, slot: Hex, blockNumber: bigint): Promise<Hex>;
+  getCode(address: Address, blockNumber: bigint): Promise<Hex>;
+  call(address: Address, data: Hex, blockNumber: bigint): Promise<Hex>;
 }

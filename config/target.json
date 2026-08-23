@@ -24,6 +24,22 @@
       "0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a"
     ]
   },
+  "investigation": {
+    "previousBlock": "41105889",
+    "upgradeBlock": "41105890",
+    "implementationSlot": "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+    "poolAddressesProvider": "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D",
+    "getPoolCallData": "0x026b1d5f",
+    "poolRevisionCallData": "0x0148170e",
+    "expected": {
+      "implementationBefore": "0x79ab8fc5ba13daf37b4e978a543286bc2a16508c",
+      "implementationAfter": "0xdb578d67a83e94de73c9e0c14280f804f6c1c3e4",
+      "implementationByteLength": "22757",
+      "pool": "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5",
+      "poolRevisionBefore": "9",
+      "poolRevisionAfter": "10"
+    }
+  },
   "supportedIncidentClasses": ["contract_upgrade"],
   "excludedIncidentClasses": [
     {

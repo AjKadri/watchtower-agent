@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { ChainBlock, ChainLog, ChainReader, ChainReceipt, ChainTransaction, LogFilter } from "../src/chain/types.js";
+import type { ChainBlock, ChainLog, ChainReader, ChainReceipt, ChainTransaction, Hex, LogFilter } from "../src/chain/types.js";
 import { targetConfigSchema } from "../src/config/schema.js";
 import { createApp } from "../src/server/app.js";
 import { readJson } from "./helpers.js";
@@ -20,12 +20,22 @@ type FixtureReceipt = {
     topics: [`0x${string}`, ...`0x${string}`[]];
   }>;
 };
+type InvestigationFixture = {
+  previousBlock: string;
+  implementationBeforeWord: Hex;
+  implementationAtUpgradeWord: Hex;
+  implementationByteLength: string;
+  getPoolResult: Hex;
+  poolRevisionBeforeResult: Hex;
+  poolRevisionAtUpgradeResult: Hex;
+};
 
 const fixtureRoot = "../fixtures/base/aave-v3-upgrade-41105890/";
 const config = targetConfigSchema.parse(readJson("../config/target.json", import.meta.url));
 const block = readJson<FixtureBlock>(`${fixtureRoot}block.json`, import.meta.url);
 const transaction = readJson<FixtureTransaction>(`${fixtureRoot}transaction.json`, import.meta.url);
 const receipt = readJson<FixtureReceipt>(`${fixtureRoot}receipt.json`, import.meta.url);
+const investigationFixture = readJson<InvestigationFixture>(`${fixtureRoot}investigation.json`, import.meta.url);
 const log: ChainLog = {
   ...receipt.selectedLogs[0],
   blockHash: block.hash,
@@ -52,6 +62,20 @@ class ApiFixtureReader implements ChainReader {
   async getTransaction(): Promise<ChainTransaction> { return transaction; }
   async getTransactionReceipt(): Promise<ChainReceipt> {
     return { transactionHash: receipt.transactionHash, status: receipt.status, logs: [log] };
+  }
+  async getStorageAt(_address: `0x${string}`, _slot: Hex, blockNumber: bigint): Promise<Hex> {
+    return blockNumber === BigInt(investigationFixture.previousBlock)
+      ? investigationFixture.implementationBeforeWord
+      : investigationFixture.implementationAtUpgradeWord;
+  }
+  async getCode(): Promise<Hex> {
+    return `0x${"60".repeat(Number(investigationFixture.implementationByteLength))}`;
+  }
+  async call(_address: `0x${string}`, data: Hex, blockNumber: bigint): Promise<Hex> {
+    if (data === config.investigation.getPoolCallData) return investigationFixture.getPoolResult;
+    return blockNumber === BigInt(investigationFixture.previousBlock)
+      ? investigationFixture.poolRevisionBeforeResult
+      : investigationFixture.poolRevisionAtUpgradeResult;
   }
 }
 

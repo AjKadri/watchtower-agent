@@ -12,6 +12,17 @@ const sources = {
   block: "https://basescan.org/block/41105890",
   addresses: { emitter: `https://basescan.org/address/${pool}` },
 };
+const historicalCheck = (id: string, required: boolean, blockTag: string) => ({
+  id,
+  required,
+  method: "eth_call",
+  parameters: { to: pool, data: "0x026b1d5f" },
+  blockTag,
+  result: { kind: "address", value: pool },
+  assertion: { description: "Synthetic schema assertion.", expected: pool, actual: pool, matches: true },
+  status: "passed",
+  failure: null,
+});
 
 describe("normalized records", () => {
   it("accepts a complete evidence record with decimal onchain quantities", () => {
@@ -34,6 +45,18 @@ describe("normalized records", () => {
       relevantAddresses: [{ address: pool, role: "pool-proxy" }, { address: implementation, role: "new-implementation" }],
       detector: { id: "aave-pool-upgraded", inputs: { emitter: pool } },
       severity: { ruleId: "target-is-approved", inputs: { targetAddress: implementation }, result: "informational" },
+      upgradeInvestigation: {
+        disposition: "corroborated",
+        evidenceStatus: "complete",
+        checks: [
+          historicalCheck("implementation-before", true, "0x27339e1"),
+          historicalCheck("implementation-at-upgrade", true, "0x27339e2"),
+          historicalCheck("implementation-bytecode", true, "0x27339e2"),
+          historicalCheck("configured-pool", true, "0x27339e2"),
+          historicalCheck("pool-revision-before", false, "0x27339e1"),
+          historicalCheck("pool-revision-at-upgrade", false, "0x27339e2"),
+        ],
+      },
       observedFacts: ["The configured pool proxy emitted Upgraded(address)."],
       sources,
       errors: [],

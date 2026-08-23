@@ -5,6 +5,7 @@ import { scanResultSchema } from "../domain/schemas.js";
 import { RpcReadError, type RpcFailureCategory } from "../chain/errors.js";
 import { decodeUpgradeLog, upgradedEventType } from "../events/upgrade.js";
 import { explainEvidence } from "../investigation/explain.js";
+import { investigateApprovedUpgrade } from "../investigation/upgrade.js";
 import { createAlertId, createScanId } from "./ids.js";
 import { classifyUpgrade } from "./severity.js";
 
@@ -163,6 +164,13 @@ async function buildEvidence(
     receiptVerified = receiptHashMatches && receiptContainsLog;
   }
 
+  const upgradeInvestigation = await investigateApprovedUpgrade(reader, config, implementation);
+  for (const check of upgradeInvestigation.checks) {
+    if (check.failure) {
+      addEvidenceError(check.failure.code, check.failure.message, check.failure.category);
+    }
+  }
+
   const explorer = config.network.explorerBaseUrl;
   const evidenceStatus = errors.length === 0 ? "complete" : "incomplete";
   const sources = {
@@ -207,12 +215,14 @@ async function buildEvidence(
     relevantAddresses: [
       { address: log.address, role: config.target.primaryContract.role },
       { address: implementation, role: "decoded-implementation" },
+      { address: config.investigation.poolAddressesProvider, role: "pool-addresses-provider" },
     ],
     detector: {
       id: detector.id,
       inputs: { configuredEmitter: detector.contractAddresses[0], configuredTopic0: detector.topic0 },
     },
     severity: { ruleId: severity.ruleId, inputs: severity.inputs, result: severity.severity },
+    upgradeInvestigation,
     observedFacts,
     sources,
     errors,

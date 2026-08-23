@@ -51,6 +51,22 @@ export const targetConfigSchema = z
         z.literal("0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a"),
       ]),
     }).strict(),
+    investigation: z.object({
+      previousBlock: z.literal("41105889"),
+      upgradeBlock: z.literal("41105890"),
+      implementationSlot: z.literal("0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"),
+      poolAddressesProvider: z.literal("0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D"),
+      getPoolCallData: z.literal("0x026b1d5f"),
+      poolRevisionCallData: z.literal("0x0148170e"),
+      expected: z.object({
+        implementationBefore: z.literal("0x79ab8fc5ba13daf37b4e978a543286bc2a16508c"),
+        implementationAfter: z.literal("0xdb578d67a83e94de73c9e0c14280f804f6c1c3e4"),
+        implementationByteLength: z.literal("22757"),
+        pool: z.literal("0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"),
+        poolRevisionBefore: z.literal("9"),
+        poolRevisionAfter: z.literal("10"),
+      }).strict(),
+    }).strict(),
     supportedIncidentClasses: z.tuple([z.literal("contract_upgrade")]),
     excludedIncidentClasses: z.tuple([
       z.object({

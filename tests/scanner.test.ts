@@ -7,6 +7,7 @@ import type {
   ChainReader,
   ChainReceipt,
   ChainTransaction,
+  Hex,
   LogFilter,
   MalformedChainLog,
 } from "../src/chain/types.js";
@@ -31,12 +32,24 @@ type FixtureTransaction = {
   from: `0x${string}`;
   to: `0x${string}`;
 };
+type InvestigationFixture = {
+  previousBlock: string;
+  upgradeBlock: string;
+  implementationSlot: Hex;
+  implementationBeforeWord: Hex;
+  implementationAtUpgradeWord: Hex;
+  implementationByteLength: string;
+  getPoolResult: Hex;
+  poolRevisionBeforeResult: Hex;
+  poolRevisionAtUpgradeResult: Hex;
+};
 
 const fixtureRoot = "../fixtures/base/aave-v3-upgrade-41105890/";
 const config = targetConfigSchema.parse(readJson("../config/target.json", import.meta.url));
 const fixtureBlock = readJson<FixtureBlock>(`${fixtureRoot}block.json`, import.meta.url);
 const fixtureReceipt = readJson<FixtureReceipt>(`${fixtureRoot}receipt.json`, import.meta.url);
 const fixtureTransaction = readJson<FixtureTransaction>(`${fixtureRoot}transaction.json`, import.meta.url);
+const investigationFixture = readJson<InvestigationFixture>(`${fixtureRoot}investigation.json`, import.meta.url);
 
 const fixtureLog: ChainLog = {
   ...fixtureReceipt.selectedLogs[0],
@@ -55,6 +68,7 @@ class FixtureReader implements ChainReader {
   malformedLogs: MalformedChainLog[] = [];
   blockError = false;
   logsError: false | true | Error = false;
+  revisionError: Error | null = null;
   evidenceCalls = { block: 0, transaction: 0, receipt: 0 };
 
   async getChainId(): Promise<number> {
@@ -93,6 +107,25 @@ class FixtureReader implements ChainReader {
   async getTransactionReceipt(): Promise<ChainReceipt> {
     this.evidenceCalls.receipt += 1;
     return { transactionHash: fixtureReceipt.transactionHash, status: fixtureReceipt.status, logs: this.receiptLogs };
+  }
+
+  async getStorageAt(_address: `0x${string}`, slot: Hex, blockNumber: bigint): Promise<Hex> {
+    expect(slot).toBe(investigationFixture.implementationSlot);
+    return blockNumber === BigInt(investigationFixture.previousBlock)
+      ? investigationFixture.implementationBeforeWord
+      : investigationFixture.implementationAtUpgradeWord;
+  }
+
+  async getCode(): Promise<Hex> {
+    return `0x${"60".repeat(Number(investigationFixture.implementationByteLength))}`;
+  }
+
+  async call(_address: `0x${string}`, data: Hex, blockNumber: bigint): Promise<Hex> {
+    if (data === config.investigation.getPoolCallData) return investigationFixture.getPoolResult;
+    if (this.revisionError) throw this.revisionError;
+    return blockNumber === BigInt(investigationFixture.previousBlock)
+      ? investigationFixture.poolRevisionBeforeResult
+      : investigationFixture.poolRevisionAtUpgradeResult;
   }
 }
 
@@ -136,7 +169,9 @@ describe("bounded evidence scan", () => {
       relevantAddresses: [
         { address: fixtureLog.address, role: "pool-proxy" },
         { address: "0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4", role: "decoded-implementation" },
+        { address: config.investigation.poolAddressesProvider, role: "pool-addresses-provider" },
       ],
+      upgradeInvestigation: { disposition: "corroborated", evidenceStatus: "complete" },
     });
     expect(reader.filters).toEqual([{
       address: config.target.primaryContract.address,
@@ -284,6 +319,27 @@ describe("bounded evidence scan", () => {
       errors: [{ code: "block-evidence-unavailable" }],
     });
     expect(result.failures).toContainEqual(expect.objectContaining({ code: "block-evidence-unavailable", stage: "evidence" }));
+  });
+
+  it("preserves optional historical call failures without changing severity or disposition", async () => {
+    const reader = new FixtureReader();
+    reader.revisionError = new RpcReadError("historical contract call", "unsupported");
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result.status).toBe("partial");
+    expect(result.alerts[0]).toMatchObject({ severity: "informational", evidenceStatus: "incomplete" });
+    expect(result.evidence[0].upgradeInvestigation).toMatchObject({
+      disposition: "corroborated",
+      evidenceStatus: "incomplete",
+      checks: expect.arrayContaining([
+        expect.objectContaining({ id: "pool-revision-before", status: "unsupported" }),
+        expect.objectContaining({ id: "pool-revision-at-upgrade", status: "unsupported" }),
+      ]),
+    });
+    expect(result.failures).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "pool-revision-before-unsupported", category: "unsupported" }),
+      expect.objectContaining({ code: "pool-revision-at-upgrade-unsupported", category: "unsupported" }),
+    ]));
   });
 
   it("returns a visible failed result for RPC and invalid-range failures", async () => {

@@ -2,12 +2,12 @@
 
 Last updated: 2026-08-24
 
-- Current milestone: Investigation implementation gate after the archive-RPC capability spike.
-- Completed: Approved a read-only investigation for the configured Aave Pool proxy, the approved `Upgraded(address)` trigger, and only blocks `41105889` and `41105890`. Required evidence is the EIP-1967 implementation transition, new implementation bytecode, and Aave `getPool()` result. `POOL_REVISION()` is optional corroboration and cannot control severity, classification, or disposition. Recorded the `corroborated`, `contradicted`, and `incomplete` dispositions and kept all wallet, transaction, monitoring, notification, authentication, extra-target, and unrestricted-tool scope excluded. No application code changed.
-- Tests run: A sanitized read-only capability probe used the Alchemy Base Mainnet archive RPC from `BASE_RPC_URL` to call `eth_chainId`, historical `eth_getStorageAt`, historical `eth_getCode`, and historical `eth_call` for `getPool()` and `POOL_REVISION()`.
-- Result: Every archive check succeeded on its first attempt. Chain ID was `8453`; the implementation changed from `0x79ab8fc5ba13daf37b4e978a543286bc2a16508c` to `0xdb578d67a83e94de73c9e0c14280f804f6c1c3e4`; the new implementation had `22,757` bytes of code; `getPool()` returned the configured proxy; and `POOL_REVISION()` changed from `9` to `10`. No RPC URL, key, provider body, or stack trace was recorded.
-- Current commit: `d3aa0fae90a7d27f2d7c65b4322ea70ed8660b14` (`docs: refresh public repository handoff status`), the HEAD before this decision-only commit.
-- Next step: Implement only the approved bounded investigation contract when explicitly tasked. Keep the existing scanner, API, dashboard, and product scope unchanged until then.
+- Current milestone: Bounded historical upgrade investigation checks complete.
+- Completed: Extended the existing read-only `ChainReader` and deterministic evidence pipeline with exactly six fixed historical checks for the approved Aave upgrade. Required checks cover the EIP-1967 implementation slot at blocks `41105889` and `41105890`, decoded implementation bytecode at `41105890`, and Aave `getPool()` at `41105890`. Optional `POOL_REVISION()` reads run only at the two approved blocks and remain non-authoritative for severity, event classification, and final disposition. Every check records its RPC method, fixed public parameters, exact block tag, normalized result, assertion, status, and safe per-check failure.
+- Tests run: `npm test` passed 10 files and 46 tests. `npm run typecheck` passed with no TypeScript errors. `npm run scan` completed against the Alchemy Base Mainnet archive RPC configured in the ignored `.env` file.
+- Result: The live scan returned one informational `contract_upgrade` alert and one complete evidence record with no failures. The bounded investigation disposition was `corroborated`, all six checks passed, the implementation changed from `0x79ab8fc5ba13daf37b4e978a543286bc2a16508c` to `0xdb578d67a83e94de73c9e0c14280f804f6c1c3e4`, bytecode was present at `22,757` bytes, `getPool()` returned the configured proxy, and the optional revisions were `9` and `10`. The RPC URL, key, provider bodies, and stack traces were not recorded.
+- Current revision: The milestone commit containing this status update, with parent `3ec4d27` (`docs: approve bounded upgrade investigation`).
+- Next step: Do not add the planner, receipt API, dashboard investigation trace, LLM integration, Agent Router calls, or any scope expansion until explicitly approved.
 - Blockers: None.
 - Decisions needed: None. The bounded investigation gate is approved.
 

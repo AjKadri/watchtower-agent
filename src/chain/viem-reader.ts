@@ -192,5 +192,41 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
         throw wrapRpcError("receipt request", error);
       }
     },
+
+    async getStorageAt(address, slot, blockNumber) {
+      try {
+        const value = await client.getStorageAt({ address, slot, blockNumber });
+        if (value === undefined || !/^0x[0-9a-f]{64}$/i.test(value)) {
+          throw new RpcReadError("historical storage request", "malformed-response");
+        }
+        return value;
+      } catch (error) {
+        throw wrapRpcError("historical storage request", error);
+      }
+    },
+
+    async getCode(address, blockNumber) {
+      try {
+        const value = await client.getCode({ address, blockNumber });
+        if (value === undefined || !/^0x(?:[0-9a-f]{2})*$/i.test(value)) {
+          throw new RpcReadError("historical code request", "malformed-response");
+        }
+        return value;
+      } catch (error) {
+        throw wrapRpcError("historical code request", error);
+      }
+    },
+
+    async call(address, data, blockNumber) {
+      try {
+        const result = await client.call({ to: address, data, blockNumber });
+        if (result.data === undefined || !/^0x(?:[0-9a-f]{2})*$/i.test(result.data)) {
+          throw new RpcReadError("historical contract call", "malformed-response");
+        }
+        return result.data;
+      } catch (error) {
+        throw wrapRpcError("historical contract call", error);
+      }
+    },
   };
 }

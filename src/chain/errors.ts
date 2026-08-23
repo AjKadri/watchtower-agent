@@ -1,4 +1,4 @@
-export type RpcFailureCategory = "dns" | "timeout" | "rate-limit" | "malformed-response" | "unavailable";
+export type RpcFailureCategory = "dns" | "timeout" | "rate-limit" | "malformed-response" | "unsupported" | "unavailable";
 
 type ErrorLike = {
   cause?: unknown;
@@ -55,6 +55,9 @@ export function classifyRpcError(error: unknown): RpcFailureCategory {
   }
   if (error instanceof SyntaxError || /invalid json|malformed (json|response)|parse.*json|json.*parse/.test(text)) {
     return "malformed-response";
+  }
+  if (/method not found|execution reverted|function selector was not recognized|unsupported method/.test(text)) {
+    return "unsupported";
   }
   return "unavailable";
 }
