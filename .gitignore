@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.agent/private/
 
 # Logs and local runtime output
 *.log

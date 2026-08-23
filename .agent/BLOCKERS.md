@@ -18,14 +18,14 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
-### 2026-08-23: Redesigned security console needs rendered verification
+### 2026-08-23: Restored original frontend needs rendered verification
 
 Status: Active
 
 The in-app browser runtime reported no available browser connection. Automated
-tests, JavaScript syntax, TypeScript, asset delivery, and the live scan flow
-passed, but the redesigned layout has not been inspected at desktop or 390px
-widths.
+tests, JavaScript syntax, TypeScript, asset delivery, clean-clone setup, and the
+live scan flow passed, but the restored original layout has not been inspected
+at desktop or 390px widths.
 
 Required resolution: Connect an in-app browser and verify empty, populated, and
 failure states without horizontal overflow, clipping, or misleading controls.

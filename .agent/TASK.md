@@ -117,9 +117,9 @@ Before considering the MVP complete:
 
 ## Current next step
 
-Milestone 3 implementation and the SOC console refinement are complete at the
-code and automated-test level. Rendered verification of the revised console and
-a successful live scan are pending because no browser was connected and the
-configured RPC failed its latest-block request. Resolve those two checks before
-starting milestone 4 demo hardening. Do not expand the target, event, storage,
-monitoring, or deployment scope during hardening.
+Milestone 4 demo hardening is complete at the command, live RPC, evidence,
+explorer-link, failure-state, security, and documentation levels. The restored
+original frontend remains the approved interface. Rendered browser inspection
+is still pending because no browser connection was available. Do not expand the
+target, event, storage, monitoring, frontend, or deployment scope without a new
+approved task.
