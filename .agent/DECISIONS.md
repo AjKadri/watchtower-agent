@@ -292,3 +292,56 @@ attempt. A failed or partial retry cannot expose stale artifacts as current.
 Reason: The fixed demo is reproducible only if success proves the expected
 historical incident on the expected chain and every API view represents the
 latest attempt consistently.
+
+## 2026-08-24: Approve a bounded upgrade investigation
+
+Status: Accepted
+
+The investigation provider is the Alchemy Base Mainnet archive RPC supplied
+only through the server-side `BASE_RPC_URL` environment variable. Its URL and
+credentials must not be committed, returned through APIs, or written to normal
+logs.
+
+The investigation is limited to the one configured Aave V3 Base Pool proxy and
+is triggered only by the approved `Upgraded(address)` event. It may inspect only
+the verified historical blocks:
+
+- N-1: Base block `41105889`
+- N: Base block `41105890`
+
+The required investigation checks are:
+
+1. Read the EIP-1967 implementation slot at N-1 and N.
+2. Read the decoded implementation bytecode at N.
+3. Call the configured Aave PoolAddressesProvider `getPool()` function at N.
+
+The optional corroborating check is `POOL_REVISION()` at N-1 and N. Its result,
+absence, failure, or lack of support must not control incident severity, the
+deterministic event classification, or the final investigation disposition.
+
+The final investigation disposition is one of:
+
+- `corroborated`: every required check succeeds and agrees with the approved
+  event, target, implementation transition, and deployed-code expectation.
+- `contradicted`: a required check succeeds but conflicts with the approved
+  event or configured target evidence.
+- `incomplete`: a required check fails, is unsupported, or cannot be verified.
+
+The verified fixture values are:
+
+- implementation before: `0x79ab8fc5ba13daf37b4e978a543286bc2a16508c`
+- implementation after: `0xdb578d67a83e94de73c9e0c14280f804f6c1c3e4`
+- implementation bytecode at N: present, `22,757` bytes
+- `getPool()` at N: the configured Pool proxy
+- `POOL_REVISION()` at N-1: `9`
+- `POOL_REVISION()` at N: `10`
+
+The investigation remains read-only. Wallet access, transactions, continuous
+monitoring, extra targets, notifications, authentication, unrestricted tool
+execution, and any expansion beyond the approved target and blocks remain out
+of scope.
+
+Reason: The archive capability spike verified historical storage, code, and
+contract calls against the fixed fixture. A bounded deterministic investigation
+can now corroborate required onchain facts without changing detector scope or
+allowing optional revision metadata to affect classification.

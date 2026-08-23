@@ -1,15 +1,15 @@
 # Project Status
 
-Last updated: 2026-08-23
+Last updated: 2026-08-24
 
-- Current milestone: Public repository handoff refresh after technical re-review.
-- Completed: Published the reviewed repository state at public HEAD `7587cce1b439038b0354217bfd265a96f1b367e8`. The public GitHub origin is available, an unauthenticated clone passed, and `npm ci` passed from the clean checkout. The technical re-review passed. Fixture incident classes are corrected to `contract_upgrade`. The API contract remains HTTP 415 for missing or unsupported content types, HTTP 400 for malformed JSON or invalid fields, and HTTP 413 for oversized bodies. The old pending-commit and public-origin records are resolved. No application code changed in this handoff refresh.
-- Tests run: Public verification used an unauthenticated clone and `npm ci` from the clean checkout. The technical re-review covered the corrected fixture label and documented API status contract.
-- Result: Public repository access, unauthenticated clone, clean dependency installation, rendered browser inspection, and technical re-review passed. The verified public implementation HEAD is `7587cce1b439038b0354217bfd265a96f1b367e8`.
-- Current commit: `7587cce1b439038b0354217bfd265a96f1b367e8` (`docs: align Watchtower handoff and API contracts`), the current verified public HEAD before this documentation-only refresh.
-- Next step: Keep the approved MVP scope frozen. No corrective implementation task remains from the review.
+- Current milestone: Investigation implementation gate after the archive-RPC capability spike.
+- Completed: Approved a read-only investigation for the configured Aave Pool proxy, the approved `Upgraded(address)` trigger, and only blocks `41105889` and `41105890`. Required evidence is the EIP-1967 implementation transition, new implementation bytecode, and Aave `getPool()` result. `POOL_REVISION()` is optional corroboration and cannot control severity, classification, or disposition. Recorded the `corroborated`, `contradicted`, and `incomplete` dispositions and kept all wallet, transaction, monitoring, notification, authentication, extra-target, and unrestricted-tool scope excluded. No application code changed.
+- Tests run: A sanitized read-only capability probe used the Alchemy Base Mainnet archive RPC from `BASE_RPC_URL` to call `eth_chainId`, historical `eth_getStorageAt`, historical `eth_getCode`, and historical `eth_call` for `getPool()` and `POOL_REVISION()`.
+- Result: Every archive check succeeded on its first attempt. Chain ID was `8453`; the implementation changed from `0x79ab8fc5ba13daf37b4e978a543286bc2a16508c` to `0xdb578d67a83e94de73c9e0c14280f804f6c1c3e4`; the new implementation had `22,757` bytes of code; `getPool()` returned the configured proxy; and `POOL_REVISION()` changed from `9` to `10`. No RPC URL, key, provider body, or stack trace was recorded.
+- Current commit: `d3aa0fae90a7d27f2d7c65b4322ea70ed8660b14` (`docs: refresh public repository handoff status`), the HEAD before this decision-only commit.
+- Next step: Implement only the approved bounded investigation contract when explicitly tasked. Keep the existing scanner, API, dashboard, and product scope unchanged until then.
 - Blockers: None.
-- Decisions needed: None.
+- Decisions needed: None. The bounded investigation gate is approved.
 
 ## Setup and run instructions
 
@@ -26,3 +26,8 @@ The 2026-08-23 P1 verification used the public read-only endpoint
 from Base block `41105890`. The fixture remains a selected-log subset rather
 than a complete raw receipt. Detailed evidence and limitation records are in
 README. Rendered browser inspection passed.
+
+The 2026-08-24 archive capability spike used the Alchemy Base Mainnet archive
+RPC configured through the ignored `BASE_RPC_URL`. Historical storage, code,
+`getPool()`, and optional `POOL_REVISION()` calls all passed for the approved
+fixture without exposing provider configuration.
