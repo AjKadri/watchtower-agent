@@ -1,7 +1,7 @@
 [
   {
     "detectorId": "aave-pool-upgraded",
-    "incidentClass": "upgrade_pause",
+    "incidentClass": "contract_upgrade",
     "eventName": "Upgraded",
     "eventSignature": "Upgraded(address)",
     "logIndex": "641",

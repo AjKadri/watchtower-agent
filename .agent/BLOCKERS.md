@@ -18,29 +18,6 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
-### 2026-08-23: Ignored local RPC host does not resolve
-
-Status: Active
-
-Plain `npm run scan` returned the safe `chain-id-rpc-dns` failure twice. The
-ignored `.env` value was neither printed nor changed. Running the same command
-with the public endpoint committed in `.env.example` completed successfully.
-
-Required resolution: Refresh the ignored local `.env` from `.env.example` or
-replace only `BASE_RPC_URL` with another working Base mainnet endpoint.
-
-### 2026-08-23: Restored original frontend needs rendered verification
-
-Status: Active
-
-The in-app browser runtime reported no available browser connection. Automated
-tests, JavaScript syntax, TypeScript, asset delivery, clean-clone setup, and the
-live scan flow passed, but the restored original layout has not been inspected
-at desktop or 390px widths.
-
-Required resolution: Connect an in-app browser and verify empty, populated, and
-failure states without horizontal overflow, clipping, or misleading controls.
-
 ### 2026-08-23: Public origin contains no repository history
 
 Status: Active
@@ -55,6 +32,28 @@ verify it from an unauthenticated checkout. No remote URL or remote state was
 changed during this task.
 
 ## Resolved blockers
+
+### 2026-08-23: Restored original frontend rendered inspection passed
+
+Status: Resolved
+
+The rendered browser inspection passed for the restored frontend. Automated
+asset, API, JavaScript, TypeScript, and scan-flow checks remain covered by the
+current test and validation commands.
+
+Decision needed: None.
+
+### 2026-08-23: Local RPC note is not a repository blocker
+
+Status: Resolved
+
+The committed `.env.example` contains the documented public endpoint. Plain
+`npm run scan` returned the safe `chain-id-rpc-dns` result from the ignored
+machine-local setting. An explicit documented-endpoint retry completed with one
+verified alert and zero failures. The ignored local value was not read or
+changed, and it is not a repository setup or scanner-scope blocker.
+
+Decision needed: None.
 
 ## 2026-08-23: Configured Base RPC scan recovered
 

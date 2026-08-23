@@ -117,10 +117,11 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The reviewed P0 and P1 fixes are complete. The server, scan request boundary,
-RPC failure categories, log normalization, ABI validation, classification label,
-and evidence dashboard have focused regression coverage. The ignored local RPC
-setting must be refreshed from the documented public example before plain
-`npm run scan` succeeds in this workspace. The configured public origin still
-has no branch or milestone history. Do not expand the target, event, storage,
-monitoring, frontend, or deployment scope without a new approved task.
+The reviewed P0 and P1 fixes and remaining cleanup are complete. Scan requests
+require `application/json`. Missing or unsupported content types return HTTP
+415, malformed JSON or invalid JSON fields return HTTP 400, and bodies larger
+than 16 KB return HTTP 413. The fixture and runtime use the approved
+`contract_upgrade` incident class. The rendered browser inspection passed. The
+configured public origin still has no branch or milestone history. Do not
+expand the target, event, storage, monitoring, frontend, or deployment scope
+without a new approved task.

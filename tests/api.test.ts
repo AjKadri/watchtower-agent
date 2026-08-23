@@ -171,9 +171,17 @@ describe("Watchtower API", () => {
     const reader = new ApiFixtureReader();
     const baseUrl = await serve(reader);
 
-    const missingType = await fetch(`${baseUrl}/api/scans`, { method: "POST", body: "{}" });
+    const missingType = await fetch(`${baseUrl}/api/scans`, { method: "POST" });
     expect(missingType.status).toBe(415);
     expect(await missingType.json()).toMatchObject({ error: { code: "content-type-required" } });
+
+    const unsupportedType = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: "{}",
+    });
+    expect(unsupportedType.status).toBe(415);
+    expect(await unsupportedType.json()).toMatchObject({ error: { code: "content-type-required" } });
 
     const malformedJson = await fetch(`${baseUrl}/api/scans`, {
       method: "POST",

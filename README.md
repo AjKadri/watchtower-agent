@@ -124,9 +124,9 @@ returned HTTP 201.
 
 Scan requests require `Content-Type: application/json` and a JSON object. The
 only accepted properties are optional decimal-string `fromBlock` and `toBlock`
-values. Malformed JSON and unsupported body shapes return HTTP 400. A missing
-or non-JSON content type returns HTTP 415. Bodies larger than 16 KB return HTTP
-413. These errors use safe JSON codes and do not start an RPC scan.
+values. Missing or unsupported `Content-Type` values return HTTP 415. Malformed
+JSON or invalid JSON fields return HTTP 400. Bodies larger than 16 KB return
+HTTP 413. These errors use safe JSON codes and do not start an RPC scan.
 
 Scans, alerts, and evidence exist only in process memory and are cleared when
 the server restarts. Repeating the scan recreates the same deterministic IDs.

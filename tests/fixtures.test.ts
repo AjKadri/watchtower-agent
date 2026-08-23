@@ -9,6 +9,7 @@ type Block = { number: string; hash: string; timestamp: string };
 type Transaction = { hash: string; from: string; to: string };
 type ExpectedEvent = {
   detectorId: string;
+  incidentClass: string;
   logIndex: string;
   emitter: string;
   decodedArguments: Record<string, string>;
@@ -46,11 +47,17 @@ describe("verified Base fixture", () => {
       const log = receipt.selectedLogs.find(({ logIndex }) => logIndex === event.logIndex);
 
       expect(detector, event.detectorId).toBeDefined();
+      expect(event.incidentClass).toBe("contract_upgrade");
+      expect(event.incidentClass).toBe(detector?.incidentClass);
       expect(log, event.logIndex).toBeDefined();
       expect(log?.address.toLowerCase()).toBe(event.emitter.toLowerCase());
       expect(log?.topics[0]).toBe(detector?.topic0);
       expect(detector?.contractAddresses.map((value) => value.toLowerCase())).toContain(event.emitter.toLowerCase());
     }
+  });
+
+  it("uses the approved contract-upgrade incident class in every fixture event", () => {
+    expect(events.map(({ incidentClass }) => incidentClass)).toEqual(["contract_upgrade"]);
   });
 
   it("decodes the indexed implementation without adding unsupported event types", () => {
