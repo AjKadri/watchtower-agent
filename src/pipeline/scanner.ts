@@ -2,7 +2,8 @@ import type { Address, ChainBlock, ChainLog, ChainReader, ChainReceipt, ChainTra
 import type { TargetConfig } from "../config/schema.js";
 import type { Alert, Evidence, ScanFailure, ScanResult } from "../domain/schemas.js";
 import { scanResultSchema } from "../domain/schemas.js";
-import { decodeUpgradeLog } from "../events/upgrade.js";
+import { RpcReadError, type RpcFailureCategory } from "../chain/errors.js";
+import { decodeUpgradeLog, upgradedEventType } from "../events/upgrade.js";
 import { explainEvidence } from "../investigation/explain.js";
 import { createAlertId, createScanId } from "./ids.js";
 import { classifyUpgrade } from "./severity.js";
@@ -40,6 +41,21 @@ function failure(
       transactionHash: log.transactionHash,
       logIndex: String(log.logIndex),
     }),
+  };
+}
+
+function rpcCategory(error: unknown): RpcFailureCategory {
+  return error instanceof RpcReadError ? error.category : "unavailable";
+}
+
+function rpcFailure(code: string, message: string, error: unknown, context: Partial<ScanFailure> = {}): ScanFailure {
+  const category = rpcCategory(error);
+  return {
+    code: category === "unavailable" ? `${code}-failed` : `${code}-${category}`,
+    stage: "rpc",
+    category,
+    message,
+    ...context,
   };
 }
 
@@ -99,28 +115,34 @@ async function buildEvidence(
     cached(caches.receipts, log.transactionHash, () => reader.getTransactionReceipt(log.transactionHash)),
   ]);
 
-  const addEvidenceError = (code: string, message: string) => {
+  const addEvidenceError = (code: string, message: string, category: ScanFailure["category"] = "incomplete-evidence") => {
     errors.push({ code, message });
-    scanFailures.push(failure(code, "evidence", message, log));
+    scanFailures.push({ ...failure(code, "evidence", message, log), category });
+  };
+
+  const addUnavailableEvidenceError = (prefix: string, message: string, reason: unknown) => {
+    const category = rpcCategory(reason);
+    const code = `${prefix}-${category}`;
+    addEvidenceError(code, message, category);
   };
 
   const block = blockResult.status === "fulfilled" ? blockResult.value : null;
   let blockVerified = false;
-  if (!block) addEvidenceError("block-evidence-unavailable", "The block timestamp could not be retrieved from Base RPC.");
+  if (!block) addUnavailableEvidenceError("block-evidence", "The block timestamp could not be retrieved from Base RPC.", blockResult.status === "rejected" ? blockResult.reason : undefined);
   else if (block.hash.toLowerCase() !== log.blockHash.toLowerCase() || block.number !== log.blockNumber) {
     addEvidenceError("block-evidence-mismatch", "The retrieved block identity does not match the candidate log.");
   } else blockVerified = true;
 
   const transaction = transactionResult.status === "fulfilled" ? transactionResult.value : null;
   let transactionVerified = false;
-  if (!transaction) addEvidenceError("transaction-evidence-unavailable", "The transaction sender and recipient could not be retrieved from Base RPC.");
+  if (!transaction) addUnavailableEvidenceError("transaction-evidence", "The transaction sender and recipient could not be retrieved from Base RPC.", transactionResult.status === "rejected" ? transactionResult.reason : undefined);
   else if (transaction.hash.toLowerCase() !== log.transactionHash.toLowerCase()) {
     addEvidenceError("transaction-evidence-mismatch", "The retrieved transaction hash does not match the candidate log.");
   } else transactionVerified = true;
 
   const receipt = receiptResult.status === "fulfilled" ? receiptResult.value : null;
   let receiptVerified = false;
-  if (!receipt) addEvidenceError("receipt-evidence-unavailable", "The transaction receipt could not be retrieved from Base RPC.");
+  if (!receipt) addUnavailableEvidenceError("receipt-evidence", "The transaction receipt could not be retrieved from Base RPC.", receiptResult.status === "rejected" ? receiptResult.reason : undefined);
   else {
     const receiptHashMatches = receipt.transactionHash.toLowerCase() === log.transactionHash.toLowerCase();
     if (!receiptHashMatches) {
@@ -149,6 +171,8 @@ async function buildEvidence(
     addresses: {
       emitter: `${explorer}/address/${log.address}`,
       implementation: `${explorer}/address/${implementation}`,
+      ...(transactionVerified && transaction?.from && { sender: `${explorer}/address/${transaction.from}` }),
+      ...(transactionVerified && transaction?.to && { recipient: `${explorer}/address/${transaction.to}` }),
     },
   };
 
@@ -198,8 +222,9 @@ async function buildEvidence(
     id: alertId,
     scanId: "",
     targetId: config.target.id,
-    incidentClass: "contract_upgrade",
-    eventType: "proxy_upgraded",
+    incidentClass: detector.incidentClass,
+    eventType: upgradedEventType,
+    classificationLabel: detector.classificationLabel,
     severity: severity.severity,
     severityRuleId: severity.ruleId,
     title: "Configured Aave Pool proxy implementation updated",
@@ -228,18 +253,21 @@ export async function scanApprovedRange(
   let chainId: number;
   try {
     chainId = await reader.getChainId();
-  } catch {
-    return failedResult(config, fromBlock, toBlock, failure("chain-id-rpc-failed", "rpc", "The RPC chain ID could not be retrieved."));
+  } catch (error) {
+    return failedResult(config, fromBlock, toBlock, rpcFailure("chain-id-rpc", "The RPC chain ID could not be retrieved.", error));
   }
   if (chainId !== BASE_MAINNET_CHAIN_ID) {
-    return failedResult(config, fromBlock, toBlock, failure("rpc-chain-id-mismatch", "rpc", "The RPC endpoint is not Base mainnet chain ID 8453."));
+    return failedResult(config, fromBlock, toBlock, {
+      ...failure("rpc-chain-id-mismatch", "rpc", "The RPC endpoint is not Base mainnet chain ID 8453."),
+      category: "wrong-chain",
+    });
   }
 
   let latestBlock: bigint;
   try {
     latestBlock = await reader.getLatestBlockNumber();
-  } catch {
-    return failedResult(config, fromBlock, toBlock, failure("latest-block-rpc-failed", "rpc", "The latest Base block could not be retrieved."));
+  } catch (error) {
+    return failedResult(config, fromBlock, toBlock, rpcFailure("latest-block-rpc", "The latest Base block could not be retrieved.", error));
   }
 
   const confirmations = BigInt(config.scan.minimumConfirmations);
@@ -257,22 +285,22 @@ export async function scanApprovedRange(
   for (let chunkStart = fromBlock; chunkStart <= toBlock; chunkStart += chunkSize) {
     const chunkEnd = chunkStart + chunkSize - 1n > toBlock ? toBlock : chunkStart + chunkSize - 1n;
     try {
-      const logs = await reader.getLogs({ address, topic0: detector.topic0, fromBlock: chunkStart, toBlock: chunkEnd });
+      const batch = await reader.getLogs({ address, topic0: detector.topic0, fromBlock: chunkStart, toBlock: chunkEnd });
       successfulChunks += 1;
-      for (const log of logs) {
+      for (const malformed of batch.malformed) {
+        failures.push({ ...malformed, stage: "rpc", category: "malformed-response" });
+      }
+      for (const log of batch.logs) {
         if (!exactScope(log, address, detector.topic0, chunkStart, chunkEnd)) {
           failures.push(failure("rpc-log-outside-approved-filter", "rpc", "Base RPC returned a log outside the approved address, topic, or block filter.", log));
           continue;
         }
         candidateLogs.push(log);
       }
-    } catch {
-      failures.push({
-        code: "log-chunk-rpc-failed",
-        stage: "rpc",
-        message: "A bounded Base log chunk could not be retrieved.",
+    } catch (error) {
+      failures.push(rpcFailure("log-chunk-rpc", "A bounded Base log chunk could not be retrieved.", error, {
         blockNumber: chunkStart.toString(),
-      });
+      }));
     }
   }
 
@@ -314,6 +342,7 @@ export async function scanApprovedRange(
         failures.push({
           code: "known-upgrade-event-not-observed",
           stage: "evidence",
+          category: "incomplete-evidence",
           message: "The configured known transaction did not produce a verified qualifying Upgraded(address) event.",
           transactionHash: knownTransaction,
         });
@@ -321,6 +350,7 @@ export async function scanApprovedRange(
         failures.push({
           code: "known-transaction-evidence-incomplete",
           stage: "evidence",
+          category: "incomplete-evidence",
           message: "The qualifying event from the configured known transaction does not have complete verified evidence.",
           transactionHash: knownTransaction,
         });

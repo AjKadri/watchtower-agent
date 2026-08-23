@@ -18,6 +18,17 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
+### 2026-08-23: Ignored local RPC host does not resolve
+
+Status: Active
+
+Plain `npm run scan` returned the safe `chain-id-rpc-dns` failure twice. The
+ignored `.env` value was neither printed nor changed. Running the same command
+with the public endpoint committed in `.env.example` completed successfully.
+
+Required resolution: Refresh the ignored local `.env` from `.env.example` or
+replace only `BASE_RPC_URL` with another working Base mainnet endpoint.
+
 ### 2026-08-23: Restored original frontend needs rendered verification
 
 Status: Active

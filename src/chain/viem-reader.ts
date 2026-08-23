@@ -1,7 +1,8 @@
 import { createPublicClient, hexToBigInt, hexToNumber, http, toHex, type Address, type Hash, type Hex } from "viem";
 import { base } from "viem/chains";
 
-import type { ChainBlock, ChainLog, ChainReader, ChainReceipt, ChainTransaction, LogFilter } from "./types.js";
+import { RpcReadError, wrapRpcError } from "./errors.js";
+import type { ChainBlock, ChainLog, ChainLogBatch, ChainReader, ChainReceipt, ChainTransaction, LogFilter, MalformedChainLog } from "./types.js";
 
 type RpcLog = {
   address: Address;
@@ -23,25 +24,74 @@ function required<T>(value: T | null, field: string): T {
 }
 
 function normalizeLog(log: RpcLog): ChainLog {
-  const topics = log.topics as [Hex, ...Hex[]];
-  if (topics.length === 0) {
-    throw new Error("Base RPC returned a log without topics.");
+  if (typeof log.removed !== "boolean") throw new Error("invalid removed flag");
+  if (typeof log.address !== "string" || !/^0x[0-9a-f]{40}$/i.test(log.address)) throw new Error("invalid log address");
+  if (typeof log.blockHash !== "string" || !/^0x[0-9a-f]{64}$/i.test(log.blockHash)) throw new Error("invalid block hash");
+  if (typeof log.blockNumber !== "string" || !/^0x[0-9a-f]+$/i.test(log.blockNumber)) throw new Error("invalid block number");
+  if (typeof log.data !== "string" || !/^0x(?:[0-9a-f]{2})*$/i.test(log.data)) throw new Error("invalid log data");
+  if (typeof log.logIndex !== "string" || !/^0x[0-9a-f]+$/i.test(log.logIndex)) throw new Error("invalid log index");
+  if (!Array.isArray(log.topics) || log.topics.length === 0 || log.topics.some((topic) => !/^0x[0-9a-f]{64}$/i.test(topic))) {
+    throw new Error("invalid log topics");
   }
+  if (typeof log.transactionHash !== "string" || !/^0x[0-9a-f]{64}$/i.test(log.transactionHash)) throw new Error("invalid transaction hash");
+  if (typeof log.transactionIndex !== "string" || !/^0x[0-9a-f]+$/i.test(log.transactionIndex)) throw new Error("invalid transaction index");
+
+  const topics = log.topics as [Hex, ...Hex[]];
 
   return {
     address: log.address,
-    blockHash: required(log.blockHash, "blockHash"),
-    blockNumber: hexToBigInt(required(log.blockNumber, "blockNumber")),
+    blockHash: log.blockHash,
+    blockNumber: hexToBigInt(log.blockNumber),
     data: log.data,
-    logIndex: hexToNumber(required(log.logIndex, "logIndex")),
+    logIndex: hexToNumber(log.logIndex),
     topics,
-    transactionHash: required(log.transactionHash, "transactionHash"),
-    transactionIndex: hexToNumber(required(log.transactionIndex, "transactionIndex")),
+    transactionHash: log.transactionHash,
+    transactionIndex: hexToNumber(log.transactionIndex),
   };
 }
 
-function rpcError(operation: string): Error {
-  return new Error(`Base RPC ${operation} failed.`);
+function safeMalformedLog(log: Partial<RpcLog>): MalformedChainLog {
+  const malformed: MalformedChainLog = {
+    code: "malformed-rpc-log",
+    message: "Base RPC returned one malformed log. Other valid logs from the response were preserved.",
+  };
+  try {
+    if (typeof log.blockNumber === "string" && /^0x[0-9a-f]+$/i.test(log.blockNumber)) {
+      malformed.blockNumber = hexToBigInt(log.blockNumber).toString();
+    }
+  } catch {}
+  if (typeof log.transactionHash === "string" && /^0x[0-9a-f]{64}$/i.test(log.transactionHash)) {
+    malformed.transactionHash = log.transactionHash as Hash;
+  }
+  try {
+    if (typeof log.logIndex === "string" && /^0x[0-9a-f]+$/i.test(log.logIndex)) {
+      malformed.logIndex = String(hexToNumber(log.logIndex));
+    }
+  } catch {}
+  return malformed;
+}
+
+export function normalizeRpcLogs(value: unknown): ChainLogBatch {
+  if (!Array.isArray(value)) {
+    throw new RpcReadError("log request", "malformed-response");
+  }
+
+  const logs: ChainLog[] = [];
+  const malformed: MalformedChainLog[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") {
+      malformed.push(safeMalformedLog({}));
+      continue;
+    }
+    const log = item as RpcLog;
+    if (log.removed === true) continue;
+    try {
+      logs.push(normalizeLog(log));
+    } catch {
+      malformed.push(safeMalformedLog(log));
+    }
+  }
+  return { logs, malformed };
 }
 
 export function createViemChainReader(rpcUrl: string): ChainReader {
@@ -54,16 +104,16 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
     async getChainId() {
       try {
         return await client.getChainId();
-      } catch {
-        throw rpcError("chain-ID request");
+      } catch (error) {
+        throw wrapRpcError("chain-ID request", error);
       }
     },
 
     async getLatestBlockNumber() {
       try {
         return await client.getBlockNumber();
-      } catch {
-        throw rpcError("latest-block request");
+      } catch (error) {
+        throw wrapRpcError("latest-block request", error);
       }
     },
 
@@ -77,10 +127,10 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
             fromBlock: toHex(filter.fromBlock),
             toBlock: toHex(filter.toBlock),
           }],
-        }) as RpcLog[];
-        return logs.filter(({ removed }) => !removed).map(normalizeLog);
-      } catch {
-        throw rpcError("log request");
+        });
+        return normalizeRpcLogs(logs);
+      } catch (error) {
+        throw wrapRpcError("log request", error);
       }
     },
 
@@ -92,8 +142,8 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
           number: required(block.number, "block number"),
           timestamp: block.timestamp,
         } satisfies ChainBlock;
-      } catch {
-        throw rpcError("block request");
+      } catch (error) {
+        throw wrapRpcError("block request", error);
       }
     },
 
@@ -105,21 +155,21 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
           from: transaction.from,
           to: transaction.to,
         } satisfies ChainTransaction;
-      } catch {
-        throw rpcError("transaction request");
+      } catch (error) {
+        throw wrapRpcError("transaction request", error);
       }
     },
 
     async getTransactionReceipt(transactionHash) {
       try {
         const receipt = await client.getTransactionReceipt({ hash: transactionHash });
-        return {
-          transactionHash: receipt.transactionHash,
-          status: receipt.status,
-          logs: receipt.logs.filter(({ removed }) => !removed).map((log) => {
+        const logs: ChainLog[] = [];
+        for (const log of receipt.logs) {
+          if (log.removed) continue;
+          try {
             const topics = log.topics as [Hex, ...Hex[]];
-            if (topics.length === 0) throw new Error("Base RPC returned a receipt log without topics.");
-            return {
+            if (topics.length === 0) continue;
+            logs.push({
               address: log.address,
               blockHash: required(log.blockHash, "blockHash"),
               blockNumber: required(log.blockNumber, "blockNumber"),
@@ -128,11 +178,18 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
               topics,
               transactionHash: required(log.transactionHash, "transactionHash"),
               transactionIndex: required(log.transactionIndex, "transactionIndex"),
-            } satisfies ChainLog;
-          }),
+            });
+          } catch {
+            continue;
+          }
+        }
+        return {
+          transactionHash: receipt.transactionHash,
+          status: receipt.status,
+          logs,
         } satisfies ChainReceipt;
-      } catch {
-        throw rpcError("receipt request");
+      } catch (error) {
+        throw wrapRpcError("receipt request", error);
       }
     },
   };

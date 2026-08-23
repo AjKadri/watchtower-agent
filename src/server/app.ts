@@ -38,6 +38,8 @@ function publicConfiguration(config: TargetConfig) {
     detector: {
       id: detector.id,
       incidentClass: detector.incidentClass,
+      classificationLabel: detector.classificationLabel,
+      eventType: "proxy_upgraded",
       eventName: detector.eventName,
       eventSignature: detector.eventSignature,
       topic0: detector.topic0,
@@ -60,7 +62,7 @@ export function createApp(dependencies: AppDependencies): Express {
     });
     next();
   });
-  app.use(express.json({ limit: "16kb" }));
+  app.use(express.json({ limit: "16kb", strict: false }));
 
   app.get("/api/health", (_request, response) => {
     response.json({ status: "ok", network: "base-mainnet", targetId: dependencies.config.target.id });
@@ -72,7 +74,14 @@ export function createApp(dependencies: AppDependencies): Express {
 
   app.post("/api/scans", async (request, response, next) => {
     try {
-      const parsed = scanRequestSchema.safeParse(request.body ?? {});
+      if (!request.is("application/json")) {
+        response.status(415).json({
+          error: { code: "content-type-required", message: "Scan requests require Content-Type: application/json." },
+        });
+        return;
+      }
+
+      const parsed = scanRequestSchema.safeParse(request.body);
       if (!parsed.success) {
         response.status(400).json({
           error: { code: "invalid-scan-request", message: "The scan request may contain only decimal fromBlock and toBlock values." },
@@ -122,10 +131,16 @@ export function createApp(dependencies: AppDependencies): Express {
 
   const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
     const invalidJson = error instanceof SyntaxError && "status" in error && error.status === 400;
-    response.status(invalidJson ? 400 : 500).json({
+    const tooLarge = error && typeof error === "object" && "status" in error && error.status === 413;
+    const status = tooLarge ? 413 : invalidJson ? 400 : 500;
+    response.status(status).json({
       error: {
-        code: invalidJson ? "invalid-json" : "internal-error",
-        message: invalidJson ? "The request body is not valid JSON." : "The request could not be completed.",
+        code: tooLarge ? "request-body-too-large" : invalidJson ? "invalid-json" : "internal-error",
+        message: tooLarge
+          ? "The request body exceeds the 16 KB limit."
+          : invalidJson
+            ? "The request body is not valid JSON."
+            : "The request could not be completed.",
       },
     });
   };

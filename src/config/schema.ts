@@ -6,6 +6,7 @@ const hash = z.string().regex(/^0x[0-9a-fA-F]{64}$/, "expected a 32-byte hash");
 const detectorSchema = z.object({
   id: z.literal("aave-pool-upgraded"),
   incidentClass: z.literal("contract_upgrade"),
+  classificationLabel: z.literal("Contract upgrade"),
   eventName: z.literal("Upgraded"),
   eventSignature: z.literal("Upgraded(address)"),
   topic0: z.literal("0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b"),

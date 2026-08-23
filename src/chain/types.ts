@@ -38,10 +38,23 @@ export type LogFilter = {
   toBlock: bigint;
 };
 
+export type MalformedChainLog = {
+  code: "malformed-rpc-log";
+  message: string;
+  blockNumber?: string;
+  transactionHash?: Hash;
+  logIndex?: string;
+};
+
+export type ChainLogBatch = {
+  logs: ChainLog[];
+  malformed: MalformedChainLog[];
+};
+
 export interface ChainReader {
   getChainId(): Promise<number>;
   getLatestBlockNumber(): Promise<bigint>;
-  getLogs(filter: LogFilter): Promise<ChainLog[]>;
+  getLogs(filter: LogFilter): Promise<ChainLogBatch>;
   getBlock(blockHash: Hash): Promise<ChainBlock>;
   getTransaction(transactionHash: Hash): Promise<ChainTransaction>;
   getTransactionReceipt(transactionHash: Hash): Promise<ChainReceipt>;

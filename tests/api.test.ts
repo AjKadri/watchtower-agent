@@ -41,10 +41,10 @@ class ApiFixtureReader implements ChainReader {
 
   async getChainId(): Promise<number> { return 8453; }
   async getLatestBlockNumber(): Promise<bigint> { return 50_000_000n; }
-  async getLogs(filter: LogFilter): Promise<ChainLog[]> {
+  async getLogs(filter: LogFilter) {
     this.filters.push(filter);
     if (this.failLogs) throw new Error("fixture failure");
-    return [log];
+    return { logs: [log], malformed: [] };
   }
   async getBlock(): Promise<ChainBlock> {
     return { hash: block.hash, number: BigInt(block.number), timestamp: BigInt(Date.parse(block.timestamp) / 1_000) };
@@ -81,8 +81,14 @@ describe("Watchtower API", () => {
     expect(await health.json()).toEqual({ status: "ok", network: "base-mainnet", targetId: "aave-v3-base-core" });
     expect(health.headers.get("x-powered-by")).toBeNull();
     expect(health.headers.get("content-security-policy")).toContain("default-src 'self'");
-    const configurationText = await publicConfig.text();
+    const configuration = await publicConfig.json();
+    const configurationText = JSON.stringify(configuration);
     expect(configurationText).toContain("Upgraded(address)");
+    expect(configuration.detector).toMatchObject({
+      incidentClass: "contract_upgrade",
+      eventType: "proxy_upgraded",
+      classificationLabel: "Contract upgrade",
+    });
     expect(configurationText).not.toContain("BASE_RPC_URL");
     expect(configurationText).not.toContain("PoolUpdated");
     const dashboardText = await dashboard.text();
@@ -102,7 +108,11 @@ describe("Watchtower API", () => {
     const scan = await scanResponse.json();
 
     expect(scanResponse.status).toBe(201);
-    expect(scan).toMatchObject({ status: "complete", failures: [], alerts: [{ severity: "informational" }] });
+    expect(scan).toMatchObject({
+      status: "complete",
+      failures: [],
+      alerts: [{ severity: "informational", classificationLabel: "Contract upgrade" }],
+    });
     expect(reader.filters).toEqual([{
       address: config.target.primaryContract.address,
       topic0: config.detectors[0].topic0,
@@ -155,6 +165,42 @@ describe("Watchtower API", () => {
       alerts: [],
       failures: [{ code: "log-chunk-rpc-failed", stage: "rpc" }],
     });
+  });
+
+  it("enforces the JSON scan-request contract and body limit", async () => {
+    const reader = new ApiFixtureReader();
+    const baseUrl = await serve(reader);
+
+    const missingType = await fetch(`${baseUrl}/api/scans`, { method: "POST", body: "{}" });
+    expect(missingType.status).toBe(415);
+    expect(await missingType.json()).toMatchObject({ error: { code: "content-type-required" } });
+
+    const malformedJson = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+    expect(malformedJson.status).toBe(400);
+    expect(await malformedJson.json()).toMatchObject({ error: { code: "invalid-json" } });
+
+    for (const body of [null, [], "scan", { address: config.target.primaryContract.address }]) {
+      const unsupported = await fetch(`${baseUrl}/api/scans`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      expect(unsupported.status).toBe(400);
+      expect(await unsupported.json()).toMatchObject({ error: { code: "invalid-scan-request" } });
+    }
+
+    const tooLarge = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ padding: "x".repeat(17 * 1024) }),
+    });
+    expect(tooLarge.status).toBe(413);
+    expect(await tooLarge.json()).toMatchObject({ error: { code: "request-body-too-large" } });
+    expect(reader.filters).toHaveLength(0);
   });
 
   it("atomically replaces a successful scan with a failed rescan", async () => {

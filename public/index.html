@@ -7,7 +7,7 @@
     <title>Watchtower · Base evidence monitor</title>
     <!-- Delivery markers: INVESTIGATION CONSOLE / RUN BOUNDED SCAN -->
     <link rel="stylesheet" href="/styles.css">
-    <script src="/app.js" defer></script>
+    <script src="/app.js" type="module"></script>
   </head>
   <body>
     <div class="shell">
@@ -17,8 +17,8 @@
           <span>WATCHTOWER</span>
         </a>
         <div class="network-pill">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span id="network-label">Base mainnet</span>
+          <span id="health-dot" class="status-dot unhealthy" aria-hidden="true"></span>
+          <span id="health-label">Checking API</span>
         </div>
       </header>
 
@@ -35,8 +35,10 @@
           <div class="scan-control">
             <dl class="scope-summary">
               <div><dt>Target</dt><dd id="target-label">Loading…</dd></div>
+              <div><dt>Network</dt><dd id="network-label">Loading…</dd></div>
               <div><dt>Range</dt><dd id="range-label">Loading…</dd></div>
               <div><dt>Event</dt><dd id="event-label">Loading…</dd></div>
+              <div><dt>Signature</dt><dd id="signature-label">Loading…</dd></div>
             </dl>
             <button id="scan-button" class="scan-button" type="button">
               <span>Run verified scan</span>

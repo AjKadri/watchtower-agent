@@ -46,7 +46,8 @@ export const alertSchema = z.object({
   scanId: z.string().min(1),
   targetId: z.string().min(1),
   incidentClass: z.literal("contract_upgrade"),
-  eventType: z.string().min(1),
+  eventType: z.literal("proxy_upgraded"),
+  classificationLabel: z.literal("Contract upgrade"),
   severity: z.enum(["high", "suspicious", "informational"]),
   severityRuleId: z.string().min(1),
   title: z.string().min(1),
@@ -64,6 +65,7 @@ export type Alert = z.infer<typeof alertSchema>;
 export const scanFailureSchema = z.object({
   code: z.string().min(1),
   stage: z.enum(["validation", "rpc", "decode", "evidence"]),
+  category: z.enum(["dns", "timeout", "rate-limit", "wrong-chain", "malformed-response", "incomplete-evidence", "unavailable"]).optional(),
   message: z.string().min(1),
   blockNumber: decimalString.optional(),
   transactionHash: hash.optional(),

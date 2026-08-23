@@ -32,15 +32,15 @@ From a clean clone, run:
 ```sh
 npm --version
 node --version
-npm install
+npm ci
 cp .env.example .env
 npm test
 npm run typecheck
 ```
 
-The verified environment used Node.js `v24.15.0` and npm `11.12.1`.
-`npm install` added 144 packages and reported zero vulnerabilities. The committed
-lockfile is the dependency source of truth.
+The verified environment used Node.js `v24.15.0` and npm `11.12.1`. `npm ci`
+installs exactly from the committed lockfile, which is the dependency source of
+truth.
 
 Start the local server:
 
@@ -87,8 +87,10 @@ Expected verified result:
 
 On 2026-08-23, the clean-clone CLI run completed in 3.96 seconds and the final
 primary-workspace rerun completed in 3.03 seconds. A scan through the local API
-completed in 2.268 seconds. These are single-run observations, not latency
-guarantees. Public endpoint load and network conditions can change them.
+completed in 2.268 seconds. The P1 verification run through the documented
+public endpoint completed in 7.12 seconds. These are single-run observations,
+not latency guarantees. Public endpoint load and network conditions can change
+them.
 
 ## API
 
@@ -120,6 +122,12 @@ The verified server returned HTTP 200 for the dashboard, stylesheet, browser
 script, health, configuration, alert list, and alert detail. `POST /api/scans`
 returned HTTP 201.
 
+Scan requests require `Content-Type: application/json` and a JSON object. The
+only accepted properties are optional decimal-string `fromBlock` and `toBlock`
+values. Malformed JSON and unsupported body shapes return HTTP 400. A missing
+or non-JSON content type returns HTTP 415. Bodies larger than 16 KB return HTTP
+413. These errors use safe JSON codes and do not start an RPC scan.
+
 Scans, alerts, and evidence exist only in process memory and are cleared when
 the server restarts. Repeating the scan recreates the same deterministic IDs.
 
@@ -129,6 +137,11 @@ The committed profile scans Base mainnet block `41105890` for one event from one
 verified transaction:
 
 - `Upgraded(address)` from the configured Aave V3 Base Pool proxy
+
+The public configuration, normalized alert, and dashboard use the single human
+classification label `Contract upgrade`. The machine identifiers remain
+`contract_upgrade` for the incident class and `proxy_upgraded` for the event
+type.
 
 The fixture contains selected logs and records its BaseScan and official Aave
 address-book sources.
@@ -153,12 +166,16 @@ The synchronous scanner:
 2. Reads the RPC chain ID and requires Base mainnet chain ID `8453`.
 3. Checks the configured confirmation count.
 4. Requests logs using the approved Pool address and upgrade topic.
-5. Strictly decodes `Upgraded(address)`.
-6. Retrieves the block, transaction, and receipt once per evidence key.
-7. Requires the configured known transaction to produce complete qualifying
+5. Loads the committed ABI and verifies that it matches the configured topic
+   and strict runtime decoder.
+6. Preserves valid logs when another item in the same RPC response is malformed,
+   while recording the malformed item as a visible partial-scan failure.
+7. Strictly decodes `Upgraded(address)`.
+8. Retrieves the block, transaction, and receipt once per evidence key.
+9. Requires the configured known transaction to produce complete qualifying
    event evidence before reporting `complete`.
-8. Builds normalized evidence and applies the fixed severity policy.
-9. Uses content-derived scan and alert IDs to prevent duplicates.
+10. Builds normalized evidence and applies the fixed severity policy.
+11. Uses content-derived scan and alert IDs to prevent duplicates.
 
 RPC, filter, decoding, and evidence failures remain visible in the JSON result.
 An alert with missing block, transaction, receipt, or receipt-log evidence is
@@ -207,9 +224,11 @@ delay.
 
 The endpoint is a shared public service with no availability or latency promise
 from this repository. It may rate limit, time out, or become temporarily
-unavailable. Watchtower surfaces those conditions as structured failures and
-does not replace missing evidence with claims. Use a credentialed provider only
-through the ignored local `.env` file.
+unavailable. Watchtower preserves safe structured categories for DNS failures,
+timeouts, rate limits, malformed responses, wrong-chain endpoints, and
+incomplete evidence. Provider URLs, raw provider messages, and stack traces are
+not returned through scan results. Use a credentialed provider only through the
+ignored local `.env` file.
 
 ## Partial and failed scans
 
@@ -222,9 +241,10 @@ Automated tests verify all three scan states:
 - `failed`: validation, latest-block access, or every bounded log chunk fails;
   alerts and evidence are empty and structured failures remain visible
 
-A forced unreachable RPC produced `status: failed`,
-`code: latest-block-rpc-failed`, no alerts, no evidence, and process exit code 1.
-The result did not expose the endpoint or a stack trace.
+A failed chain-ID or scan RPC request produces `status: failed`, a safe
+categorized failure, no alerts, and no evidence. The CLI exits with status 1
+for a failed scan. A server listen error is also reported with a safe startup
+message and a nonzero process exit status.
 
 ## Investigation output
 
@@ -235,10 +255,14 @@ Each alert separates:
 - limitations that prevent the address comparison from being read as a claim
   about identity, intent, causality, or implementation safety
 
-The dashboard shows the severity rule, evidence status, transaction, receipt,
-block, log, decoded implementation, and direct BaseScan links. Scan failures and
-incomplete-evidence errors remain visible rather than being replaced by a
-generated explanation.
+The dashboard checks `/api/health` before presenting its service indicator. It
+shows the classification, severity rule, evidence status, transaction, sender,
+recipient, receipt, block, UTC-labeled timestamp, log index, topic zero, raw
+topics, detector inputs, severity inputs, configured address roles, decoded
+implementation, and direct BaseScan links. Stale alert detail is cleared when
+the in-memory alert list becomes empty or replaces the selected alert. Scan
+failures and incomplete-evidence errors remain visible rather than being
+replaced by a generated explanation.
 
 ## Configuration
 
@@ -253,12 +277,12 @@ place RPC credentials in target configuration or fixtures.
 private handoff directory `.agent/private/` is also ignored. The public API
 configuration is assembled from safe fields and does not expose `BASE_RPC_URL`.
 
-## Verified milestone 4 commands
+## Current verification commands
 
-The following commands passed from a clean clone on 2026-08-23:
+Use these commands for a clean checkout and current verification:
 
 ```sh
-npm install
+npm ci
 npm test
 npm run typecheck
 npm run scan
@@ -266,6 +290,6 @@ npm audit --audit-level=moderate
 npm run dev
 ```
 
-Results: 6 test files passed, 21 tests passed, TypeScript reported no errors,
-the live scan reproduced one complete informational alert, and npm audit found
-zero vulnerabilities.
+The 2026-08-23 P1 verification reported 9 test files and 40 tests passed,
+TypeScript reported no errors, the documented public-endpoint scan reproduced
+one complete informational alert, and npm audit found zero vulnerabilities.

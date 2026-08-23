@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { RpcReadError, type RpcFailureCategory } from "../src/chain/errors.js";
 import type {
   ChainBlock,
   ChainLog,
@@ -7,6 +8,7 @@ import type {
   ChainReceipt,
   ChainTransaction,
   LogFilter,
+  MalformedChainLog,
 } from "../src/chain/types.js";
 import { targetConfigSchema } from "../src/config/schema.js";
 import { scanApprovedRange } from "../src/pipeline/scanner.js";
@@ -50,8 +52,9 @@ class FixtureReader implements ChainReader {
   filters: LogFilter[] = [];
   logs: ChainLog[] = [fixtureLog];
   receiptLogs: ChainLog[] = [fixtureLog];
+  malformedLogs: MalformedChainLog[] = [];
   blockError = false;
-  logsError = false;
+  logsError: false | true | Error = false;
   evidenceCalls = { block: 0, transaction: 0, receipt: 0 };
 
   async getChainId(): Promise<number> {
@@ -62,10 +65,10 @@ class FixtureReader implements ChainReader {
     return 50_000_000n;
   }
 
-  async getLogs(filter: LogFilter): Promise<ChainLog[]> {
+  async getLogs(filter: LogFilter) {
     this.filters.push(filter);
-    if (this.logsError) throw new Error("fixture RPC failure");
-    return this.logs;
+    if (this.logsError) throw this.logsError instanceof Error ? this.logsError : new Error("fixture RPC failure");
+    return { logs: this.logs, malformed: this.malformedLogs };
   }
 
   async getBlock(): Promise<ChainBlock> {
@@ -105,6 +108,7 @@ describe("bounded evidence scan", () => {
     expect(result.alerts[0]).toMatchObject({
       incidentClass: "contract_upgrade",
       eventType: "proxy_upgraded",
+      classificationLabel: "Contract upgrade",
       severity: "informational",
       severityRuleId: "target-is-approved",
       evidenceStatus: "complete",
@@ -165,6 +169,40 @@ describe("bounded evidence scan", () => {
     expect(result.failures).toContainEqual(expect.objectContaining({ code: "strict-upgrade-decode-failed", stage: "decode" }));
   });
 
+  it("preserves valid logs when the same RPC response contains a malformed log", async () => {
+    const reader = new FixtureReader();
+    reader.malformedLogs = [{
+      code: "malformed-rpc-log",
+      message: "Base RPC returned one malformed log. Other valid logs from the response were preserved.",
+      blockNumber: config.scan.fromBlock,
+    }];
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result.status).toBe("partial");
+    expect(result.alerts).toHaveLength(1);
+    expect(result.evidence).toHaveLength(1);
+    expect(result.failures).toContainEqual(expect.objectContaining({
+      code: "malformed-rpc-log",
+      category: "malformed-response",
+    }));
+  });
+
+  it.each([
+    ["dns", "log-chunk-rpc-dns"],
+    ["timeout", "log-chunk-rpc-timeout"],
+    ["rate-limit", "log-chunk-rpc-rate-limit"],
+    ["malformed-response", "log-chunk-rpc-malformed-response"],
+  ] satisfies Array<[RpcFailureCategory, string]>) ("preserves the %s RPC failure category", async (category, code) => {
+    const reader = new FixtureReader();
+    reader.logsError = new RpcReadError("log request", category);
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result).toMatchObject({
+      status: "failed",
+      failures: [{ code, stage: "rpc", category }],
+    });
+  });
+
   it("does not report complete when the known upgrade event is absent", async () => {
     const reader = new FixtureReader();
     reader.logs = [];
@@ -209,6 +247,7 @@ describe("bounded evidence scan", () => {
     expect(result.failures).toContainEqual(expect.objectContaining({
       code: "known-transaction-evidence-incomplete",
       stage: "evidence",
+      category: "incomplete-evidence",
       transactionHash: config.scan.knownTransactions[0],
     }));
   });
@@ -225,6 +264,7 @@ describe("bounded evidence scan", () => {
       failures: [{ code: "rpc-chain-id-mismatch", stage: "rpc" }],
     });
     expect(reader.filters).toEqual([]);
+    expect(result.failures[0].category).toBe("wrong-chain");
     expect(reader.evidenceCalls).toEqual({ block: 0, transaction: 0, receipt: 0 });
   });
 

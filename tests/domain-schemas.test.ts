@@ -50,6 +50,7 @@ describe("normalized records", () => {
         targetId: "aave-v3-base-core",
         incidentClass: "contract_upgrade",
         eventType: "proxy_upgraded",
+        classificationLabel: "Contract upgrade",
         severity: "informational",
         severityRuleId: "target-is-approved",
         title: "Configured Aave pool proxy implementation updated",

@@ -1,3 +1,5 @@
+import { buildEvidenceRows, fetchHealth, formatUtcTimestamp, reconcileAlertSelection } from "/view-model.js";
+
 const elements = {
   alertCount: document.querySelector("#alert-count"),
   alertList: document.querySelector("#alert-list"),
@@ -5,10 +7,13 @@ const elements = {
   eventLabel: document.querySelector("#event-label"),
   failureList: document.querySelector("#failure-list"),
   failurePanel: document.querySelector("#failure-panel"),
+  healthDot: document.querySelector("#health-dot"),
+  healthLabel: document.querySelector("#health-label"),
   networkLabel: document.querySelector("#network-label"),
   rangeLabel: document.querySelector("#range-label"),
   scanButton: document.querySelector("#scan-button"),
   scanStatus: document.querySelector("#scan-status"),
+  signatureLabel: document.querySelector("#signature-label"),
   targetLabel: document.querySelector("#target-label"),
 };
 
@@ -82,7 +87,7 @@ function renderAlertList() {
     button.append(top);
     button.append(node("h3", "", alert.title));
     const meta = node("div", "alert-meta");
-    meta.append(node("span", "", alert.observedAt ? new Date(alert.observedAt).toLocaleString() : "Time unavailable"));
+    meta.append(node("span", "", formatUtcTimestamp(alert.observedAt)));
     meta.append(node("span", "", shortHash(alert.id)));
     button.append(meta);
     button.addEventListener("click", () => selectAlert(alert.id));
@@ -106,6 +111,7 @@ function renderDetail(detail) {
   const header = node("header", "detail-header");
   const heading = node("div");
   heading.append(node("p", "eyebrow", "Normalized alert"));
+  heading.append(node("p", "classification-label", alert.classificationLabel));
   heading.append(node("h2", "", alert.title));
   heading.append(node("p", "detail-summary", alert.summary));
   const badgeStack = node("div", "badge-stack");
@@ -135,21 +141,9 @@ function renderDetail(detail) {
 
   elements.detail.append(node("p", "eyebrow evidence-title", "Evidence record"));
   const grid = node("dl", "evidence-grid");
-  const implementation = evidence.event.decodedArguments.implementation ?? "Unavailable";
-  grid.append(
-    evidenceItem("Severity rule", evidence.severity.ruleId),
-    evidenceItem("Evidence status", evidence.status),
-    evidenceItem("Transaction", shortHash(evidence.transaction.hash), evidence.sources.transaction),
-    evidenceItem("Receipt", evidence.transaction.receiptStatus ?? "Unavailable"),
-    evidenceItem("Block number", evidence.block.number, evidence.sources.block),
-    evidenceItem("Block hash", shortHash(evidence.block.hash), evidence.sources.block),
-    evidenceItem("Block timestamp", evidence.block.timestamp ? new Date(evidence.block.timestamp).toLocaleString() : "Unavailable"),
-    evidenceItem("Log index", evidence.log.index),
-    evidenceItem("Emitter", shortHash(evidence.log.emitter), evidence.sources.addresses.emitter),
-    evidenceItem("Implementation", shortHash(implementation), evidence.sources.addresses.implementation),
-    evidenceItem("Event signature", evidence.event.signature),
-    evidenceItem("Chain", `${evidence.network.name} · ${evidence.network.chainId}`),
-  );
+  for (const row of buildEvidenceRows(evidence, alert.classificationLabel)) {
+    grid.append(evidenceItem(row.label, row.value, row.link));
+  }
   elements.detail.append(grid);
 
   if (evidence.errors.length > 0) {
@@ -168,6 +162,7 @@ async function selectAlert(alertId) {
   elements.detail.setAttribute("aria-busy", "true");
   try {
     const detail = await request(`/api/alerts/${encodeURIComponent(alertId)}`);
+    if (state.selectedAlertId !== alertId) return;
     renderDetail(detail);
     renderFailures(detail.scanFailures);
   } catch (error) {
@@ -179,9 +174,27 @@ async function selectAlert(alertId) {
 
 async function refreshAlerts(selectFirst = false) {
   const payload = await request("/api/alerts");
+  const previousAlertId = state.selectedAlertId;
   state.alerts = payload.alerts;
+  state.selectedAlertId = reconcileAlertSelection(state.alerts, previousAlertId, selectFirst);
   renderAlertList();
-  if (selectFirst && state.alerts[0]) await selectAlert(state.alerts[0].id);
+  if (!state.selectedAlertId) {
+    elements.detail.replaceChildren(node("p", "detail-summary", "No alert is selected. Run the approved scan or select a current alert."));
+    return;
+  }
+  if (selectFirst || state.selectedAlertId !== previousAlertId) await selectAlert(state.selectedAlertId);
+}
+
+async function updateHealth() {
+  try {
+    const health = await fetchHealth(request);
+    if (health.status !== "ok") throw new Error("The health endpoint did not report ok.");
+    elements.healthLabel.textContent = "API healthy";
+    elements.healthDot.classList.remove("unhealthy");
+  } catch {
+    elements.healthLabel.textContent = "API unavailable";
+    elements.healthDot.classList.add("unhealthy");
+  }
 }
 
 async function runScan() {
@@ -207,12 +220,14 @@ async function runScan() {
 
 async function initialize() {
   elements.scanButton.addEventListener("click", runScan);
+  await updateHealth();
   try {
     const config = await request("/api/config");
     elements.networkLabel.textContent = `${config.network.name} · ${config.network.chainId}`;
     elements.targetLabel.textContent = config.target.name;
     elements.rangeLabel.textContent = `${config.scan.fromBlock} → ${config.scan.toBlock}`;
-    elements.eventLabel.textContent = config.detector.eventSignature;
+    elements.eventLabel.textContent = config.detector.classificationLabel;
+    elements.signatureLabel.textContent = config.detector.eventSignature;
     await refreshAlerts(true);
   } catch (error) {
     elements.scanStatus.textContent = `Dashboard initialization failed: ${error.message}`;

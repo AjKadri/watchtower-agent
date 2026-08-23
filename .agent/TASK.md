@@ -117,9 +117,10 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The P0 integrity review fixes are complete. A complete result now requires a
-live Base mainnet chain ID and complete evidence for the configured known
-upgrade transaction. Repeated scans atomically replace prior in-memory
-artifacts. The configured public origin has no branch or milestone history and
-must be published by the repository owner. Do not expand the target, event,
-storage, monitoring, frontend, or deployment scope without a new approved task.
+The reviewed P0 and P1 fixes are complete. The server, scan request boundary,
+RPC failure categories, log normalization, ABI validation, classification label,
+and evidence dashboard have focused regression coverage. The ignored local RPC
+setting must be refreshed from the documented public example before plain
+`npm run scan` succeeds in this workspace. The configured public origin still
+has no branch or milestone history. Do not expand the target, event, storage,
+monitoring, frontend, or deployment scope without a new approved task.

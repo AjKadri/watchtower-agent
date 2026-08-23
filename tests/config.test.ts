@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { loadTargetConfig } from "../src/config/load.js";
 import { targetConfigSchema } from "../src/config/schema.js";
+import { validateUpgradeEventAbi } from "../src/events/upgrade.js";
 import { readJson } from "./helpers.js";
 
 const config = targetConfigSchema.parse(readJson("../config/target.json", import.meta.url));
@@ -19,11 +21,22 @@ describe("target configuration", () => {
     expect(config.detectors.map(({ eventSignature }) => eventSignature)).toEqual([
       "Upgraded(address)",
     ]);
+    expect(config.detectors[0].classificationLabel).toBe("Contract upgrade");
     expect(config.excludedIncidentClasses.map(({ id }) => id)).toEqual([
       "ownership_admin",
       "large_movement",
       "pause_unpause",
     ]);
+  });
+
+  it("loads the committed ABI and validates it against the decoder and topic", async () => {
+    const loaded = await loadTargetConfig();
+    const abi = readJson("../config/abis/aave-base-upgrade-events.json", import.meta.url);
+
+    expect(loaded.detectors[0].topic0).toBe(config.detectors[0].topic0);
+    expect(validateUpgradeEventAbi(abi, config.detectors[0].topic0)).toHaveLength(1);
+    expect(() => validateUpgradeEventAbi(abi, `0x${"0".repeat(64)}`)).toThrow(/do not match/);
+    expect(() => validateUpgradeEventAbi([{ ...(abi as Array<Record<string, unknown>>)[0], anonymous: true }], config.detectors[0].topic0)).toThrow();
   });
 
   it("rejects additional detectors and related contracts", () => {
