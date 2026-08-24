@@ -2,13 +2,13 @@
 
 Last updated: 2026-08-24
 
-- Current milestone: Bounded historical upgrade investigation checks complete.
-- Completed: Extended the existing read-only `ChainReader` and deterministic evidence pipeline with exactly six fixed historical checks for the approved Aave upgrade. Required checks cover the EIP-1967 implementation slot at blocks `41105889` and `41105890`, decoded implementation bytecode at `41105890`, and Aave `getPool()` at `41105890`. Optional `POOL_REVISION()` reads run only at the two approved blocks and remain non-authoritative for severity, event classification, and final disposition. Every check records its RPC method, fixed public parameters, exact block tag, normalized result, assertion, status, and safe per-check failure.
-- Tests run: `npm test` passed 10 files and 46 tests. `npm run typecheck` passed with no TypeScript errors. `npm run scan` completed against the Alchemy Base Mainnet archive RPC configured in the ignored `.env` file.
-- Result: The live scan returned one informational `contract_upgrade` alert and one complete evidence record with no failures. The bounded investigation disposition was `corroborated`, all six checks passed, the implementation changed from `0x79ab8fc5ba13daf37b4e978a543286bc2a16508c` to `0xdb578d67a83e94de73c9e0c14280f804f6c1c3e4`, bytecode was present at `22,757` bytes, `getPool()` returned the configured proxy, and the optional revisions were `9` and `10`. The RPC URL, key, provider bodies, and stack traces were not recorded.
-- Current revision: The milestone commit containing this status update, with parent `3ec4d27` (`docs: approve bounded upgrade investigation`).
-- Next step: Do not add the planner, receipt API, dashboard investigation trace, LLM integration, Agent Router calls, or any scope expansion until explicitly approved.
-- Blockers: None.
+- Current milestone: Deterministic investigation planning and replayable receipt implementation complete. Live RPC revalidation is pending provider DNS recovery.
+- Completed: Added three strict version `1.0.0` plans: `corroborate-approved-upgrade`, `escalate-unapproved-upgrade`, and `stop-incomplete`. Planning uses only fixed target, event, trigger-evidence, and severity-rule state. Each plan records a fixed selection reason, selected and skipped checks, allowed read capabilities, and maximum uses. The bounded executor validates the plan before reading and enforces budgets of six, four, or zero reads. Added a strict JSON-safe receipt with a deterministic ID, complete trigger evidence, plan details, normalized RPC checks, assertions, safe failures, limitations, final disposition, and explorer links. No route or dashboard change was made.
+- Tests run: `npm test` passed 11 files and 60 tests. `npm run typecheck` passed with no TypeScript errors. `npm run scan` was run three times against the unchanged Alchemy Base archive RPC configured in the ignored `.env` file.
+- Result: Fixture-backed tests passed for corroborated, contradicted, incomplete, deterministic receipt ID, identical replay, rejected arbitrary planner scope and receipt addresses, and skipped optional revision checks. Each live scan attempt stopped safely at chain verification with exit code `1`, status `failed`, and `chain-id-rpc-dns`. No alert or receipt was produced during those attempts. The RPC URL, key, provider bodies, and stack traces were not exposed.
+- Current revision: The milestone commit containing this status update, with parent `3be29e0` (`feat: add bounded upgrade investigation checks`).
+- Next step: Retry the unchanged documented live scan when the configured provider hostname resolves. Do not substitute another provider or add receipt API, dashboard trace, signing, EAS anchoring, cryptographic verification, LLM integration, or scope expansion without approval.
+- Blockers: No repository implementation blocker. The current execution environment could not resolve the configured RPC hostname during final live validation.
 - Decisions needed: None. The bounded investigation gate is approved.
 
 ## Setup and run instructions

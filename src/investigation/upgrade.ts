@@ -5,6 +5,12 @@ import type { Address, ChainReader, Hex } from "../chain/types.js";
 import type { TargetConfig } from "../config/schema.js";
 import type { UpgradeInvestigation, UpgradeInvestigationCheck } from "../domain/schemas.js";
 import { upgradeInvestigationSchema } from "../domain/schemas.js";
+import {
+  investigationPlanSchema,
+  selectInvestigationPlan,
+  type InvestigationCapability,
+  type InvestigationPlan,
+} from "./plans.js";
 
 type CheckId = UpgradeInvestigationCheck["id"];
 type CheckMethod = UpgradeInvestigationCheck["method"];
@@ -14,6 +20,7 @@ type CheckDefinition = {
   id: CheckId;
   required: boolean;
   method: CheckMethod;
+  capability: InvestigationCapability;
   parameters: Record<string, string>;
   blockNumber: bigint;
   description: string;
@@ -22,6 +29,28 @@ type CheckDefinition = {
   actual: (result: CheckResult) => string;
   matches: (result: CheckResult) => boolean;
 };
+
+class ReadBudget {
+  readonly #maximumReads: number;
+  readonly #maximumUses: Map<InvestigationCapability, number>;
+  readonly #uses = new Map<InvestigationCapability, number>();
+  #reads = 0;
+
+  constructor(plan: InvestigationPlan) {
+    this.#maximumReads = plan.capabilityBudget.maximumReads;
+    this.#maximumUses = new Map(plan.capabilityBudget.capabilities.map(({ name, maximumUses }) => [name, maximumUses]));
+  }
+
+  consume(capability: InvestigationCapability): void {
+    const maximumUses = this.#maximumUses.get(capability);
+    const uses = this.#uses.get(capability) ?? 0;
+    if (maximumUses === undefined || uses >= maximumUses || this.#reads >= this.#maximumReads) {
+      throw new Error("The fixed investigation capability budget was exceeded.");
+    }
+    this.#uses.set(capability, uses + 1);
+    this.#reads += 1;
+  }
+}
 
 function normalizeAddressWord(value: Hex): Address {
   if (!/^0x[0-9a-f]{64}$/i.test(value)) {
@@ -91,7 +120,14 @@ export async function investigateApprovedUpgrade(
   reader: ChainReader,
   config: TargetConfig,
   decodedImplementation: Address,
+  selectedPlan: InvestigationPlan = selectInvestigationPlan({
+    targetId: "aave-v3-base-core",
+    eventSignature: "Upgraded(address)",
+    triggerEvidenceStatus: "complete",
+    severityRuleId: "target-is-approved",
+  }),
 ): Promise<UpgradeInvestigation> {
+  const plan = investigationPlanSchema.parse(selectedPlan);
   const investigation = config.investigation;
   const previousBlock = BigInt(investigation.previousBlock);
   const upgradeBlock = BigInt(investigation.upgradeBlock);
@@ -100,11 +136,12 @@ export async function investigateApprovedUpgrade(
   const expected = investigation.expected;
   const implementation = getAddress(decodedImplementation);
 
-  const checks = await Promise.all([
-    executeCheck({
+  const definitions: CheckDefinition[] = [
+    {
       id: "implementation-before",
       required: true,
       method: "eth_getStorageAt",
+      capability: "historical-storage-read",
       parameters: { address: proxy, slot: investigation.implementationSlot },
       blockNumber: previousBlock,
       description: "The configured proxy implementation slot at N-1 matches the verified pre-upgrade implementation.",
@@ -112,11 +149,12 @@ export async function investigateApprovedUpgrade(
       read: async () => ({ kind: "address", value: normalizeAddressWord(await reader.getStorageAt(proxy, investigation.implementationSlot, previousBlock)) }),
       actual: (result) => result.kind === "address" ? result.value.toLowerCase() : "invalid-result-kind",
       matches: (result) => result.kind === "address" && result.value.toLowerCase() === expected.implementationBefore.toLowerCase(),
-    }),
-    executeCheck({
+    },
+    {
       id: "implementation-at-upgrade",
       required: true,
       method: "eth_getStorageAt",
+      capability: "historical-storage-read",
       parameters: { address: proxy, slot: investigation.implementationSlot },
       blockNumber: upgradeBlock,
       description: "The configured proxy implementation slot at N matches both the approved and decoded implementation.",
@@ -126,11 +164,12 @@ export async function investigateApprovedUpgrade(
       matches: (result) => result.kind === "address"
         && result.value.toLowerCase() === expected.implementationAfter.toLowerCase()
         && implementation.toLowerCase() === expected.implementationAfter.toLowerCase(),
-    }),
-    executeCheck({
+    },
+    {
       id: "implementation-bytecode",
       required: true,
       method: "eth_getCode",
+      capability: "historical-code-read",
       parameters: { address: implementation },
       blockNumber: upgradeBlock,
       description: "The decoded implementation has the verified deployed bytecode length at N.",
@@ -144,11 +183,12 @@ export async function investigateApprovedUpgrade(
       },
       actual: (result) => result.kind === "bytecode" ? `${result.byteLength} bytes` : "invalid-result-kind",
       matches: (result) => result.kind === "bytecode" && result.present && result.byteLength === expected.implementationByteLength,
-    }),
-    executeCheck({
+    },
+    {
       id: "configured-pool",
       required: true,
       method: "eth_call",
+      capability: "historical-contract-call",
       parameters: { to: provider, data: investigation.getPoolCallData },
       blockNumber: upgradeBlock,
       description: "The configured PoolAddressesProvider returns the configured Pool proxy at N.",
@@ -156,11 +196,12 @@ export async function investigateApprovedUpgrade(
       read: async () => ({ kind: "address", value: normalizeAddressWord(await reader.call(provider, investigation.getPoolCallData, upgradeBlock)) }),
       actual: (result) => result.kind === "address" ? result.value.toLowerCase() : "invalid-result-kind",
       matches: (result) => result.kind === "address" && result.value.toLowerCase() === expected.pool.toLowerCase(),
-    }),
-    executeCheck({
+    },
+    {
       id: "pool-revision-before",
       required: false,
       method: "eth_call",
+      capability: "historical-contract-call",
       parameters: { to: proxy, data: investigation.poolRevisionCallData },
       blockNumber: previousBlock,
       description: "Optional POOL_REVISION() corroboration at N-1 matches the verified fixture.",
@@ -168,11 +209,12 @@ export async function investigateApprovedUpgrade(
       read: async () => ({ kind: "uint256", value: normalizeUint256(await reader.call(proxy, investigation.poolRevisionCallData, previousBlock)) }),
       actual: (result) => result.kind === "uint256" ? result.value : "invalid-result-kind",
       matches: (result) => result.kind === "uint256" && result.value === expected.poolRevisionBefore,
-    }),
-    executeCheck({
+    },
+    {
       id: "pool-revision-at-upgrade",
       required: false,
       method: "eth_call",
+      capability: "historical-contract-call",
       parameters: { to: proxy, data: investigation.poolRevisionCallData },
       blockNumber: upgradeBlock,
       description: "Optional POOL_REVISION() corroboration at N matches the verified fixture.",
@@ -180,18 +222,30 @@ export async function investigateApprovedUpgrade(
       read: async () => ({ kind: "uint256", value: normalizeUint256(await reader.call(proxy, investigation.poolRevisionCallData, upgradeBlock)) }),
       actual: (result) => result.kind === "uint256" ? result.value : "invalid-result-kind",
       matches: (result) => result.kind === "uint256" && result.value === expected.poolRevisionAfter,
-    }),
-  ]);
+    },
+  ];
+
+  const definitionsById = new Map(definitions.map((definition) => [definition.id, definition]));
+  const budget = new ReadBudget(plan);
+  const selectedDefinitions = plan.selectedChecks.map((id) => {
+    const definition = definitionsById.get(id);
+    if (!definition) throw new Error("The selected investigation plan contains an unknown check.");
+    budget.consume(definition.capability);
+    return definition;
+  });
+  const checks = await Promise.all(selectedDefinitions.map(executeCheck));
 
   const requiredChecks = checks.filter(({ required }) => required);
-  const disposition = requiredChecks.some(({ status }) => status === "failed" || status === "unsupported")
+  const disposition = plan.id === "stop-incomplete"
     ? "incomplete"
     : requiredChecks.some(({ status }) => status === "mismatch")
       ? "contradicted"
-      : "corroborated";
-  const evidenceStatus = checks.some(({ status }) => status === "failed" || status === "unsupported")
+      : requiredChecks.some(({ status }) => status === "failed" || status === "unsupported")
+        ? "incomplete"
+        : "corroborated";
+  const evidenceStatus = plan.id === "stop-incomplete" || checks.some(({ status }) => status === "failed" || status === "unsupported")
     ? "incomplete"
     : "complete";
 
-  return upgradeInvestigationSchema.parse({ disposition, evidenceStatus, checks });
+  return upgradeInvestigationSchema.parse({ plan, disposition, evidenceStatus, checks });
 }

@@ -5,6 +5,8 @@ import { scanResultSchema } from "../domain/schemas.js";
 import { RpcReadError, type RpcFailureCategory } from "../chain/errors.js";
 import { decodeUpgradeLog, upgradedEventType } from "../events/upgrade.js";
 import { explainEvidence } from "../investigation/explain.js";
+import { selectInvestigationPlan } from "../investigation/plans.js";
+import { createInvestigationReceipt } from "../investigation/receipt.js";
 import { investigateApprovedUpgrade } from "../investigation/upgrade.js";
 import { createAlertId, createScanId } from "./ids.js";
 import { classifyUpgrade } from "./severity.js";
@@ -164,7 +166,14 @@ async function buildEvidence(
     receiptVerified = receiptHashMatches && receiptContainsLog;
   }
 
-  const upgradeInvestigation = await investigateApprovedUpgrade(reader, config, implementation);
+  const triggerEvidenceComplete = blockVerified && transactionVerified && receiptVerified;
+  const plan = selectInvestigationPlan({
+    targetId: config.target.id,
+    eventSignature: detector.eventSignature,
+    triggerEvidenceStatus: triggerEvidenceComplete ? "complete" : "incomplete",
+    severityRuleId: severity.ruleId,
+  });
+  const upgradeInvestigation = await investigateApprovedUpgrade(reader, config, implementation, plan);
   for (const check of upgradeInvestigation.checks) {
     if (check.failure) {
       addEvidenceError(check.failure.code, check.failure.message, check.failure.category);
@@ -178,7 +187,8 @@ async function buildEvidence(
     block: `${explorer}/block/${log.blockNumber}`,
     addresses: {
       emitter: `${explorer}/address/${log.address}`,
-      implementation: `${explorer}/address/${implementation}`,
+        implementation: `${explorer}/address/${implementation}`,
+        provider: `${explorer}/address/${config.investigation.poolAddressesProvider}`,
       ...(transactionVerified && transaction?.from && { sender: `${explorer}/address/${transaction.from}` }),
       ...(transactionVerified && transaction?.to && { recipient: `${explorer}/address/${transaction.to}` }),
     },
@@ -189,6 +199,35 @@ async function buildEvidence(
     `The decoded implementation address is ${implementation}.`,
   ];
   if (receiptVerified) observedFacts.push(`The transaction receipt status is ${receipt?.status}.`);
+
+  const investigationReceipt = triggerEvidenceComplete && block && transaction && receipt
+    ? createInvestigationReceipt({
+      network: { name: config.network.name, chainId: config.network.chainId },
+      targetId: config.target.id,
+      incidentClass: detector.incidentClass,
+      eventType: upgradedEventType,
+      eventSignature: detector.eventSignature,
+      decodedArguments: { implementation },
+      block: {
+        number: config.scan.toBlock,
+        hash: block.hash,
+        timestamp: new Date(Number(block.timestamp) * 1_000).toISOString(),
+      },
+      transaction: {
+        hash: transaction.hash,
+        sender: transaction.from,
+        recipient: transaction.to,
+        receiptStatus: receipt.status,
+      },
+      log: {
+        index: String(log.logIndex),
+        emitter: config.target.primaryContract.address,
+        topic0: detector.topic0,
+        rawTopics: [...log.topics],
+      },
+      detector: { id: detector.id, severityRuleId: severity.ruleId, severity: severity.severity },
+    }, upgradeInvestigation, sources)
+    : null;
 
   const evidence: Evidence = {
     id: evidenceId,
@@ -223,6 +262,7 @@ async function buildEvidence(
     },
     severity: { ruleId: severity.ruleId, inputs: severity.inputs, result: severity.severity },
     upgradeInvestigation,
+    investigationReceipt,
     observedFacts,
     sources,
     errors,

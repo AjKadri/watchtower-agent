@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { alertSchema, evidenceSchema } from "../src/domain/schemas.js";
+import { selectInvestigationPlan } from "../src/investigation/plans.js";
 
 // Schema-only values stay synthetic so this test cannot be mistaken for evidence.
 const transactionHash = `0x${"a".repeat(64)}`;
@@ -12,6 +13,12 @@ const sources = {
   block: "https://basescan.org/block/41105890",
   addresses: { emitter: `https://basescan.org/address/${pool}` },
 };
+const plan = selectInvestigationPlan({
+  targetId: "aave-v3-base-core",
+  eventSignature: "Upgraded(address)",
+  triggerEvidenceStatus: "complete",
+  severityRuleId: "target-is-approved",
+});
 const historicalCheck = (id: string, required: boolean, blockTag: string) => ({
   id,
   required,
@@ -46,6 +53,7 @@ describe("normalized records", () => {
       detector: { id: "aave-pool-upgraded", inputs: { emitter: pool } },
       severity: { ruleId: "target-is-approved", inputs: { targetAddress: implementation }, result: "informational" },
       upgradeInvestigation: {
+        plan,
         disposition: "corroborated",
         evidenceStatus: "complete",
         checks: [
@@ -57,6 +65,7 @@ describe("normalized records", () => {
           historicalCheck("pool-revision-at-upgrade", false, "0x27339e2"),
         ],
       },
+      investigationReceipt: null,
       observedFacts: ["The configured pool proxy emitted Upgraded(address)."],
       sources,
       errors: [],

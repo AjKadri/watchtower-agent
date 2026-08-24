@@ -12,6 +12,7 @@ import type {
   MalformedChainLog,
 } from "../src/chain/types.js";
 import { targetConfigSchema } from "../src/config/schema.js";
+import { investigationReceiptSchema } from "../src/domain/schemas.js";
 import { scanApprovedRange } from "../src/pipeline/scanner.js";
 import { readJson } from "./helpers.js";
 
@@ -69,6 +70,9 @@ class FixtureReader implements ChainReader {
   blockError = false;
   logsError: false | true | Error = false;
   revisionError: Error | null = null;
+  storageAtUpgradeError: Error | null = null;
+  storageAtUpgrade = investigationFixture.implementationAtUpgradeWord;
+  poolResult = investigationFixture.getPoolResult;
   evidenceCalls = { block: 0, transaction: 0, receipt: 0 };
 
   async getChainId(): Promise<number> {
@@ -111,9 +115,10 @@ class FixtureReader implements ChainReader {
 
   async getStorageAt(_address: `0x${string}`, slot: Hex, blockNumber: bigint): Promise<Hex> {
     expect(slot).toBe(investigationFixture.implementationSlot);
+    if (blockNumber === BigInt(investigationFixture.upgradeBlock) && this.storageAtUpgradeError) throw this.storageAtUpgradeError;
     return blockNumber === BigInt(investigationFixture.previousBlock)
       ? investigationFixture.implementationBeforeWord
-      : investigationFixture.implementationAtUpgradeWord;
+      : this.storageAtUpgrade;
   }
 
   async getCode(): Promise<Hex> {
@@ -121,7 +126,7 @@ class FixtureReader implements ChainReader {
   }
 
   async call(_address: `0x${string}`, data: Hex, blockNumber: bigint): Promise<Hex> {
-    if (data === config.investigation.getPoolCallData) return investigationFixture.getPoolResult;
+    if (data === config.investigation.getPoolCallData) return this.poolResult;
     if (this.revisionError) throw this.revisionError;
     return blockNumber === BigInt(investigationFixture.previousBlock)
       ? investigationFixture.poolRevisionBeforeResult
@@ -172,7 +177,24 @@ describe("bounded evidence scan", () => {
         { address: config.investigation.poolAddressesProvider, role: "pool-addresses-provider" },
       ],
       upgradeInvestigation: { disposition: "corroborated", evidenceStatus: "complete" },
+      investigationReceipt: {
+        receiptId: expect.stringMatching(/^receipt_[0-9a-f]{64}$/),
+        schemaVersion: 1,
+        finalDisposition: "corroborated",
+        plan: { id: "corroborate-approved-upgrade", version: "1.0.0" },
+        trigger: {
+          network: { name: "base-mainnet", chainId: 8453 },
+          targetId: "aave-v3-base-core",
+          eventSignature: "Upgraded(address)",
+          block: { number: "41105890", hash: fixtureBlock.hash, timestamp: fixtureBlock.timestamp },
+          transaction: { hash: fixtureTransaction.hash, receiptStatus: "success" },
+          log: { index: "641", emitter: config.target.primaryContract.address },
+        },
+      },
     });
+    const receipt = result.evidence[0].investigationReceipt;
+    expect(receipt).not.toBeNull();
+    expect(investigationReceiptSchema.parse(JSON.parse(JSON.stringify(receipt)))).toEqual(receipt);
     expect(reader.filters).toEqual([{
       address: config.target.primaryContract.address,
       topic0: config.detectors[0].topic0,
@@ -191,6 +213,8 @@ describe("bounded evidence scan", () => {
     expect(first.evidence).toHaveLength(1);
     expect(first.alerts[0].id).toBe(second.alerts[0].id);
     expect(first.scanId).toBe(second.scanId);
+    expect(first.evidence[0].investigationReceipt).toEqual(second.evidence[0].investigationReceipt);
+    expect(first.evidence[0].investigationReceipt?.receiptId).toBe(second.evidence[0].investigationReceipt?.receiptId);
     expect(duplicateReader.evidenceCalls).toEqual({ block: 1, transaction: 1, receipt: 1 });
   });
 
@@ -340,6 +364,43 @@ describe("bounded evidence scan", () => {
       expect.objectContaining({ code: "pool-revision-before-unsupported", category: "unsupported" }),
       expect.objectContaining({ code: "pool-revision-at-upgrade-unsupported", category: "unsupported" }),
     ]));
+  });
+
+  it("records a contradicted receipt when a required slot assertion conflicts", async () => {
+    const reader = new FixtureReader();
+    reader.storageAtUpgrade = "0x0000000000000000000000001111111111111111111111111111111111111111";
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result.status).toBe("complete");
+    expect(result.evidence[0].investigationReceipt).toMatchObject({
+      finalDisposition: "contradicted",
+      errors: [],
+      checks: expect.arrayContaining([
+        expect.objectContaining({ id: "implementation-at-upgrade", status: "mismatch" }),
+      ]),
+    });
+  });
+
+  it("records an incomplete receipt when a required historical read fails", async () => {
+    const reader = new FixtureReader();
+    reader.storageAtUpgradeError = new RpcReadError("historical storage request", "timeout");
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result.status).toBe("partial");
+    expect(result.evidence[0].investigationReceipt).toMatchObject({
+      finalDisposition: "incomplete",
+      errors: [expect.objectContaining({ code: "implementation-at-upgrade-timeout", category: "timeout" })],
+    });
+  });
+
+  it("rejects a replay receipt with an arbitrary call address", async () => {
+    const result = await scanApprovedRange(new FixtureReader(), config);
+    const forged = structuredClone(result.evidence[0].investigationReceipt) as NonNullable<typeof result.evidence[0]["investigationReceipt"]>;
+    const providerCheck = forged.checks.find(({ id }) => id === "configured-pool");
+    if (!providerCheck) throw new Error("fixture receipt omitted the provider check");
+    providerCheck.parameters.to = "0x1111111111111111111111111111111111111111";
+
+    expect(investigationReceiptSchema.safeParse(forged).success).toBe(false);
   });
 
   it("returns a visible failed result for RPC and invalid-range failures", async () => {

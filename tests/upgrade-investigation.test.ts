@@ -13,6 +13,7 @@ import type {
   LogFilter,
 } from "../src/chain/types.js";
 import { targetConfigSchema } from "../src/config/schema.js";
+import { selectInvestigationPlan } from "../src/investigation/plans.js";
 import { investigateApprovedUpgrade } from "../src/investigation/upgrade.js";
 import { readJson } from "./helpers.js";
 
@@ -145,5 +146,49 @@ describe("bounded upgrade investigation", () => {
         message: expect.not.stringContaining("RPC"),
       },
     });
+  });
+
+  it("executes only the four budgeted required checks for an unapproved upgrade", async () => {
+    const reader = new HistoricalFixtureReader();
+    const plan = selectInvestigationPlan({
+      targetId: "aave-v3-base-core",
+      eventSignature: "Upgraded(address)",
+      triggerEvidenceStatus: "complete",
+      severityRuleId: "target-is-not-approved",
+    });
+
+    const result = await investigateApprovedUpgrade(
+      reader,
+      config,
+      "0x1111111111111111111111111111111111111111",
+      plan,
+    );
+
+    expect(result.plan.id).toBe("escalate-unapproved-upgrade");
+    expect(result.plan.skippedChecks).toEqual(["pool-revision-before", "pool-revision-at-upgrade"]);
+    expect(result.checks).toHaveLength(4);
+    expect(reader.reads).toHaveLength(4);
+    expect(reader.reads.filter(({ data }) => data === config.investigation.poolRevisionCallData)).toHaveLength(0);
+    expect(result.disposition).toBe("contradicted");
+  });
+
+  it("performs no historical reads for the stop-incomplete plan", async () => {
+    const reader = new HistoricalFixtureReader();
+    const plan = selectInvestigationPlan({
+      targetId: "aave-v3-base-core",
+      eventSignature: "Upgraded(address)",
+      triggerEvidenceStatus: "incomplete",
+      severityRuleId: "target-is-approved",
+    });
+
+    const result = await investigateApprovedUpgrade(reader, config, decodedImplementation, plan);
+
+    expect(result).toMatchObject({
+      plan: { id: "stop-incomplete", selectedChecks: [], capabilityBudget: { maximumReads: 0 } },
+      checks: [],
+      disposition: "incomplete",
+      evidenceStatus: "incomplete",
+    });
+    expect(reader.reads).toEqual([]);
   });
 });
