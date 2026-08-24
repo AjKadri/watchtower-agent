@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { ChainReader } from "../chain/types.js";
 import type { TargetConfig } from "../config/schema.js";
+import { investigationReceiptSchema } from "../domain/schemas.js";
 import { scanApprovedRange } from "../pipeline/scanner.js";
 import { ScanStore } from "./store.js";
 
@@ -13,6 +14,9 @@ const scanRequestSchema = z.object({
   fromBlock: decimalBlock.optional(),
   toBlock: decimalBlock.optional(),
 }).strict();
+const scanIdSchema = z.string().regex(/^scan_[0-9a-f]{64}$/);
+const alertIdSchema = z.string().regex(/^alert_[0-9a-f]{64}$/);
+const receiptIdSchema = z.string().regex(/^receipt_[0-9a-f]{64}$/);
 
 export type AppDependencies = {
   reader: ChainReader;
@@ -102,7 +106,12 @@ export function createApp(dependencies: AppDependencies): Express {
   });
 
   app.get("/api/scans/:scanId", (request, response) => {
-    const scan = store.getScan(request.params.scanId);
+    const parsedId = scanIdSchema.safeParse(request.params.scanId);
+    if (!parsedId.success) {
+      response.status(400).json({ error: { code: "invalid-scan-id", message: "The scan ID format is invalid." } });
+      return;
+    }
+    const scan = store.getScan(parsedId.data);
     if (!scan) {
       response.status(404).json({ error: { code: "scan-not-found", message: "No in-memory scan has that ID." } });
       return;
@@ -115,12 +124,40 @@ export function createApp(dependencies: AppDependencies): Express {
   });
 
   app.get("/api/alerts/:alertId", (request, response) => {
-    const detail = store.getAlert(request.params.alertId);
+    const parsedId = alertIdSchema.safeParse(request.params.alertId);
+    if (!parsedId.success) {
+      response.status(400).json({ error: { code: "invalid-alert-id", message: "The alert ID format is invalid." } });
+      return;
+    }
+    const detail = store.getAlert(parsedId.data);
     if (!detail) {
       response.status(404).json({ error: { code: "alert-not-found", message: "No in-memory alert has that ID." } });
       return;
     }
     response.json(detail);
+  });
+
+  app.get("/api/receipts/:receiptId", (request, response, next) => {
+    try {
+      const parsedId = receiptIdSchema.safeParse(request.params.receiptId);
+      if (!parsedId.success) {
+        response.status(400).json({ error: { code: "invalid-receipt-id", message: "The receipt ID format is invalid." } });
+        return;
+      }
+      const storedReceipt = store.getReceipt(parsedId.data);
+      if (!storedReceipt) {
+        response.status(404).json({ error: { code: "receipt-not-found", message: "No in-memory receipt has that ID." } });
+        return;
+      }
+      const receipt = investigationReceiptSchema.parse(storedReceipt);
+      response.set({
+        "Cache-Control": "no-store",
+        "Content-Disposition": `attachment; filename="watchtower-${receipt.receiptId}.json"`,
+      });
+      response.json(receipt);
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.use(express.static(publicDirectory, { index: "index.html" }));

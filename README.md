@@ -102,6 +102,8 @@ The server exposes:
 - `GET /api/scans/:scanId`
 - `GET /api/alerts`
 - `GET /api/alerts/:alertId`
+- `GET /api/receipts/:receiptId`, returning the validated replay receipt as a
+  JSON attachment
 
 Run the approved scan directly through the API:
 
@@ -259,10 +261,13 @@ The dashboard checks `/api/health` before presenting its service indicator. It
 shows the classification, severity rule, evidence status, transaction, sender,
 recipient, receipt, block, UTC-labeled timestamp, log index, topic zero, raw
 topics, detector inputs, severity inputs, configured address roles, decoded
-implementation, and direct BaseScan links. Stale alert detail is cleared when
-the in-memory alert list becomes empty or replaces the selected alert. Scan
-failures and incomplete-evidence errors remain visible rather than being
-replaced by a generated explanation.
+implementation, and direct BaseScan links. A six-stage trace shows the observed
+event, selected versioned plan, bounded historical state reads, implementation
+check, protocol identity check, and replay receipt. Failed, unsupported, and
+plan-skipped checks remain visible. The receipt can be downloaded as validated
+JSON. Stale alert detail is cleared when the in-memory alert list becomes empty
+or replaces the selected alert. Scan failures and incomplete-evidence errors
+remain visible rather than being replaced by a generated explanation.
 
 ## Configuration
 

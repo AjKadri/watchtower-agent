@@ -149,6 +149,9 @@ describe("Watchtower API", () => {
     const alerts = await alertsResponse.json();
     const detailResponse = await fetch(`${baseUrl}/api/alerts/${scan.alerts[0].id}`);
     const detail = await detailResponse.json();
+    const receiptId = scan.evidence[0].investigationReceipt.receiptId;
+    const receiptResponse = await fetch(`${baseUrl}/api/receipts/${receiptId}`);
+    const downloadedReceipt = await receiptResponse.json();
 
     expect((await storedScan.json()).scanId).toBe(scan.scanId);
     expect(alerts.alerts).toHaveLength(1);
@@ -162,7 +165,39 @@ describe("Watchtower API", () => {
       block: { number: "41105890" },
       transaction: { hash: transaction.hash, receiptStatus: "success" },
       event: { decodedArguments: { implementation: "0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4" } },
+      upgradeInvestigation: {
+        plan: { id: "corroborate-approved-upgrade", version: "1.0.0" },
+        disposition: "corroborated",
+      },
+      investigationReceipt: { receiptId, finalDisposition: "corroborated" },
     });
+    expect(receiptResponse.status).toBe(200);
+    expect(receiptResponse.headers.get("content-type")).toContain("application/json");
+    expect(receiptResponse.headers.get("content-disposition")).toBe(`attachment; filename="watchtower-${receiptId}.json"`);
+    expect(receiptResponse.headers.get("cache-control")).toBe("no-store");
+    expect(downloadedReceipt).toEqual(scan.evidence[0].investigationReceipt);
+    expect(JSON.stringify(downloadedReceipt)).not.toContain("BASE_RPC_URL");
+  });
+
+  it("validates scan, alert, and receipt identifiers before lookup", async () => {
+    const baseUrl = await serve(new ApiFixtureReader());
+
+    const invalidScan = await fetch(`${baseUrl}/api/scans/not-a-scan`);
+    const invalidAlert = await fetch(`${baseUrl}/api/alerts/not-an-alert`);
+    const invalidReceipt = await fetch(`${baseUrl}/api/receipts/not-a-receipt`);
+    expect(invalidScan.status).toBe(400);
+    expect(await invalidScan.json()).toMatchObject({ error: { code: "invalid-scan-id" } });
+    expect(invalidAlert.status).toBe(400);
+    expect(await invalidAlert.json()).toMatchObject({ error: { code: "invalid-alert-id" } });
+    expect(invalidReceipt.status).toBe(400);
+    expect(await invalidReceipt.json()).toMatchObject({ error: { code: "invalid-receipt-id" } });
+
+    const missingScan = await fetch(`${baseUrl}/api/scans/scan_${"0".repeat(64)}`);
+    const missingReceipt = await fetch(`${baseUrl}/api/receipts/receipt_${"0".repeat(64)}`);
+    expect(missingScan.status).toBe(404);
+    expect(await missingScan.json()).toMatchObject({ error: { code: "scan-not-found" } });
+    expect(missingReceipt.status).toBe(404);
+    expect(await missingReceipt.json()).toMatchObject({ error: { code: "receipt-not-found" } });
   });
 
   it("rejects scope expansion and returns scan failures visibly", async () => {
@@ -244,6 +279,7 @@ describe("Watchtower API", () => {
       body: "{}",
     })).json();
     const previousAlertId = successful.alerts[0].id;
+    const previousReceiptId = successful.evidence[0].investigationReceipt.receiptId;
 
     reader.failLogs = true;
     const failedResponse = await fetch(`${baseUrl}/api/scans`, {
@@ -258,5 +294,6 @@ describe("Watchtower API", () => {
     expect(await (await fetch(`${baseUrl}/api/scans/${failed.scanId}`)).json()).toMatchObject({ status: "failed" });
     expect(await (await fetch(`${baseUrl}/api/alerts`)).json()).toEqual({ alerts: [] });
     expect((await fetch(`${baseUrl}/api/alerts/${previousAlertId}`)).status).toBe(404);
+    expect((await fetch(`${baseUrl}/api/receipts/${previousReceiptId}`)).status).toBe(404);
   });
 });

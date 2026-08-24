@@ -1,4 +1,11 @@
-import { buildEvidenceRows, fetchHealth, formatUtcTimestamp, reconcileAlertSelection } from "/view-model.js";
+import {
+  buildEvidenceRows,
+  buildInvestigationTrace,
+  canRenderAlertDetail,
+  fetchHealth,
+  formatUtcTimestamp,
+  reconcileAlertSelection,
+} from "/view-model.js";
 
 const elements = {
   alertCount: document.querySelector("#alert-count"),
@@ -17,7 +24,7 @@ const elements = {
   targetLabel: document.querySelector("#target-label"),
 };
 
-const state = { alerts: [], selectedAlertId: null };
+const state = { alerts: [], selectedAlertId: null, detailAlertId: null };
 
 function node(tag, className, text) {
   const element = document.createElement(tag);
@@ -40,6 +47,17 @@ function sourceLink(label, href) {
   link.href = href;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
+  return link;
+}
+
+function traceLink(linkDefinition) {
+  const link = node("a", "trace-link", linkDefinition.label);
+  link.href = linkDefinition.href;
+  if (linkDefinition.external) {
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  }
+  if (linkDefinition.download) link.download = linkDefinition.download;
   return link;
 }
 
@@ -119,6 +137,50 @@ function renderDetail(detail) {
   header.append(heading, badgeStack);
   elements.detail.append(header);
 
+  const trace = node("section", "trace-section");
+  const traceHeading = node("div", "trace-heading");
+  const traceHeadingText = node("div");
+  traceHeadingText.append(node("p", "eyebrow", "Deterministic investigation"));
+  traceHeadingText.append(node("h3", "", "Six-stage trace"));
+  const plan = evidence.upgradeInvestigation?.plan;
+  traceHeading.append(traceHeadingText);
+  if (plan) traceHeading.append(node("span", "trace-version", `${plan.id} · v${plan.version}`));
+  trace.append(traceHeading);
+
+  const traceList = node("ol", "trace-list");
+  for (const stage of buildInvestigationTrace(detail)) {
+    const item = node("li", `trace-stage ${stage.status}`);
+    const marker = node("span", "trace-index", String(stage.index).padStart(2, "0"));
+    const body = node("div", "trace-body");
+    const top = node("div", "trace-stage-top");
+    top.append(node("h4", "", stage.title), badge(stage.status, stage.status));
+    body.append(top, node("p", "trace-summary", stage.summary));
+    if (stage.elapsedMs !== null) body.append(node("p", "trace-elapsed", `${stage.elapsedMs} ms`));
+
+    if (stage.details.length > 0) {
+      const details = node("ul", "trace-checks");
+      for (const check of stage.details) {
+        const checkItem = node("li", `trace-check ${check.status}`);
+        const checkTop = node("div", "trace-check-top");
+        checkTop.append(node("span", "trace-check-label", check.label), badge(check.status, check.status));
+        checkItem.append(checkTop, node("p", "", check.summary));
+        if (check.elapsedMs !== null) checkItem.append(node("span", "trace-elapsed", `${check.elapsedMs} ms`));
+        details.append(checkItem);
+      }
+      body.append(details);
+    }
+
+    if (stage.links.length > 0) {
+      const links = node("div", "trace-links");
+      for (const link of stage.links) links.append(traceLink(link));
+      body.append(links);
+    }
+    item.append(marker, body);
+    traceList.append(item);
+  }
+  trace.append(traceList);
+  elements.detail.append(trace);
+
   const investigation = node("section", "investigation-grid");
   const facts = node("div", "investigation-card");
   facts.append(node("h3", "", "Observed facts"));
@@ -139,7 +201,9 @@ function renderDetail(detail) {
   investigation.append(facts, interpretation, limits);
   elements.detail.append(investigation);
 
-  elements.detail.append(node("p", "eyebrow evidence-title", "Evidence record"));
+  const evidenceTitle = node("p", "eyebrow evidence-title", "Evidence record");
+  evidenceTitle.id = "evidence-record";
+  elements.detail.append(evidenceTitle);
   const grid = node("dl", "evidence-grid");
   for (const row of buildEvidenceRows(evidence, alert.classificationLabel)) {
     grid.append(evidenceItem(row.label, row.value, row.link));
@@ -154,19 +218,26 @@ function renderDetail(detail) {
     errors.append(list);
     elements.detail.append(errors);
   }
+  state.detailAlertId = alert.id;
 }
 
 async function selectAlert(alertId) {
   state.selectedAlertId = alertId;
   renderAlertList();
+  if (state.detailAlertId !== alertId) {
+    elements.detail.replaceChildren(node("p", "detail-summary", "Loading current alert evidence…"));
+  }
   elements.detail.setAttribute("aria-busy", "true");
   try {
     const detail = await request(`/api/alerts/${encodeURIComponent(alertId)}`);
-    if (state.selectedAlertId !== alertId) return;
+    if (!canRenderAlertDetail(state.alerts, state.selectedAlertId, detail.alert.id)) return;
     renderDetail(detail);
     renderFailures(detail.scanFailures);
   } catch (error) {
-    elements.detail.replaceChildren(node("p", "detail-summary", error.message));
+    if (state.selectedAlertId === alertId) {
+      state.detailAlertId = null;
+      elements.detail.replaceChildren(node("p", "detail-summary", error.message));
+    }
   } finally {
     elements.detail.removeAttribute("aria-busy");
   }
@@ -179,10 +250,14 @@ async function refreshAlerts(selectFirst = false) {
   state.selectedAlertId = reconcileAlertSelection(state.alerts, previousAlertId, selectFirst);
   renderAlertList();
   if (!state.selectedAlertId) {
+    state.detailAlertId = null;
     elements.detail.replaceChildren(node("p", "detail-summary", "No alert is selected. Run the approved scan or select a current alert."));
     return;
   }
-  if (selectFirst || state.selectedAlertId !== previousAlertId) await selectAlert(state.selectedAlertId);
+  if (selectFirst || state.selectedAlertId !== previousAlertId) {
+    state.detailAlertId = null;
+    await selectAlert(state.selectedAlertId);
+  }
 }
 
 async function updateHealth() {
