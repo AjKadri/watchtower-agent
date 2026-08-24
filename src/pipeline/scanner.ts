@@ -186,6 +186,10 @@ async function buildEvidence(
   }
 
   const explorer = config.network.explorerBaseUrl;
+  const relatedAddressLinks = Object.fromEntries(config.target.relatedContracts.map(({ key, address }) => [
+    key,
+    `${explorer}/address/${address}`,
+  ]));
   const evidenceStatus = errors.length === 0 ? "complete" : "incomplete";
   const sources = {
     transaction: `${explorer}/tx/${log.transactionHash}`,
@@ -193,14 +197,14 @@ async function buildEvidence(
     addresses: {
       emitter: `${explorer}/address/${emitter}`,
       implementation: `${explorer}/address/${normalizedImplementation}`,
-      provider: `${explorer}/address/${config.investigation.poolAddressesProvider}`,
+      ...relatedAddressLinks,
       ...(transactionVerified && sender && { sender: `${explorer}/address/${sender}` }),
       ...(transactionVerified && recipient && { recipient: `${explorer}/address/${recipient}` }),
     },
   };
 
   const observedFacts = [
-    `The configured Aave V3 Base Pool proxy emitted ${detector.eventSignature} at log index ${log.logIndex}.`,
+    `The configured ${config.presentation.observedEmitterName} emitted ${detector.eventSignature} at log index ${log.logIndex}.`,
     `The decoded implementation address is ${normalizedImplementation}.`,
   ];
   if (receiptVerified) observedFacts.push(`The transaction receipt status is ${receipt?.status}.`);
@@ -259,7 +263,7 @@ async function buildEvidence(
     relevantAddresses: [
       { address: emitter, role: config.target.primaryContract.role },
       { address: normalizedImplementation, role: "decoded-implementation" },
-      { address: config.investigation.poolAddressesProvider, role: "pool-addresses-provider" },
+      ...config.target.relatedContracts.map(({ address, role }) => ({ address, role })),
     ],
     detector: {
       id: detector.id,
@@ -282,8 +286,8 @@ async function buildEvidence(
     classificationLabel: detector.classificationLabel,
     severity: severity.severity,
     severityRuleId: severity.ruleId,
-    title: "Configured Aave Pool proxy implementation updated",
-    summary: `The configured Pool proxy emitted ${detector.eventSignature}. The decoded implementation is ${normalizedImplementation}. The ${severity.ruleId} policy rule classified this alert as ${severity.severity}.`,
+    title: config.presentation.alertTitle,
+    summary: `The configured ${config.presentation.summarySubject} emitted ${detector.eventSignature}. The decoded implementation is ${normalizedImplementation}. The ${severity.ruleId} policy rule classified this alert as ${severity.severity}.`,
     investigation: explainEvidence(evidence),
     observedAt: blockVerified ? new Date(Number(block?.timestamp) * 1_000).toISOString() : null,
     evidenceStatus,

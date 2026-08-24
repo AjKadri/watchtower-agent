@@ -3,8 +3,9 @@ import { resolve } from "node:path";
 
 import { z } from "zod";
 
-import { targetConfigSchema, type TargetConfig } from "./schema.js";
+import { targetProfileSelectionSchema, type TargetConfig } from "./schema.js";
 import { validateUpgradeEventAbi } from "../events/upgrade.js";
+import { resolveTargetProfile } from "../profiles/registry.js";
 
 const runtimeEnvironmentSchema = z.object({
   BASE_RPC_URL: z.url().refine((url) => url.startsWith("https://") || url.startsWith("http://"), "must be an HTTP URL"),
@@ -20,7 +21,8 @@ export type RuntimeConfig = {
 
 export async function loadTargetConfig(path = "config/target.json"): Promise<TargetConfig> {
   const contents = await readFile(resolve(path), "utf8");
-  const config = targetConfigSchema.parse(JSON.parse(contents));
+  const selection = targetProfileSelectionSchema.parse(JSON.parse(contents));
+  const config = resolveTargetProfile(selection);
   const detector = config.detectors[0];
   const abiContents = await readFile(resolve(detector.abiFile), "utf8");
   validateUpgradeEventAbi(JSON.parse(abiContents), detector.topic0);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { targetConfigSchema } from "../src/config/schema.js";
+import { getTargetProfile } from "../src/profiles/registry.js";
 import { readJson } from "./helpers.js";
 
 type Log = { logIndex: string; address: string; topics: string[]; data: string };
@@ -18,7 +18,7 @@ type ExpectedEvent = {
 };
 
 const fixtureRoot = "../fixtures/base/aave-v3-upgrade-41105890/";
-const config = targetConfigSchema.parse(readJson("../config/target.json", import.meta.url));
+const config = getTargetProfile("aave-v3-base-core");
 const block = readJson<Block>(`${fixtureRoot}block.json`, import.meta.url);
 const receipt = readJson<Receipt>(`${fixtureRoot}receipt.json`, import.meta.url);
 const transaction = readJson<Transaction>(`${fixtureRoot}transaction.json`, import.meta.url);

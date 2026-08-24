@@ -12,7 +12,8 @@ import type {
   LogFilter,
   MalformedChainLog,
 } from "../src/chain/types.js";
-import { targetConfigSchema } from "../src/config/schema.js";
+import { loadTargetConfig } from "../src/config/load.js";
+import { getTargetProfile } from "../src/profiles/registry.js";
 import { evidenceSchema, investigationReceiptSchema, scanResultSchema, type Evidence, type InvestigationReceipt } from "../src/domain/schemas.js";
 import { selectInvestigationPlan } from "../src/investigation/plans.js";
 import { normalizeEvmAddress } from "../src/evm/address.js";
@@ -50,7 +51,7 @@ type InvestigationFixture = {
 };
 
 const fixtureRoot = "../fixtures/base/aave-v3-upgrade-41105890/";
-const config = targetConfigSchema.parse(readJson("../config/target.json", import.meta.url));
+const config = getTargetProfile("aave-v3-base-core");
 const fixtureBlock = readJson<FixtureBlock>(`${fixtureRoot}block.json`, import.meta.url);
 const fixtureReceipt = readJson<FixtureReceipt>(`${fixtureRoot}receipt.json`, import.meta.url);
 const fixtureTransaction = readJson<FixtureTransaction>(`${fixtureRoot}transaction.json`, import.meta.url);
@@ -130,7 +131,7 @@ class FixtureReader implements ChainReader {
   }
 
   async call(_address: `0x${string}`, data: Hex, blockNumber: bigint): Promise<Hex> {
-    if (data === config.investigation.getPoolCallData) return this.poolResult;
+    if (data === "0x026b1d5f") return this.poolResult;
     if (this.revisionError) throw this.revisionError;
     return blockNumber === BigInt(investigationFixture.previousBlock)
       ? investigationFixture.poolRevisionBeforeResult
@@ -189,7 +190,7 @@ describe("bounded evidence scan", () => {
       relevantAddresses: [
         { address: fixtureLog.address, role: "pool-proxy" },
         { address: "0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4", role: "decoded-implementation" },
-        { address: config.investigation.poolAddressesProvider, role: "pool-addresses-provider" },
+        { address: config.target.relatedContracts[0].address, role: "pool-addresses-provider" },
       ],
       upgradeInvestigation: { disposition: "corroborated", evidenceStatus: "complete" },
       investigationReceipt: {
@@ -458,6 +459,18 @@ describe("bounded evidence scan", () => {
 
     expect(createReceiptId(reorderedPayload)).toBe(receipt.receiptId);
     expect(second.investigationReceipt?.receiptId).toBe(receipt.receiptId);
+  });
+
+  it("keeps the Aave receipt deterministic through registry selection", async () => {
+    const selectedConfig = await loadTargetConfig();
+    const direct = await scanApprovedRange(new FixtureReader(), config);
+    const selected = await scanApprovedRange(new FixtureReader(), selectedConfig);
+
+    expect(selectedConfig.profileId).toBe("aave-v3-base-core");
+    expect(selected.evidence[0].investigationReceipt?.receiptId).toBe(
+      direct.evidence[0].investigationReceipt?.receiptId,
+    );
+    expect(selected.evidence[0].investigationReceipt).toEqual(direct.evidence[0].investigationReceipt);
   });
 
   it("keeps the canonical receipt ID stable across Ethereum address casing", async () => {

@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { Address } from "../src/chain/types.js";
 import { targetConfigSchema } from "../src/config/schema.js";
+import { getTargetProfile } from "../src/profiles/registry.js";
 import { classifyUpgrade } from "../src/pipeline/severity.js";
-import { readJson } from "./helpers.js";
 
-const config = targetConfigSchema.parse(readJson("../config/target.json", import.meta.url));
+const config = getTargetProfile("aave-v3-base-core");
 
 describe("deterministic upgrade severity", () => {
   it.each(config.severityPolicy.examples)("classifies the $severity policy example", (example) => {
@@ -24,8 +24,8 @@ describe("deterministic upgrade severity", () => {
   });
 
   it("matches a checksum runtime implementation against a lowercase configured policy address", () => {
-    const input = readJson<Record<string, any>>("../config/target.json", import.meta.url);
-    input.severityPolicy.approvedTargetAddresses[0] = input.severityPolicy.approvedTargetAddresses[0].toLowerCase();
+    const input = structuredClone(config);
+    input.severityPolicy.approvedTargetAddresses[0] = input.severityPolicy.approvedTargetAddresses[0].toLowerCase() as Address;
     const lowercaseConfig = targetConfigSchema.parse(input);
 
     expect(classifyUpgrade(

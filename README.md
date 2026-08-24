@@ -133,10 +133,18 @@ HTTP 413. These errors use safe JSON codes and do not start an RPC scan.
 Scans, alerts, and evidence exist only in process memory and are cleared when
 the server restarts. Repeating the scan recreates the same deterministic IDs.
 
-## Supported target
+## Supported target profiles
 
-The committed profile scans Base mainnet block `41105890` for one event from one
-verified transaction:
+Watchtower has a closed registry containing only these preconfigured Base
+profiles:
+
+- Aave V3 Base Pool
+- Compound III Base USDC Comet
+- ether.fi Base weETH OFT
+
+`config/target.json` selects the Aave profile by ID, so the existing dashboard
+and runnable fixture still scan Base mainnet block `41105890` for one event from
+one verified transaction:
 
 - `Upgraded(address)` from the configured Aave V3 Base Pool proxy
 
@@ -145,8 +153,10 @@ classification label `Contract upgrade`. The machine identifiers remain
 `contract_upgrade` for the incident class and `proxy_upgraded` for the event
 type.
 
-The fixture contains selected logs and records its BaseScan and official Aave
-address-book sources.
+The Aave fixture contains selected logs and records its BaseScan and official
+Aave address-book sources. Compound and ether.fi have validated registry
+metadata and explicit bounded check definitions, but their fixture files are
+not part of this refactor.
 
 Known unsupported event types and cases:
 
@@ -157,17 +167,19 @@ Known unsupported event types and cases:
 - arbitrary addresses, signatures, ABIs, custom events, and proxy patterns
 - dynamic project discovery, transaction tracing, and fiat-value conversion
 
-These exclusions are deliberate. The demo does not silently generalize beyond
-the configured Pool proxy and `Upgraded(address)` event.
+These exclusions are deliberate. Every profile fixes one proxy, one qualifying
+transaction, one block, one event signature, and one explicit investigation
+plan. The API cannot select a profile or override its address, calls, topic, or
+blocks.
 
 ## Evidence pipeline
 
 The synchronous scanner:
 
-1. Validates the fixed target and requested bounds.
+1. Resolves and validates the closed server-selected profile and requested bounds.
 2. Reads the RPC chain ID and requires Base mainnet chain ID `8453`.
 3. Checks the configured confirmation count.
-4. Requests logs using the approved Pool address and upgrade topic.
+4. Requests logs using the selected profile's approved proxy and upgrade topic.
 5. Loads the committed ABI and verifies that it matches the configured topic
    and strict runtime decoder.
 6. Preserves valid logs when another item in the same RPC response is malformed,
@@ -207,7 +219,8 @@ The topic is the hash of `Upgraded(address)`. The indexed implementation topic
 decodes to the configured approved implementation. Both the emitting proxy and
 implementation returned deployed bytecode. Configuration-derived fields, roles,
 severity inputs, deterministic IDs, summaries, and limitations were checked
-against `config/target.json` and the automated tests.
+against the registered Aave profile selected by `config/target.json` and the
+automated tests.
 
 Every explorer link displayed for the complete alert returned HTTP 200:
 
@@ -295,9 +308,11 @@ credentials, and raw provider bodies.
 
 ## Configuration
 
-Non-secret target settings live in `config/target.json`. The server and CLI read
-`BASE_RPC_URL` from a local `.env` file and default
-`WATCHTOWER_CONFIG_PATH` to the committed target file.
+The complete non-secret definitions live in the closed TypeScript profile
+registry. `config/target.json` contains only a registered profile ID. The server
+and CLI read `BASE_RPC_URL` from a local `.env` file and default
+`WATCHTOWER_CONFIG_PATH` to the committed selector file. Unknown IDs and extra
+selection fields are rejected before RPC access.
 
 Keep real values in ignored local environment files. Never commit secrets or
 place RPC credentials in target configuration or fixtures.
@@ -326,6 +341,9 @@ stopped safely at chain verification with `chain-id-rpc-dns`. A direct lookup
 of Alchemy's public Base hostname also returned `ENOTFOUND`. No alternate
 provider was substituted, so the required current live success remains an
 external validation blocker.
+
+The 2026-08-24 closed-profile registry verification reported 13 test files and
+92 tests passed. `npm run typecheck` reported no TypeScript errors.
 
 The verified public HEAD is
 `0d84203674861f76ab024c8150ae79e5c580b3ea`. Public `main` and local `main`

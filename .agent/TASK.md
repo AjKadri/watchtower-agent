@@ -4,9 +4,14 @@
 
 Build a narrow, reproducible Watchtower MVP for the Orion Agents Builder Hackathon.
 
-Watchtower will scan a bounded historical block range for one explicitly configured Base target profile. It will detect supported high-signal events, investigate each event using read-only onchain data, and produce alerts whose factual claims can be independently verified.
+Watchtower will scan a bounded historical block range for one server-selected
+profile from a closed registry of three approved Base targets. It will detect
+supported high-signal events, investigate each event using read-only onchain
+data, and produce alerts whose factual claims can be independently verified.
 
-The target profile must name one primary contract and may name related treasury, liquidity, proxy, or token addresses individually. Watchtower must not discover or monitor an open-ended project graph in this MVP.
+Each target profile must name one primary contract and may name related
+treasury, liquidity, proxy, provider, endpoint, or token addresses individually.
+Watchtower must not discover or monitor an open-ended project graph in this MVP.
 
 ## Implementation gate
 
@@ -56,7 +61,7 @@ Explanations must distinguish observed facts from interpretation. The app must n
 
 - Use read-only blockchain access and never request a private key.
 - Scan a configured historical block range for the demo.
-- Support only the approved target profile and event signatures.
+- Support only the three approved target profiles and their fixed event signatures.
 - Keep classification deterministic and testable.
 - Keep secrets server-side and out of logs, browser bundles, fixtures, and Git.
 - Surface RPC, decoding, and incomplete-evidence failures instead of silently dropping them.
@@ -120,21 +125,17 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The address-casing receipt regression is fixed locally in `3451a49`. Exact
-Ethereum address values now use one shared semantic normalization path for
-configuration, viem data, evidence, investigation assertions, policy checks,
-receipt comparisons, and canonical receipt hashing. CLI failure classification
-is fixed locally in `7e6336a`, so runtime validation and evidence-consistency
-defects are not mislabeled as configuration failures. The local suite contains
-13 test files and 87 tests, TypeScript passes, and npm audit reports zero
-vulnerabilities.
+The closed profile-registry refactor defines the approved Aave V3 Base Pool,
+Compound III Base USDC Comet, and ether.fi Base weETH OFT targets. The active
+profile remains server-selected through `config/target.json`. Aave retains the
+only committed fixture and dashboard flow. Compound and ether.fi fixture and
+dashboard work requires a separate approved task.
 
-The current public HEAD is
-`0d84203674861f76ab024c8150ae79e5c580b3ea`. Public and local `main` were aligned
-there when this task started. This task's commits remain local because pushing
-is prohibited. The remaining live gate is external DNS resolution for the
-configured Alchemy Base hostname. Repeat the unchanged `npm run scan` when that
-hostname resolves, and require one complete `contract_upgrade` alert, complete
-evidence, a corroborated investigation, a valid receipt, and zero failures.
-Do not expand the target, event, storage, monitoring, frontend, or deployment
-scope without a new approved task.
+The local suite contains 13 test files and 92 tests, and TypeScript passes. The
+remaining live gate is external DNS resolution for the configured Alchemy Base
+hostname. Repeat the unchanged Aave `npm run scan` when that hostname resolves,
+and require one complete `contract_upgrade` alert, complete evidence, a
+corroborated investigation, a valid receipt, and zero failures. Do not add
+client-controlled targets, calls, addresses, plans, RPC URLs, block ranges,
+dynamic ABI loading, proxy discovery, multi-chain behavior, new fixtures, or
+dashboard controls without a new approved task.

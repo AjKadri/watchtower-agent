@@ -41,6 +41,17 @@ describe("deterministic investigation planner", () => {
   });
 
   it.each([
+    ["compound-iii-base-usdc-comet", ["governor-before", "governor-at-upgrade", "base-token-at-upgrade"]],
+    ["etherfi-base-weeth-oft", ["endpoint-at-upgrade", "token-at-upgrade", "shared-decimals-at-upgrade"]],
+  ] as const)("selects only the registered target-specific checks for %s", (targetId, targetChecks) => {
+    const plan = selectInvestigationPlan({ ...approvedInput, targetId });
+
+    expect(plan.selectedChecks.slice(3)).toEqual(targetChecks);
+    expect(plan.selectedChecks).not.toContain("configured-pool");
+    expect(plan.capabilityBudget.maximumReads).toBe(6);
+  });
+
+  it.each([
     { capability: "arbitrary-shell" },
     { address: "0x1111111111111111111111111111111111111111" },
     { eventSignature: "Transfer(address,address,uint256)" },
@@ -58,6 +69,14 @@ describe("deterministic investigation planner", () => {
       maximumReads: 7,
       capabilities: [{ name: "arbitrary-call", maximumUses: 7 }],
     };
+
+    expect(investigationPlanSchema.safeParse(forged).success).toBe(false);
+  });
+
+  it("rejects a plan containing a check ID from another profile", () => {
+    const valid = selectInvestigationPlan(approvedInput);
+    const forged = structuredClone(valid);
+    forged.selectedChecks[3] = "governor-before";
 
     expect(investigationPlanSchema.safeParse(forged).success).toBe(false);
   });

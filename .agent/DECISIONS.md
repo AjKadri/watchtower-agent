@@ -345,3 +345,44 @@ Reason: The archive capability spike verified historical storage, code, and
 contract calls against the fixed fixture. A bounded deterministic investigation
 can now corroborate required onchain facts without changing detector scope or
 allowing optional revision metadata to affect classification.
+
+## 2026-08-24: Use a closed target-profile registry
+
+Status: Accepted
+
+Watchtower supports exactly three server-selected Base profiles:
+
+- `aave-v3-base-core` for the Aave V3 Base Pool proxy
+- `compound-iii-base-usdc-comet` for the Compound III Base USDC Comet proxy
+- `etherfi-base-weeth-oft` for the ether.fi Base weETH OFT proxy
+
+The registry is a closed, validated TypeScript definition. Every profile fixes
+its protocol and product name, Base chain ID `8453`, primary proxy, named
+related addresses, one indexed `Upgraded(address)` detector, one qualifying
+transaction, one single-block range, expected implementation metadata,
+explorer links, explicit typed investigation checks, and three deterministic
+plan outcomes. Each approved plan permits at most two historical storage reads,
+one historical code read, and three fixed historical contract calls.
+
+`config/target.json` is now only a server-side profile selector. Unknown profile
+IDs and extra selector fields are rejected. The browser scan request remains
+limited to optional bounds within the selected profile's one-block range. It
+cannot select a profile or provide an address, RPC URL, event, ABI, call target,
+calldata, plan, or unrestricted block range.
+
+The planner selects only plans registered for the active profile. The generic
+investigation executor consumes only that profile's explicit check definitions.
+Receipt validation resolves the trigger profile and verifies the registered
+plan, check IDs, methods, block tags, addresses, calldata, assertions, and
+capability counts. No dynamic ABI loading, proxy discovery, tracing, or
+cross-chain runtime behavior is introduced.
+
+The Aave selector, evidence copy, plan/check order, explorer-link keys, and
+canonical receipt payload remain unchanged. Aave remains the only committed
+fixture and dashboard demo in this milestone. Compound and ether.fi are marked
+fixture-pending, and no fixture files or dashboard controls are added yet.
+
+Reason: A closed discriminated registry adds two approved protocol definitions
+without opening request-controlled scope. Keeping the selection server-side and
+the check definitions literal preserves deterministic evidence and receipt IDs
+while making target-specific behavior explicit and testable.

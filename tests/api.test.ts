@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { ChainBlock, ChainLog, ChainReader, ChainReceipt, ChainTransaction, Hex, LogFilter } from "../src/chain/types.js";
-import { targetConfigSchema } from "../src/config/schema.js";
+import { getTargetProfile } from "../src/profiles/registry.js";
 import { createApp } from "../src/server/app.js";
 import { readJson } from "./helpers.js";
 
@@ -31,7 +31,7 @@ type InvestigationFixture = {
 };
 
 const fixtureRoot = "../fixtures/base/aave-v3-upgrade-41105890/";
-const config = targetConfigSchema.parse(readJson("../config/target.json", import.meta.url));
+const config = getTargetProfile("aave-v3-base-core");
 const block = readJson<FixtureBlock>(`${fixtureRoot}block.json`, import.meta.url);
 const transaction = readJson<FixtureTransaction>(`${fixtureRoot}transaction.json`, import.meta.url);
 const receipt = readJson<FixtureReceipt>(`${fixtureRoot}receipt.json`, import.meta.url);
@@ -74,7 +74,7 @@ class ApiFixtureReader implements ChainReader {
     return `0x${"60".repeat(Number(investigationFixture.implementationByteLength))}`;
   }
   async call(_address: `0x${string}`, data: Hex, blockNumber: bigint): Promise<Hex> {
-    if (data === config.investigation.getPoolCallData) return investigationFixture.getPoolResult;
+    if (data === "0x026b1d5f") return investigationFixture.getPoolResult;
     return blockNumber === BigInt(investigationFixture.previousBlock)
       ? investigationFixture.poolRevisionBeforeResult
       : investigationFixture.poolRevisionAtUpgradeResult;
@@ -208,7 +208,10 @@ describe("Watchtower API", () => {
     const invalid = await fetch(`${baseUrl}/api/scans`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ address: "0x1111111111111111111111111111111111111111" }),
+      body: JSON.stringify({
+        profileId: "compound-iii-base-usdc-comet",
+        address: "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+      }),
     });
     expect(invalid.status).toBe(400);
     expect(reader.filters).toHaveLength(0);

@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { toHex } from "viem";
 
 import { investigationCheckIdSchema, investigationPlanSchema } from "../investigation/plans.js";
 import { createReceiptId } from "../pipeline/ids.js";
 import { EVM_ADDRESS_PATTERN, evmAwareEqual, evmAwareStringEqual, normalizeEvmAddress, sameEvmAddress } from "../evm/address.js";
+import { getTargetProfile, planForProfile, targetProfileIdSchema, type ProfileInvestigationCheck } from "../profiles/registry.js";
 
 const address = z.string().regex(EVM_ADDRESS_PATTERN).transform(normalizeEvmAddress);
-const fixedAddress = (expected: string) => address.refine((value) => sameEvmAddress(value, expected));
 const hash = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 const decimalString = z.string().regex(/^(0|[1-9][0-9]*)$/);
 const blockTag = z.string().regex(/^0x[0-9a-f]+$/);
@@ -60,12 +61,12 @@ export const upgradeInvestigationSchema = z.object({
 
 export const investigationReceiptTriggerSchema = z.object({
     network: z.object({ name: z.literal("base-mainnet"), chainId: z.literal(8453) }).strict(),
-    targetId: z.literal("aave-v3-base-core"),
+    targetId: targetProfileIdSchema,
     incidentClass: z.literal("contract_upgrade"),
     eventType: z.literal("proxy_upgraded"),
     eventSignature: z.literal("Upgraded(address)"),
     decodedArguments: z.object({ implementation: address }).strict(),
-    block: z.object({ number: z.literal("41105890"), hash, timestamp: z.iso.datetime() }).strict(),
+    block: z.object({ number: decimalString, hash, timestamp: z.iso.datetime() }).strict(),
     transaction: z.object({
       hash,
       sender: address,
@@ -74,12 +75,30 @@ export const investigationReceiptTriggerSchema = z.object({
     }).strict(),
     log: z.object({
       index: decimalString,
-      emitter: fixedAddress("0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"),
-      topic0: z.literal("0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b"),
+      emitter: address,
+      topic0: hash,
       rawTopics: z.array(hash).min(1),
     }).strict(),
-    detector: z.object({ id: z.literal("aave-pool-upgraded"), severityRuleId: z.string().min(1), severity: z.enum(["high", "suspicious", "informational"]) }).strict(),
-}).strict();
+    detector: z.object({ id: z.string().min(1), severityRuleId: z.string().min(1), severity: z.enum(["high", "suspicious", "informational"]) }).strict(),
+}).strict().superRefine((trigger, context) => {
+  const profile = getTargetProfile(trigger.targetId);
+  const detector = profile.detectors[0];
+  if (trigger.block.number !== profile.scan.toBlock) {
+    context.addIssue({ code: "custom", path: ["block", "number"], message: "receipt block is outside the selected profile" });
+  }
+  if (trigger.transaction.hash.toLowerCase() !== profile.scan.knownTransactions[0].toLowerCase()) {
+    context.addIssue({ code: "custom", path: ["transaction", "hash"], message: "receipt transaction is not the profile qualifying transaction" });
+  }
+  if (!sameEvmAddress(trigger.log.emitter, profile.target.primaryContract.address)) {
+    context.addIssue({ code: "custom", path: ["log", "emitter"], message: "receipt emitter is not the profile primary proxy" });
+  }
+  if (trigger.log.topic0.toLowerCase() !== detector.topic0.toLowerCase() || trigger.log.rawTopics[0]?.toLowerCase() !== detector.topic0.toLowerCase()) {
+    context.addIssue({ code: "custom", path: ["log", "topic0"], message: "receipt topic is not approved for the selected profile" });
+  }
+  if (trigger.detector.id !== detector.id || trigger.eventSignature !== detector.eventSignature) {
+    context.addIssue({ code: "custom", path: ["detector"], message: "receipt detector is not registered for the selected profile" });
+  }
+});
 
 export const investigationReceiptSchema = z.object({
   receiptId: z.string().regex(/^receipt_[0-9a-f]{64}$/),
@@ -100,6 +119,11 @@ export const investigationReceiptSchema = z.object({
   if (receipt.receiptId !== expectedReceiptId) {
     context.addIssue({ code: "custom", path: ["receiptId"], message: "receipt ID does not match the canonical receipt payload" });
   }
+  const profile = getTargetProfile(receipt.trigger.targetId);
+  const registeredPlan = planForProfile(profile, receipt.plan.id);
+  if (!evmAwareEqual(receipt.plan, registeredPlan)) {
+    context.addIssue({ code: "custom", path: ["plan"], message: "receipt plan does not belong to the selected target profile" });
+  }
   const selected = receipt.plan.selectedChecks;
   const executed = receipt.checks.map(({ id }) => id);
   if (selected.length !== executed.length || selected.some((id, index) => id !== executed[index])) {
@@ -116,9 +140,19 @@ export const investigationReceiptSchema = z.object({
     return actualKeys.length === expectedKeys.length
       && actualKeys.every((key, index) => key === expectedKeys[index] && evmAwareStringEqual(actual[key] ?? "", expected[key] ?? ""));
   };
-  const proxy = "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5";
-  const provider = "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D";
-  const slot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+  const expectedBlockTag = (definition: ProfileInvestigationCheck) => toHex(BigInt(
+    definition.block === "previous" ? profile.investigation.previousBlock : profile.investigation.upgradeBlock,
+  ));
+  const expectedParameters = (definition: ProfileInvestigationCheck): Record<string, string> => {
+    if (definition.kind === "storage-address") return { address: definition.address, slot: definition.slot };
+    if (definition.kind === "implementation-code") return { address: receipt.trigger.decodedArguments.implementation };
+    return { to: definition.to, data: definition.data };
+  };
+  const expectedAssertion = (definition: ProfileInvestigationCheck): string => {
+    if (definition.kind === "storage-address" || definition.kind === "call-address") return definition.expectedAddress;
+    if (definition.kind === "implementation-code") return `${definition.expectedByteLength} bytes`;
+    return definition.expectedValue;
+  };
   for (const [index, check] of receipt.checks.entries()) {
     const resultActual = check.result?.kind === "bytecode"
       ? `${check.result.byteLength} bytes`
@@ -157,32 +191,15 @@ export const investigationReceiptSchema = z.object({
     if (resultActual !== null && !evmAwareStringEqual(check.assertion.actual ?? "", resultActual)) {
       context.addIssue({ code: "custom", path: ["checks", index, "assertion", "actual"], message: "assertion actual must match the normalized check result" });
     }
-    let validScope = false;
-    if (check.id === "implementation-before") {
-      validScope = check.required && check.method === "eth_getStorageAt" && check.blockTag === "0x27339e1"
-        && exactParameters(check.parameters, { address: proxy, slot });
-      addCapability("historical-storage-read");
-    } else if (check.id === "implementation-at-upgrade") {
-      validScope = check.required && check.method === "eth_getStorageAt" && check.blockTag === "0x27339e2"
-        && exactParameters(check.parameters, { address: proxy, slot });
-      addCapability("historical-storage-read");
-    } else if (check.id === "implementation-bytecode") {
-      validScope = check.required && check.method === "eth_getCode" && check.blockTag === "0x27339e2"
-        && exactParameters(check.parameters, { address: receipt.trigger.decodedArguments.implementation });
-      addCapability("historical-code-read");
-    } else if (check.id === "configured-pool") {
-      validScope = check.required && check.method === "eth_call" && check.blockTag === "0x27339e2"
-        && exactParameters(check.parameters, { to: provider, data: "0x026b1d5f" });
-      addCapability("historical-contract-call");
-    } else if (check.id === "pool-revision-before") {
-      validScope = !check.required && check.method === "eth_call" && check.blockTag === "0x27339e1"
-        && exactParameters(check.parameters, { to: proxy, data: "0x0148170e" });
-      addCapability("historical-contract-call");
-    } else if (check.id === "pool-revision-at-upgrade") {
-      validScope = !check.required && check.method === "eth_call" && check.blockTag === "0x27339e2"
-        && exactParameters(check.parameters, { to: proxy, data: "0x0148170e" });
-      addCapability("historical-contract-call");
-    }
+    const definition = profile.investigation.checks.find(({ id }) => id === check.id);
+    const validScope = Boolean(definition
+      && check.required === definition.required
+      && check.method === definition.method
+      && check.blockTag === expectedBlockTag(definition)
+      && exactParameters(check.parameters, expectedParameters(definition))
+      && check.assertion.description === definition.description
+      && evmAwareStringEqual(check.assertion.expected, expectedAssertion(definition)));
+    if (definition) addCapability(definition.capability);
     if (!validScope) {
       context.addIssue({ code: "custom", path: ["checks", index], message: "receipt check is outside the fixed investigation scope" });
     }
@@ -236,7 +253,7 @@ export const evidenceSchema = z.object({
   if (!receipt) return;
   const expectedTrigger = {
     network: evidence.network,
-    targetId: "aave-v3-base-core",
+    targetId: receipt.trigger.targetId,
     incidentClass: "contract_upgrade",
     eventType: "proxy_upgraded",
     eventSignature: evidence.event.signature,
@@ -265,7 +282,7 @@ export const evidenceSchema = z.object({
 export const alertSchema = z.object({
   id: z.string().min(1),
   scanId: z.string().min(1),
-  targetId: z.string().min(1),
+  targetId: targetProfileIdSchema,
   incidentClass: z.literal("contract_upgrade"),
   eventType: z.literal("proxy_upgraded"),
   classificationLabel: z.literal("Contract upgrade"),
@@ -299,7 +316,7 @@ export const scanFailureSchema = z.object({
 
 export const scanResultSchema = z.object({
   scanId: z.string().min(1),
-  targetId: z.string().min(1),
+  targetId: targetProfileIdSchema,
   range: z.object({ fromBlock: decimalString, toBlock: decimalString }),
   status: z.enum(["complete", "partial", "failed"]),
   alerts: z.array(alertSchema),

@@ -2,14 +2,14 @@
 
 Last updated: 2026-08-24
 
-- Current milestone: Address-casing receipt regression and CLI classification fixed locally. Live release verification remains DNS-blocked.
-- Completed: Added one shared EVM address normalizer and applied it to fixed configuration, viem values, evidence, trigger and check comparisons, severity policy, and canonical receipt hashing. Equivalent lowercase and checksum addresses now compare equally and produce the same receipt ID. CLI errors now separate configuration validation, runtime result validation, receipt or evidence consistency, and RPC failures using safe output.
-- Tests run: `npm test` passed 13 files and 87 tests. `npm run typecheck` passed with no TypeScript errors. Three `npm run scan` attempts returned `status: failed` at chain verification with `chain-id-rpc-dns`, zero alerts, and zero evidence. A direct Alchemy Base hostname lookup returned `ENOTFOUND`. `npm audit --audit-level=moderate` passed with zero vulnerabilities. Tracked-file secret checks and `git diff --check` passed.
-- Result: All fixture-backed and real-shaped validation paths pass, including lowercase viem emitters against checksum configuration, checksum runtime values against lowercase configuration, implementation casing, complete receipt validation, stable casing-independent receipt IDs, and runtime CLI failure classification. The required current live scan result was not reproduced because Alchemy DNS resolution failed before RPC chain verification.
-- Local revision: Address normalization commit `3451a49` and CLI classification commit `7e6336a`, followed by the documentation commit containing this status update.
-- Public revision: Verified public HEAD is `0d84203674861f76ab024c8150ae79e5c580b3ea`. Public and local `main` were aligned there at task start. This task's commits remain local and unpushed as required.
-- Next step: Repeat `npm run scan` without changing providers when Alchemy DNS resolves. Require a complete scan with one `contract_upgrade` alert, complete evidence, a corroborated investigation, a valid receipt, and zero failures. Obtain explicit authorization before any push.
-- Blockers: The configured Alchemy Base hostname currently returns `ENOTFOUND`, blocking the required live scan. This task's commits are not public because pushing is explicitly prohibited.
+- Current milestone: Closed target-profile registry refactor implemented for the three approved Base targets.
+- Completed: Added validated Aave V3 Base Pool, Compound III Base USDC Comet, and ether.fi Base weETH OFT profiles. Scanner, planner, investigation executor, receipt validation, API public configuration, and existing dashboard data now consume the selected profile. Unknown profiles, selector overrides, foreign check IDs, arbitrary addresses, and arbitrary calls are rejected. Aave remains the selected fixture and its receipt payload stays deterministic.
+- Tests run: `npm test` passed 13 files and 92 tests. `npm run typecheck` passed with no TypeScript errors. Focused registry, planner, investigation, scanner, schema, fixture, and severity tests passed 7 files and 70 tests. API and server startup tests passed 2 files and 8 tests outside the restricted sandbox because they bind a loopback port. `git diff --check` passed.
+- Result: The requested registry refactor is complete. All three profiles are closed and typed, the API cannot select or override profile capabilities, and existing Aave behavior remains covered. No Compound or ether.fi fixtures or dashboard controls were added.
+- Current commit: This status update is included in `refactor: add closed target profile registry`.
+- Public revision: `origin/main` was `7e261a9` at task start. The requested refactor commit remains local and unpushed.
+- Next step: In a separately approved task, add verified fixtures and dashboard selection for Compound and ether.fi. Repeat the unchanged Aave live scan when the configured Alchemy hostname resolves.
+- Blockers: The configured Alchemy Base hostname previously returned `ENOTFOUND`, which still blocks a current live scan. Live scanning was not required for this refactor.
 - Decisions needed: None. The bounded investigation gate remains approved.
 
 ## Setup and run instructions

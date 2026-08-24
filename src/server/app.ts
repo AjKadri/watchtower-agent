@@ -29,10 +29,12 @@ function publicConfiguration(config: TargetConfig) {
   const detector = config.detectors[0];
   return {
     network: { name: config.network.name, chainId: config.network.chainId },
+    profile: { id: config.profileId, protocol: config.protocol.name, product: config.protocol.product },
     target: {
       id: config.target.id,
       name: config.target.name,
       primaryContract: config.target.primaryContract,
+      relatedContracts: config.target.relatedContracts.map(({ address, role }) => ({ address, role })),
     },
     scan: {
       fromBlock: config.scan.fromBlock,

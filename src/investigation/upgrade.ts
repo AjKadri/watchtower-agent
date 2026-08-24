@@ -5,7 +5,9 @@ import type { Address, ChainReader, Hex } from "../chain/types.js";
 import type { TargetConfig } from "../config/schema.js";
 import type { UpgradeInvestigation, UpgradeInvestigationCheck } from "../domain/schemas.js";
 import { upgradeInvestigationSchema } from "../domain/schemas.js";
-import { normalizeEvmAddress, sameEvmAddress } from "../evm/address.js";
+import { evmAwareEqual, normalizeEvmAddress, sameEvmAddress } from "../evm/address.js";
+import type { ProfileInvestigationCheck } from "../profiles/registry.js";
+import { planForProfile } from "../profiles/registry.js";
 import {
   investigationPlanSchema,
   selectInvestigationPlan,
@@ -13,23 +15,7 @@ import {
   type InvestigationPlan,
 } from "./plans.js";
 
-type CheckId = UpgradeInvestigationCheck["id"];
-type CheckMethod = UpgradeInvestigationCheck["method"];
 type CheckResult = NonNullable<UpgradeInvestigationCheck["result"]>;
-
-type CheckDefinition = {
-  id: CheckId;
-  required: boolean;
-  method: CheckMethod;
-  capability: InvestigationCapability;
-  parameters: Record<string, string>;
-  blockNumber: bigint;
-  description: string;
-  expected: string;
-  read: () => Promise<CheckResult>;
-  actual: (result: CheckResult) => string;
-  matches: (result: CheckResult) => boolean;
-};
 
 class ReadBudget {
   readonly #maximumReads: number;
@@ -71,24 +57,92 @@ function rpcCategory(error: unknown): RpcFailureCategory {
   return error instanceof RpcReadError ? error.category : "unavailable";
 }
 
-async function executeCheck(definition: CheckDefinition): Promise<UpgradeInvestigationCheck> {
+function blockNumberFor(config: TargetConfig, check: ProfileInvestigationCheck): bigint {
+  return BigInt(check.block === "previous" ? config.investigation.previousBlock : config.investigation.upgradeBlock);
+}
+
+function parametersFor(check: ProfileInvestigationCheck, implementation: Address): Record<string, string> {
+  if (check.kind === "storage-address") return { address: check.address, slot: check.slot };
+  if (check.kind === "implementation-code") return { address: implementation };
+  return { to: check.to, data: check.data };
+}
+
+function expectedFor(check: ProfileInvestigationCheck): string {
+  if (check.kind === "storage-address" || check.kind === "call-address") return check.expectedAddress;
+  if (check.kind === "implementation-code") return `${check.expectedByteLength} bytes`;
+  return check.expectedValue;
+}
+
+async function readCheck(
+  reader: ChainReader,
+  check: ProfileInvestigationCheck,
+  implementation: Address,
+  blockNumber: bigint,
+): Promise<CheckResult> {
+  if (check.kind === "storage-address") {
+    return { kind: "address", value: normalizeAddressWord(await reader.getStorageAt(check.address as Address, check.slot as Hex, blockNumber)) };
+  }
+  if (check.kind === "implementation-code") {
+    const code = await reader.getCode(implementation, blockNumber);
+    if (!/^0x(?:[0-9a-f]{2})*$/i.test(code)) {
+      throw new RpcReadError("historical code result", "malformed-response");
+    }
+    return {
+      kind: "bytecode",
+      present: code !== "0x",
+      byteLength: String((code.length - 2) / 2),
+      hash: keccak256(code),
+    };
+  }
+  const result = await reader.call(check.to, check.data as Hex, blockNumber);
+  if (check.kind === "call-address") return { kind: "address", value: normalizeAddressWord(result) };
+  return { kind: "uint256", value: normalizeUint256(result) };
+}
+
+function actualFor(result: CheckResult): string {
+  if (result.kind === "bytecode") return `${result.byteLength} bytes`;
+  return result.value;
+}
+
+function matchesCheck(check: ProfileInvestigationCheck, result: CheckResult, implementation: Address): boolean {
+  if (check.kind === "storage-address") {
+    return result.kind === "address"
+      && sameEvmAddress(result.value, check.expectedAddress)
+      && (!check.mustMatchDecodedImplementation || sameEvmAddress(result.value, implementation));
+  }
+  if (check.kind === "implementation-code") {
+    return result.kind === "bytecode"
+      && result.present
+      && result.byteLength === check.expectedByteLength
+      && sameEvmAddress(implementation, check.expectedApprovedImplementation);
+  }
+  if (check.kind === "call-address") {
+    return result.kind === "address" && sameEvmAddress(result.value, check.expectedAddress);
+  }
+  return result.kind === "uint256" && result.value === check.expectedValue;
+}
+
+async function executeCheck(
+  reader: ChainReader,
+  config: TargetConfig,
+  definition: ProfileInvestigationCheck,
+  implementation: Address,
+): Promise<UpgradeInvestigationCheck> {
+  const blockNumber = blockNumberFor(config, definition);
+  const parameters = parametersFor(definition, implementation);
+  const expected = expectedFor(definition);
   try {
-    const result = await definition.read();
-    const actual = definition.actual(result);
-    const matches = definition.matches(result);
+    const result = await readCheck(reader, definition, implementation, blockNumber);
+    const actual = actualFor(result);
+    const matches = matchesCheck(definition, result, implementation);
     return {
       id: definition.id,
       required: definition.required,
       method: definition.method,
-      parameters: definition.parameters,
-      blockTag: toHex(definition.blockNumber),
+      parameters,
+      blockTag: toHex(blockNumber),
       result,
-      assertion: {
-        description: definition.description,
-        expected: definition.expected,
-        actual,
-        matches,
-      },
+      assertion: { description: definition.description, expected, actual, matches },
       status: matches ? "passed" : "mismatch",
       failure: null,
     };
@@ -98,12 +152,12 @@ async function executeCheck(definition: CheckDefinition): Promise<UpgradeInvesti
       id: definition.id,
       required: definition.required,
       method: definition.method,
-      parameters: definition.parameters,
-      blockTag: toHex(definition.blockNumber),
+      parameters,
+      blockTag: toHex(blockNumber),
       result: null,
       assertion: {
         description: definition.description,
-        expected: definition.expected,
+        expected,
         actual: null,
         matches: null,
       },
@@ -122,119 +176,27 @@ export async function investigateApprovedUpgrade(
   config: TargetConfig,
   decodedImplementation: Address,
   selectedPlan: InvestigationPlan = selectInvestigationPlan({
-    targetId: "aave-v3-base-core",
-    eventSignature: "Upgraded(address)",
+    targetId: config.target.id,
+    eventSignature: config.detectors[0].eventSignature,
     triggerEvidenceStatus: "complete",
     severityRuleId: "target-is-approved",
   }),
 ): Promise<UpgradeInvestigation> {
   const plan = investigationPlanSchema.parse(selectedPlan);
-  const investigation = config.investigation;
-  const previousBlock = BigInt(investigation.previousBlock);
-  const upgradeBlock = BigInt(investigation.upgradeBlock);
-  const proxy = config.target.primaryContract.address;
-  const provider = investigation.poolAddressesProvider;
-  const expected = investigation.expected;
+  const expectedPlan = planForProfile(config, plan.id);
+  if (!evmAwareEqual(plan, expectedPlan)) {
+    throw new Error("The selected investigation plan does not belong to the configured target profile.");
+  }
   const implementation = normalizeEvmAddress(decodedImplementation);
-
-  const definitions: CheckDefinition[] = [
-    {
-      id: "implementation-before",
-      required: true,
-      method: "eth_getStorageAt",
-      capability: "historical-storage-read",
-      parameters: { address: proxy, slot: investigation.implementationSlot },
-      blockNumber: previousBlock,
-      description: "The configured proxy implementation slot at N-1 matches the verified pre-upgrade implementation.",
-      expected: normalizeEvmAddress(expected.implementationBefore),
-      read: async () => ({ kind: "address", value: normalizeAddressWord(await reader.getStorageAt(proxy, investigation.implementationSlot, previousBlock)) }),
-      actual: (result) => result.kind === "address" ? normalizeEvmAddress(result.value) : "invalid-result-kind",
-      matches: (result) => result.kind === "address" && sameEvmAddress(result.value, expected.implementationBefore),
-    },
-    {
-      id: "implementation-at-upgrade",
-      required: true,
-      method: "eth_getStorageAt",
-      capability: "historical-storage-read",
-      parameters: { address: proxy, slot: investigation.implementationSlot },
-      blockNumber: upgradeBlock,
-      description: "The configured proxy implementation slot at N matches both the approved and decoded implementation.",
-      expected: normalizeEvmAddress(expected.implementationAfter),
-      read: async () => ({ kind: "address", value: normalizeAddressWord(await reader.getStorageAt(proxy, investigation.implementationSlot, upgradeBlock)) }),
-      actual: (result) => result.kind === "address" ? normalizeEvmAddress(result.value) : "invalid-result-kind",
-      matches: (result) => result.kind === "address"
-        && sameEvmAddress(result.value, expected.implementationAfter)
-        && sameEvmAddress(implementation, expected.implementationAfter),
-    },
-    {
-      id: "implementation-bytecode",
-      required: true,
-      method: "eth_getCode",
-      capability: "historical-code-read",
-      parameters: { address: implementation },
-      blockNumber: upgradeBlock,
-      description: "The decoded implementation has the verified deployed bytecode length at N.",
-      expected: `${expected.implementationByteLength} bytes`,
-      read: async () => {
-        const code = await reader.getCode(implementation, upgradeBlock);
-        if (!/^0x(?:[0-9a-f]{2})*$/i.test(code)) {
-          throw new RpcReadError("historical code result", "malformed-response");
-        }
-        return { kind: "bytecode", present: code !== "0x", byteLength: String((code.length - 2) / 2), hash: keccak256(code) };
-      },
-      actual: (result) => result.kind === "bytecode" ? `${result.byteLength} bytes` : "invalid-result-kind",
-      matches: (result) => result.kind === "bytecode" && result.present && result.byteLength === expected.implementationByteLength,
-    },
-    {
-      id: "configured-pool",
-      required: true,
-      method: "eth_call",
-      capability: "historical-contract-call",
-      parameters: { to: provider, data: investigation.getPoolCallData },
-      blockNumber: upgradeBlock,
-      description: "The configured PoolAddressesProvider returns the configured Pool proxy at N.",
-      expected: normalizeEvmAddress(expected.pool),
-      read: async () => ({ kind: "address", value: normalizeAddressWord(await reader.call(provider, investigation.getPoolCallData, upgradeBlock)) }),
-      actual: (result) => result.kind === "address" ? normalizeEvmAddress(result.value) : "invalid-result-kind",
-      matches: (result) => result.kind === "address" && sameEvmAddress(result.value, expected.pool),
-    },
-    {
-      id: "pool-revision-before",
-      required: false,
-      method: "eth_call",
-      capability: "historical-contract-call",
-      parameters: { to: proxy, data: investigation.poolRevisionCallData },
-      blockNumber: previousBlock,
-      description: "Optional POOL_REVISION() corroboration at N-1 matches the verified fixture.",
-      expected: expected.poolRevisionBefore,
-      read: async () => ({ kind: "uint256", value: normalizeUint256(await reader.call(proxy, investigation.poolRevisionCallData, previousBlock)) }),
-      actual: (result) => result.kind === "uint256" ? result.value : "invalid-result-kind",
-      matches: (result) => result.kind === "uint256" && result.value === expected.poolRevisionBefore,
-    },
-    {
-      id: "pool-revision-at-upgrade",
-      required: false,
-      method: "eth_call",
-      capability: "historical-contract-call",
-      parameters: { to: proxy, data: investigation.poolRevisionCallData },
-      blockNumber: upgradeBlock,
-      description: "Optional POOL_REVISION() corroboration at N matches the verified fixture.",
-      expected: expected.poolRevisionAfter,
-      read: async () => ({ kind: "uint256", value: normalizeUint256(await reader.call(proxy, investigation.poolRevisionCallData, upgradeBlock)) }),
-      actual: (result) => result.kind === "uint256" ? result.value : "invalid-result-kind",
-      matches: (result) => result.kind === "uint256" && result.value === expected.poolRevisionAfter,
-    },
-  ];
-
-  const definitionsById = new Map(definitions.map((definition) => [definition.id, definition]));
+  const definitionsById = new Map(config.investigation.checks.map((definition) => [definition.id, definition]));
   const budget = new ReadBudget(plan);
   const selectedDefinitions = plan.selectedChecks.map((id) => {
     const definition = definitionsById.get(id);
-    if (!definition) throw new Error("The selected investigation plan contains an unknown check.");
+    if (!definition) throw new Error("The selected investigation plan contains an unknown profile check.");
     budget.consume(definition.capability);
     return definition;
   });
-  const checks = await Promise.all(selectedDefinitions.map(executeCheck));
+  const checks = await Promise.all(selectedDefinitions.map((definition) => executeCheck(reader, config, definition, implementation)));
 
   const requiredChecks = checks.filter(({ required }) => required);
   const disposition = plan.id === "stop-incomplete"

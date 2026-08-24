@@ -12,7 +12,7 @@ import type {
   Hex,
   LogFilter,
 } from "../src/chain/types.js";
-import { targetConfigSchema } from "../src/config/schema.js";
+import { getTargetProfile } from "../src/profiles/registry.js";
 import { selectInvestigationPlan } from "../src/investigation/plans.js";
 import { investigateApprovedUpgrade } from "../src/investigation/upgrade.js";
 import { readJson } from "./helpers.js";
@@ -31,7 +31,7 @@ type InvestigationFixture = {
 
 const fixtureRoot = "../fixtures/base/aave-v3-upgrade-41105890/";
 const fixture = readJson<InvestigationFixture>(`${fixtureRoot}investigation.json`, import.meta.url);
-const config = targetConfigSchema.parse(readJson("../config/target.json", import.meta.url));
+const config = getTargetProfile("aave-v3-base-core");
 const decodedImplementation = config.severityPolicy.approvedTargetAddresses[0];
 
 class HistoricalFixtureReader implements ChainReader {
@@ -65,7 +65,7 @@ class HistoricalFixtureReader implements ChainReader {
 
   async call(address: Address, data: Hex, blockNumber: bigint): Promise<Hex> {
     this.reads.push({ method: "eth_call", address, blockNumber, data });
-    if (data === config.investigation.getPoolCallData) return this.poolResult;
+    if (data === "0x026b1d5f") return this.poolResult;
     if (this.revisionsUnsupported) throw new RpcReadError("historical contract call", "unsupported");
     return blockNumber === BigInt(fixture.previousBlock) ? this.revisionBefore : this.revisionAtUpgrade;
   }
@@ -87,7 +87,7 @@ describe("bounded upgrade investigation", () => {
     ]);
     expect(result.checks[0]).toMatchObject({
       parameters: { address: config.target.primaryContract.address, slot: fixture.implementationSlot },
-      result: { kind: "address", value: config.investigation.expected.implementationBefore },
+      result: { kind: "address", value: config.expectedFixture.implementationBefore },
       assertion: { matches: true },
       failure: null,
     });
@@ -168,7 +168,7 @@ describe("bounded upgrade investigation", () => {
     expect(result.plan.skippedChecks).toEqual(["pool-revision-before", "pool-revision-at-upgrade"]);
     expect(result.checks).toHaveLength(4);
     expect(reader.reads).toHaveLength(4);
-    expect(reader.reads.filter(({ data }) => data === config.investigation.poolRevisionCallData)).toHaveLength(0);
+    expect(reader.reads.filter(({ data }) => data === "0x0148170e")).toHaveLength(0);
     expect(result.disposition).toBe("contradicted");
   });
 
