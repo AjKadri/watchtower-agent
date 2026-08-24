@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { investigationCheckIdSchema, investigationPlanSchema } from "../investigation/plans.js";
+import { createReceiptId, stableSerialize } from "../pipeline/ids.js";
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const hash = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
@@ -10,7 +11,7 @@ const sourceLinks = z.object({
   transaction: z.url(),
   block: z.url(),
   addresses: z.record(z.string(), z.url()),
-});
+}).strict();
 
 export const investigationSchema = z.object({
   observedFacts: z.array(z.string().min(1)).min(1),
@@ -30,30 +31,30 @@ export const upgradeInvestigationCheckSchema = z.object({
   parameters: z.record(z.string(), z.string().min(1)),
   blockTag,
   result: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("address"), value: address }),
-    z.object({ kind: z.literal("bytecode"), present: z.boolean(), byteLength: decimalString, hash }),
-    z.object({ kind: z.literal("uint256"), value: decimalString }),
+    z.object({ kind: z.literal("address"), value: address }).strict(),
+    z.object({ kind: z.literal("bytecode"), present: z.boolean(), byteLength: decimalString, hash }).strict(),
+    z.object({ kind: z.literal("uint256"), value: decimalString }).strict(),
   ]).nullable(),
   assertion: z.object({
     description: z.string().min(1),
     expected: z.string().min(1),
     actual: z.string().min(1).nullable(),
     matches: z.boolean().nullable(),
-  }),
+  }).strict(),
   status: z.enum(["passed", "mismatch", "failed", "unsupported"]),
   failure: z.object({
     code: z.string().min(1),
     category: rpcFailureCategory,
     message: z.string().min(1),
-  }).nullable(),
-});
+  }).strict().nullable(),
+}).strict();
 
 export const upgradeInvestigationSchema = z.object({
   plan: investigationPlanSchema,
   disposition: z.enum(["corroborated", "contradicted", "incomplete"]),
   evidenceStatus: z.enum(["complete", "incomplete"]),
   checks: z.array(upgradeInvestigationCheckSchema).max(6),
-});
+}).strict();
 
 export const investigationReceiptTriggerSchema = z.object({
     network: z.object({ name: z.literal("base-mainnet"), chainId: z.literal(8453) }).strict(),
@@ -93,6 +94,10 @@ export const investigationReceiptSchema = z.object({
   finalDisposition: z.enum(["corroborated", "contradicted", "incomplete"]),
   explorerLinks: sourceLinks,
 }).strict().superRefine((receipt, context) => {
+  const expectedReceiptId = createReceiptId(receipt);
+  if (receipt.receiptId !== expectedReceiptId) {
+    context.addIssue({ code: "custom", path: ["receiptId"], message: "receipt ID does not match the canonical receipt payload" });
+  }
   const selected = receipt.plan.selectedChecks;
   const executed = receipt.checks.map(({ id }) => id);
   if (selected.length !== executed.length || selected.some((id, index) => id !== executed[index])) {
@@ -113,6 +118,43 @@ export const investigationReceiptSchema = z.object({
   const provider = "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D";
   const slot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
   for (const [index, check] of receipt.checks.entries()) {
+    const resultActual = check.result?.kind === "bytecode"
+      ? `${check.result.byteLength} bytes`
+      : check.result?.value ?? null;
+    if (check.status === "passed") {
+      if (check.assertion.matches !== true) {
+        context.addIssue({ code: "custom", path: ["checks", index, "assertion", "matches"], message: "a passed check must have a matching assertion" });
+      }
+      if (check.result === null) {
+        context.addIssue({ code: "custom", path: ["checks", index, "result"], message: "a passed check must contain a result" });
+      }
+      if (check.failure !== null) {
+        context.addIssue({ code: "custom", path: ["checks", index, "failure"], message: "a passed check cannot contain failure details" });
+      }
+    } else if (check.status === "mismatch") {
+      if (check.assertion.matches !== false) {
+        context.addIssue({ code: "custom", path: ["checks", index, "assertion", "matches"], message: "a mismatched check must have a non-matching assertion" });
+      }
+      if (check.result === null) {
+        context.addIssue({ code: "custom", path: ["checks", index, "result"], message: "a mismatched check must contain a result" });
+      }
+      if (check.failure !== null) {
+        context.addIssue({ code: "custom", path: ["checks", index, "failure"], message: "a mismatched check cannot contain failure details" });
+      }
+    } else {
+      if (check.failure === null) {
+        context.addIssue({ code: "custom", path: ["checks", index, "failure"], message: "a failed or unsupported check must contain failure details" });
+      }
+      if (check.result !== null) {
+        context.addIssue({ code: "custom", path: ["checks", index, "result"], message: "a failed or unsupported check cannot contain a result" });
+      }
+      if (check.assertion.actual !== null || check.assertion.matches !== null) {
+        context.addIssue({ code: "custom", path: ["checks", index, "assertion"], message: "an unavailable check cannot claim an actual result or match" });
+      }
+    }
+    if (resultActual !== null && check.assertion.actual?.toLowerCase() !== resultActual.toLowerCase()) {
+      context.addIssue({ code: "custom", path: ["checks", index, "assertion", "actual"], message: "assertion actual must match the normalized check result" });
+    }
     let validScope = false;
     if (check.id === "implementation-before") {
       validScope = check.required && check.method === "eth_getStorageAt" && check.blockTag === "0x27339e1"
@@ -188,6 +230,34 @@ export const evidenceSchema = z.object({
   if (evidence.status === "incomplete" && evidence.errors.length === 0) {
     context.addIssue({ code: "custom", path: ["errors"], message: "incomplete evidence must explain what is missing" });
   }
+  const receipt = evidence.investigationReceipt;
+  if (!receipt) return;
+  const expectedTrigger = {
+    network: evidence.network,
+    targetId: "aave-v3-base-core",
+    incidentClass: "contract_upgrade",
+    eventType: "proxy_upgraded",
+    eventSignature: evidence.event.signature,
+    decodedArguments: evidence.event.decodedArguments,
+    block: evidence.block,
+    transaction: evidence.transaction,
+    log: evidence.log,
+    detector: {
+      id: evidence.detector.id,
+      severityRuleId: evidence.severity.ruleId,
+      severity: evidence.severity.result,
+    },
+  };
+  const compare = (actual: unknown, expected: unknown, path: PropertyKey[], message: string) => {
+    if (stableSerialize(actual) !== stableSerialize(expected)) {
+      context.addIssue({ code: "custom", path, message });
+    }
+  };
+  compare(receipt.trigger, expectedTrigger, ["investigationReceipt", "trigger"], "receipt trigger must match its containing evidence");
+  compare(receipt.plan, evidence.upgradeInvestigation.plan, ["investigationReceipt", "plan"], "receipt plan must match its containing investigation");
+  compare(receipt.checks, evidence.upgradeInvestigation.checks, ["investigationReceipt", "checks"], "receipt checks must match its containing investigation");
+  compare(receipt.finalDisposition, evidence.upgradeInvestigation.disposition, ["investigationReceipt", "finalDisposition"], "receipt disposition must match its containing investigation");
+  compare(receipt.explorerLinks, evidence.sources, ["investigationReceipt", "explorerLinks"], "receipt explorer links must match its containing evidence");
 });
 
 export const alertSchema = z.object({
