@@ -3,10 +3,10 @@
 Watchtower is being developed as an evidence-backed Base incident monitoring
 agent.
 
-Watchtower provides a deterministic, read-only evidence pipeline and minimal
-investigation dashboard for verified Aave V3 Base Pool, Compound III Base USDC
-Comet, and ether.fi Base weETH OFT proxy upgrades. The selected live demo is
-ether.fi. The repository
+Watchtower provides a deterministic, read-only evidence pipeline and a
+multi-profile investigation archive for verified Aave V3 Base Pool, Compound
+III Base USDC Comet, and ether.fi Base weETH OFT proxy upgrades. The selected
+live demo is ether.fi. The repository
 contains validated configuration, strict event decoding, normalized records,
 structured failures, an Express API, and a vanilla browser interface. It does
 not contain continuous monitoring, notifications, authentication, wallet
@@ -50,8 +50,11 @@ Start the local server:
 npm run dev
 ```
 
-Open http://localhost:3000. The dashboard starts with an empty in-memory alert
-list. Select `Run verified scan` to request the approved historical scan.
+Open http://localhost:3000. The frontend immediately exposes the three
+committed verified fixtures as a read-only archive. Selecting a profile replays
+only its committed evidence in the browser. `Run active profile scan` is enabled
+only for the server-selected ether.fi profile and requests the existing
+approved one-block RPC scan.
 
 ## Opt-in live demo scan
 
@@ -117,9 +120,10 @@ curl --fail -X POST -H 'content-type: application/json' --data '{}' http://local
 curl --fail http://localhost:3000/api/alerts
 ```
 
-The verified server returned HTTP 200 for the dashboard, stylesheet, browser
-script, health, configuration, alert list, and alert detail. `POST /api/scans`
-returned HTTP 201.
+The 2026-08-25 local check returned HTTP 200 for health, sanitized
+configuration, the dashboard, and the static three-profile archive module.
+Automated API tests continue to cover live scan, alert detail, receipt download,
+failure replacement, request validation, and security headers.
 
 Scan requests require `Content-Type: application/json` and a JSON object. The
 only accepted properties are optional decimal-string `fromBlock` and `toBlock`
@@ -167,6 +171,32 @@ These exclusions are deliberate. Every profile fixes one proxy, one qualifying
 transaction, one block, one event signature, and one explicit investigation
 plan. The API cannot select a profile or override its address, calls, topic, or
 blocks.
+
+## Multi-profile investigation workspace
+
+The target selector is a frontend archive filter, not a scanner input. It lists
+exactly the three closed registry profiles and never submits a profile ID,
+address, RPC URL, call, event signature, plan, or block to the API. The server
+continues to select one active profile from `config/target.json`.
+
+For each committed fixture, the archive shows the real protocol, upgrade event,
+block, UTC timestamp, corroborated disposition, six-check count, deterministic
+receipt ID, and replay action. Replaying a fixture shows:
+
+- the triggering event and selected deterministic plan
+- the six-stage investigation trace
+- each RPC method, exact block tag, expected value, actual value, and assertion
+  status
+- visible failures, unsupported checks, and evidence limitations
+- BaseScan links for the transaction, block, emitter, implementation, and named
+  profile addresses
+- a downloadable JSON receipt that passes the same strict receipt schema and
+  canonical hash validation as live receipts
+
+An in-memory live result replaces the active profile's fixture view only after
+a scan returns evidence. The source badge always states `Live RPC result` or
+`Verified fixture`. Selecting Aave or Compound keeps the live scan control
+disabled because the browser cannot change the server-selected profile.
 
 ## Evidence pipeline
 
@@ -342,7 +372,7 @@ Each alert separates:
 - limitations that prevent the address comparison from being read as a claim
   about identity, intent, causality, or implementation safety
 
-The dashboard checks `/api/health` before presenting its service indicator. It
+The frontend checks `/api/health` before presenting its service indicator. It
 shows the classification, severity rule, evidence status, transaction, sender,
 recipient, receipt, block, UTC-labeled timestamp, log index, topic zero, raw
 topics, detector inputs, severity inputs, configured address roles, decoded
@@ -427,6 +457,14 @@ alert, one complete evidence record, zero failures, a corroborated disposition,
 and deterministic receipt
 `receipt_9e87dba3784fba97a3c51f81bf5d34e878342113eeeb65e3a83f07a4ae07327f`.
 
-The current public `origin/main` is `7e261a9`. The closed-registry and Compound
-implementation commits remain local and unpushed. Public parity is therefore
-not claimed.
+The 2026-08-25 multi-profile frontend verification reported 15 test files and
+118 tests passed. TypeScript and JavaScript parsing passed. All three committed
+fixture receipts passed strict schema and canonical ID validation. Local HTTP
+checks passed for health, sanitized configuration, the dashboard, and the
+three-profile archive asset. A browser session was unavailable in this
+environment, so rendered screenshot inspection remains an explicit validation
+limitation rather than a claimed pass.
+
+The tracked public branch is `origin/main` at
+`1daef0f2508e95504111106d2483cc54735878d0`. The ether.fi profile and this
+frontend milestone remain local and unpushed. Public parity is not claimed.

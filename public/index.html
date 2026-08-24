@@ -3,89 +3,150 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Evidence-backed Base upgrade incident review">
-    <title>Watchtower · Base evidence monitor</title>
-    <!-- Delivery markers: INVESTIGATION CONSOLE / RUN BOUNDED SCAN -->
+    <meta name="description" content="Watchtower verified Base upgrade investigation archive">
+    <title>Watchtower · Investigation archive</title>
+    <!-- Delivery markers: MULTI-PROFILE INVESTIGATION ARCHIVE / VERIFIED FIXTURES -->
     <link rel="stylesheet" href="/styles.css">
     <script src="/app.js" type="module"></script>
   </head>
   <body>
-    <div class="shell">
-      <header class="topbar">
-        <a class="brand" href="/" aria-label="Watchtower home">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <span>WATCHTOWER</span>
+    <div class="site-frame">
+      <header class="masthead">
+        <a class="wordmark" href="#top" aria-label="Watchtower home">
+          <span class="wordmark-mark" aria-hidden="true">W</span>
+          <span>Watchtower</span>
         </a>
-        <div class="network-pill">
-          <span id="health-dot" class="status-dot unhealthy" aria-hidden="true"></span>
-          <span id="health-label">Checking API</span>
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <a href="#investigation">Investigation</a>
+          <a href="#archive">Archive</a>
+          <a href="#method">Method</a>
+        </nav>
+        <div class="system-state" aria-live="polite">
+          <span id="health-dot" class="health-dot pending" aria-hidden="true"></span>
+          <span id="health-label">Checking system</span>
         </div>
       </header>
 
-      <main>
-        <section class="hero" aria-labelledby="page-title">
-          <div>
-            <p class="eyebrow">Bounded incident evidence</p>
-            <h1 id="page-title">One target. One event. Verifiable facts.</h1>
-            <p id="hero-copy" class="hero-copy">
-              Review the selected approved Base proxy upgrade through its block,
-              transaction, receipt, log, and deterministic policy evidence.
+      <main id="top">
+        <section class="intro" aria-labelledby="page-title">
+          <div class="intro-copy">
+            <p class="kicker">Base protocol evidence archive</p>
+            <h1 id="page-title">Investigations that can be replayed, not merely read.</h1>
+            <p>
+              Watchtower preserves the trigger, bounded historical reads, exact
+              assertions, and deterministic receipt for three verified Base
+              upgrade profiles.
             </p>
           </div>
-          <div class="scan-control">
-            <dl class="scope-summary">
-              <div><dt>Target</dt><dd id="target-label">Loading…</dd></div>
-              <div><dt>Network</dt><dd id="network-label">Loading…</dd></div>
-              <div><dt>Range</dt><dd id="range-label">Loading…</dd></div>
-              <div><dt>Event</dt><dd id="event-label">Loading…</dd></div>
-              <div><dt>Signature</dt><dd id="signature-label">Loading…</dd></div>
-            </dl>
-            <button id="scan-button" class="scan-button" type="button">
-              <span>Run verified scan</span>
-              <span aria-hidden="true">→</span>
-            </button>
-            <p id="scan-status" class="scan-status" role="status">Ready for an opt-in historical scan.</p>
+          <div class="scope-note" aria-label="Security boundary">
+            <span class="scope-index">01</span>
+            <p>Closed profiles only</p>
+            <span>No arbitrary addresses, RPC URLs, calls, or event signatures.</span>
           </div>
         </section>
 
-        <section id="failure-panel" class="failure-panel" aria-labelledby="failure-title" hidden>
-          <div>
-            <p class="eyebrow danger">Scan visibility</p>
-            <h2 id="failure-title">Failures require review</h2>
+        <section class="profile-section" aria-labelledby="profiles-title">
+          <div class="section-intro">
+            <p class="kicker">Target registry</p>
+            <h2 id="profiles-title">Choose a verified profile</h2>
           </div>
-          <ul id="failure-list"></ul>
+          <div id="profile-selector" class="profile-selector" role="list" aria-label="Configured target profiles"></div>
         </section>
 
-        <section class="workspace" aria-label="Alert investigation workspace">
-          <aside class="alert-rail">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Detected evidence</p>
-                <h2>Alerts</h2>
-              </div>
-              <span id="alert-count" class="count">0</span>
+        <section id="investigation" class="current-section" aria-labelledby="current-title">
+          <div class="section-bar">
+            <div>
+              <p class="kicker">Current investigation</p>
+              <h2 id="current-title">Evidence workspace</h2>
             </div>
-            <div id="alert-list" class="alert-list">
-              <div class="empty-state">
-                <p>No scan results in memory.</p>
-                <span>Run the approved historical scan to populate this list.</span>
-              </div>
+            <div class="source-controls">
+              <span id="source-badge" class="source-badge fixture">Verified fixture</span>
+              <button id="scan-button" class="primary-action" type="button">Run active profile scan</button>
             </div>
-          </aside>
+          </div>
 
-          <article id="detail-panel" class="detail-panel" aria-live="polite">
-            <div class="detail-placeholder">
-              <span class="placeholder-index">01</span>
-              <h2>Evidence appears here</h2>
-              <p>Select an alert after the scan to inspect facts, interpretation, and source links.</p>
+          <p id="scan-status" class="scan-status" role="status">Loading the verified fixture archive.</p>
+
+          <section id="failure-panel" class="failure-panel" aria-labelledby="failure-title" hidden>
+            <div>
+              <p class="kicker danger">Visible failure</p>
+              <h3 id="failure-title">Investigation requires review</h3>
             </div>
-          </article>
+            <ul id="failure-list"></ul>
+          </section>
+
+          <div class="investigation-shell">
+            <aside class="case-summary" aria-label="Investigation summary">
+              <p class="case-number">Case <span id="case-profile-id">Loading</span></p>
+              <h3 id="case-protocol">Loading profile</h3>
+              <p id="case-target" class="case-target">Loading target</p>
+              <dl class="case-facts">
+                <div><dt>Trigger</dt><dd id="case-event">Upgraded(address)</dd></div>
+                <div><dt>Plan</dt><dd id="case-plan">Loading</dd></div>
+                <div><dt>Status</dt><dd id="case-status">Loading</dd></div>
+                <div><dt>Disposition</dt><dd id="case-disposition">Loading</dd></div>
+                <div><dt>Checks</dt><dd id="case-checks">Loading</dd></div>
+                <div><dt>Receipt</dt><dd id="case-receipt">Loading</dd></div>
+              </dl>
+              <p id="active-profile-note" class="active-profile-note"></p>
+            </aside>
+
+            <article id="detail-panel" class="detail-panel" aria-live="polite">
+              <div class="detail-placeholder">
+                <p class="kicker">Preparing evidence</p>
+                <h3>Loading the selected investigation</h3>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="archive" class="archive-section" aria-labelledby="archive-title">
+          <div class="section-intro archive-heading">
+            <div>
+              <p class="kicker">Committed evidence</p>
+              <h2 id="archive-title">Investigation archive</h2>
+            </div>
+            <p>One verified upgrade fixture per configured profile. No synthetic activity.</p>
+          </div>
+          <div class="archive-table-wrap">
+            <table class="archive-table">
+              <thead>
+                <tr>
+                  <th scope="col">Protocol</th>
+                  <th scope="col">Event</th>
+                  <th scope="col">Block and date</th>
+                  <th scope="col">Disposition</th>
+                  <th scope="col">Checks</th>
+                  <th scope="col">Receipt</th>
+                  <th scope="col"><span class="sr-only">Action</span></th>
+                </tr>
+              </thead>
+              <tbody id="archive-body"></tbody>
+            </table>
+          </div>
+          <div id="archive-empty" class="archive-empty" hidden>No committed fixture investigations are available.</div>
+        </section>
+
+        <section id="method" class="method-section" aria-labelledby="method-title">
+          <div class="section-intro method-heading">
+            <p class="kicker">Investigation method</p>
+            <h2 id="method-title">Six bounded stages, one receipt</h2>
+            <p>Each stage preserves what was requested, what was observed, and what could not be verified.</p>
+          </div>
+          <ol class="method-list">
+            <li><span>01</span><div><h3>Event observed</h3><p>Verify the configured proxy, transaction, log, topic, and decoded implementation.</p></div></li>
+            <li><span>02</span><div><h3>Plan selected</h3><p>Choose one versioned deterministic plan with a fixed read budget.</p></div></li>
+            <li><span>03</span><div><h3>Historical state checked</h3><p>Read the EIP-1967 implementation slot at N-1 and N.</p></div></li>
+            <li><span>04</span><div><h3>Implementation checked</h3><p>Verify deployed implementation bytecode at the upgrade block.</p></div></li>
+            <li><span>05</span><div><h3>Protocol identity checked</h3><p>Run only the profile's three approved historical calls.</p></div></li>
+            <li><span>06</span><div><h3>Receipt issued</h3><p>Bind the trigger, plan, checks, limitations, and disposition into deterministic JSON.</p></div></li>
+          </ol>
         </section>
       </main>
 
       <footer>
-        <span>READ-ONLY · BASE MAINNET</span>
-        <span>NO WALLET CONNECTION · NO TRANSACTIONS</span>
+        <span>Read-only Base mainnet research</span>
+        <span>No wallets, transactions, or open-ended calls</span>
       </footer>
     </div>
   </body>

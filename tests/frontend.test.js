@@ -1,13 +1,23 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  buildArchiveEntries,
   buildEvidenceRows,
+  buildFixtureDetail,
   buildInvestigationTrace,
+  buildProfileOptions,
   canRenderAlertDetail,
   fetchHealth,
   formatUtcTimestamp,
+  investigationSourceLabel,
+  isMobileLayout,
   reconcileAlertSelection,
 } from "../public/view-model.js";
+import { archiveProfiles } from "../public/archive-data.js";
+import { investigationReceiptSchema } from "../src/domain/schemas.js";
+import { getTargetProfile } from "../src/profiles/registry.js";
 
 const plan = {
   id: "corroborate-approved-upgrade",
@@ -93,6 +103,94 @@ const evidence = {
 const alert = { id: "alert-current", classificationLabel: "Contract upgrade" };
 
 describe("dashboard view model", () => {
+  it("exposes only the three configured profiles in the selector", () => {
+    const options = buildProfileOptions(archiveProfiles, "etherfi-base-weeth-oft");
+
+    expect(options.map(({ label }) => label)).toEqual([
+      "Aave V3 Base Pool",
+      "Compound III Base USDC Comet",
+      "ether.fi Base weETH OFT",
+    ]);
+    expect(options.filter(({ isActive }) => isActive).map(({ id }) => id)).toEqual(["etherfi-base-weeth-oft"]);
+    expect(options.every(({ id }) => !id.startsWith("0x"))).toBe(true);
+  });
+
+  it("builds one real archive entry from each committed verified fixture", () => {
+    const entries = buildArchiveEntries(archiveProfiles);
+
+    expect(entries).toHaveLength(3);
+    expect(entries.map(({ profileId }) => profileId).sort()).toEqual([
+      "aave-v3-base-core",
+      "compound-iii-base-usdc-comet",
+      "etherfi-base-weeth-oft",
+    ]);
+    expect(entries.every(({ event, disposition, checkCount, receiptId }) => (
+      event === "Upgraded(address)"
+      && disposition === "corroborated"
+      && checkCount === 6
+      && /^receipt_[0-9a-f]{64}$/.test(receiptId)
+    ))).toBe(true);
+    expect(buildArchiveEntries([])).toEqual([]);
+  });
+
+  it("keeps archive triggers and checks tied to the committed fixture and registry", () => {
+    for (const profile of archiveProfiles) {
+      const registered = getTargetProfile(profile.id);
+      const fixtureRoot = new URL(`../${registered.expectedFixture.path}/`, import.meta.url);
+      const block = JSON.parse(readFileSync(new URL("block.json", fixtureRoot), "utf8"));
+      const transaction = JSON.parse(readFileSync(new URL("transaction.json", fixtureRoot), "utf8"));
+      const receipt = JSON.parse(readFileSync(new URL("receipt.json", fixtureRoot), "utf8"));
+      const event = JSON.parse(readFileSync(new URL("expected-events.json", fixtureRoot), "utf8"))[0];
+
+      expect(profile.block).toMatchObject({ number: block.number, hash: block.hash, timestamp: block.timestamp });
+      expect(profile.transaction.hash).toBe(transaction.hash);
+      expect(profile.receipt.trigger.log).toMatchObject({
+        index: receipt.selectedLogs[0].logIndex,
+        emitter: event.emitter,
+        topic0: receipt.selectedLogs[0].topics[0],
+      });
+      expect(profile.implementation.toLowerCase()).toBe(event.decodedArguments.implementation.toLowerCase());
+      expect(profile.receipt.checks.map(({ id }) => id)).toEqual(registered.plans.approved.selectedChecks);
+    }
+  });
+
+  it("keeps fixture and live source labels explicit", () => {
+    expect(investigationSourceLabel("verified-fixture")).toBe("Verified fixture");
+    expect(investigationSourceLabel("live")).toBe("Live RPC result");
+  });
+
+  it("ships valid deterministic fixture receipts and receipt links", () => {
+    for (const profile of archiveProfiles) {
+      expect(investigationReceiptSchema.safeParse(profile.receipt).success).toBe(true);
+      const detail = buildFixtureDetail(profile);
+      const receiptStage = buildInvestigationTrace(detail)[5];
+      expect(receiptStage.links).toEqual([expect.objectContaining({
+        href: `/api/receipts/${profile.receipt.receiptId}`,
+        download: `watchtower-${profile.receipt.receiptId}.json`,
+      })]);
+    }
+  });
+
+  it("uses the compact mobile layout boundary without changing evidence", () => {
+    expect(isMobileLayout(390)).toBe(true);
+    expect(isMobileLayout(720)).toBe(true);
+    expect(isMobileLayout(721)).toBe(false);
+    expect(isMobileLayout(Number.NaN)).toBe(false);
+  });
+
+  it("keeps the profile, archive, empty, failure, and mobile states in the rendered assets", () => {
+    const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+    const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+
+    expect(html).toContain('id="profile-selector"');
+    expect(html).toContain('id="archive-body"');
+    expect(html).toContain('id="archive-empty"');
+    expect(html).toContain('id="failure-panel"');
+    expect(css).toContain("@media (max-width: 720px)");
+    expect(css).toContain(".archive-table td::before");
+    expect(css).toContain(".investigation-shell { grid-template-columns: 1fr; }");
+  });
+
   it("loads the frontend health indicator from /api/health", async () => {
     const request = vi.fn().mockResolvedValue({ status: "ok" });
 

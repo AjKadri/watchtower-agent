@@ -22,13 +22,26 @@ Decision needed: None for milestone 1.
 
 Status: Active
 
-Public and local `main` were aligned at verified public HEAD
-`1daef0f2508e95504111106d2483cc54735878d0` when this task started. The
-ether.fi profile commit created by this task remains local until it is pushed.
-Public reproducibility of this profile cannot be claimed before then.
+Tracked `origin/main` remains at
+`1daef0f2508e95504111106d2483cc54735878d0`. Local `main` includes the ether.fi
+profile commit and the multi-profile frontend commit created by this task.
+Public reproducibility of those milestones cannot be claimed before they are
+pushed and checked from a clean public clone.
 
 Decision needed: Explicit authorization to push. No push was requested, so no
 remote state was changed.
+
+### 2026-08-25: Rendered frontend inspection unavailable
+
+Status: Active
+
+The local server, HTTP assets, JavaScript parsing, responsive CSS assertions,
+and 118 automated tests passed. No in-app or connected browser session was
+available, so desktop and mobile screenshot inspection could not be completed
+through the required browser surface.
+
+Decision needed: None for implementation. Repeat rendered desktop and mobile
+inspection when a browser session is available.
 
 ## Resolved blockers
 

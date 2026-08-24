@@ -118,9 +118,10 @@ describe("Watchtower API", () => {
     expect(configurationText).not.toContain("BASE_RPC_URL");
     expect(configurationText).not.toContain("PoolUpdated");
     const dashboardText = await dashboard.text();
-    expect(dashboardText).toContain("WATCHTOWER");
-    expect(dashboardText).toContain("INVESTIGATION CONSOLE");
-    expect(dashboardText).toContain("RUN BOUNDED SCAN");
+    expect(dashboardText).toContain("Watchtower");
+    expect(dashboardText).toContain("MULTI-PROFILE INVESTIGATION ARCHIVE");
+    expect(dashboardText).toContain("VERIFIED FIXTURES");
+    expect(dashboardText).toContain("profile-selector");
   });
 
   it("runs and stores the approved scan, alerts, evidence, and investigation", async () => {

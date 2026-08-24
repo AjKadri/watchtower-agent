@@ -462,3 +462,30 @@ the wider ether.fi and LayerZero systems are safe.
 Reason: The archive verification establishes a reproducible fixed ether.fi OFT
 upgrade investigation without broadening Watchtower's incident classes or
 request-controlled capabilities.
+
+## 2026-08-25: Use a read-only multi-profile investigation archive
+
+Status: Accepted
+
+The vanilla frontend presents exactly the three closed registry profiles as a
+research archive. The selector changes only the local fixture view. It does not
+send a profile ID, address, call, RPC URL, event signature, plan, or block range
+to the server. The existing `config/target.json` selector remains the sole
+runtime profile choice, and only that active profile can start the existing
+bounded API scan.
+
+Each archive entry is derived from one committed verified fixture and contains
+its real event, block, UTC timestamp, six fixed checks, disposition, explorer
+sources, limitations, and deterministic receipt. Fixture receipts use the same
+strict schema and canonical hash validation as live receipts. No activity,
+metric, target, user, or investigation is synthesized.
+
+The presentation uses a light editorial research language with warm neutral
+surfaces, dark text, a restrained green accent, serif headings, and monospace
+evidence values. It replaces the earlier SOC-console presentation decision.
+Status color remains limited to evidence source, check outcome, disposition,
+severity, service health, and failures.
+
+Reason: A static verified archive lets reviewers compare and replay all three
+approved profiles without opening the scanner's closed server-side capability
+boundary or adding persistence, authentication, or another service.

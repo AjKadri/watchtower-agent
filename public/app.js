@@ -1,31 +1,45 @@
+import { archiveProfiles, getArchiveProfile } from "/archive-data.js";
 import {
+  buildArchiveEntries,
   buildEvidenceRows,
+  buildFixtureDetail,
   buildInvestigationTrace,
-  canRenderAlertDetail,
+  buildProfileOptions,
   fetchHealth,
   formatUtcTimestamp,
-  reconcileAlertSelection,
+  investigationSourceLabel,
 } from "/view-model.js";
 
 const elements = {
-  alertCount: document.querySelector("#alert-count"),
-  alertList: document.querySelector("#alert-list"),
+  activeProfileNote: document.querySelector("#active-profile-note"),
+  archiveBody: document.querySelector("#archive-body"),
+  archiveEmpty: document.querySelector("#archive-empty"),
+  caseChecks: document.querySelector("#case-checks"),
+  caseDisposition: document.querySelector("#case-disposition"),
+  caseEvent: document.querySelector("#case-event"),
+  casePlan: document.querySelector("#case-plan"),
+  caseProfileId: document.querySelector("#case-profile-id"),
+  caseProtocol: document.querySelector("#case-protocol"),
+  caseReceipt: document.querySelector("#case-receipt"),
+  caseStatus: document.querySelector("#case-status"),
+  caseTarget: document.querySelector("#case-target"),
   detail: document.querySelector("#detail-panel"),
-  eventLabel: document.querySelector("#event-label"),
   failureList: document.querySelector("#failure-list"),
   failurePanel: document.querySelector("#failure-panel"),
   healthDot: document.querySelector("#health-dot"),
   healthLabel: document.querySelector("#health-label"),
-  heroCopy: document.querySelector("#hero-copy"),
-  networkLabel: document.querySelector("#network-label"),
-  rangeLabel: document.querySelector("#range-label"),
+  profileSelector: document.querySelector("#profile-selector"),
   scanButton: document.querySelector("#scan-button"),
   scanStatus: document.querySelector("#scan-status"),
-  signatureLabel: document.querySelector("#signature-label"),
-  targetLabel: document.querySelector("#target-label"),
+  sourceBadge: document.querySelector("#source-badge"),
 };
 
-const state = { alerts: [], selectedAlertId: null, detailAlertId: null, config: null };
+const state = {
+  activeProfileId: null,
+  selectedProfileId: null,
+  config: null,
+  liveDetails: new Map(),
+};
 
 function node(tag, className, text) {
   const element = document.createElement(tag);
@@ -35,30 +49,19 @@ function node(tag, className, text) {
 }
 
 function shortHash(value) {
-  if (!value || value.length < 20) return value ?? "Unavailable";
-  return `${value.slice(0, 10)}…${value.slice(-8)}`;
+  if (!value || value.length < 22) return value ?? "Unavailable";
+  return `${value.slice(0, 11)}…${value.slice(-8)}`;
 }
 
-function badge(label, variant) {
+function badge(label, variant = label) {
   return node("span", `badge ${variant}`, label);
 }
 
-function sourceLink(label, href) {
-  const link = node("a", "source-link", label);
+function sourceLink(label, href, className = "source-link") {
+  const link = node("a", className, label);
   link.href = href;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  return link;
-}
-
-function traceLink(linkDefinition) {
-  const link = node("a", "trace-link", linkDefinition.label);
-  link.href = linkDefinition.href;
-  if (linkDefinition.external) {
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-  }
-  if (linkDefinition.download) link.download = linkDefinition.download;
   return link;
 }
 
@@ -84,201 +87,278 @@ function renderFailures(failures = []) {
   }
 }
 
-function renderAlertList() {
-  elements.alertCount.textContent = String(state.alerts.length);
-  elements.alertList.replaceChildren();
-  if (state.alerts.length === 0) {
-    const empty = node("div", "empty-state");
-    empty.append(node("p", "", "No scan results in memory."));
-    empty.append(node("span", "", "Run the approved historical scan to populate this list."));
-    elements.alertList.append(empty);
-    return;
-  }
+function setSourceBadge(source) {
+  elements.sourceBadge.textContent = investigationSourceLabel(source);
+  elements.sourceBadge.className = `source-badge ${source === "live" ? "live" : "fixture"}`;
+}
 
-  for (const alert of state.alerts) {
-    const button = node("button", `alert-card${state.selectedAlertId === alert.id ? " active" : ""}`);
+function renderProfiles() {
+  elements.profileSelector.replaceChildren();
+  for (const option of buildProfileOptions(archiveProfiles, state.activeProfileId)) {
+    const button = node("button", `profile-option${option.id === state.selectedProfileId ? " selected" : ""}`);
     button.type = "button";
-    button.dataset.alertId = alert.id;
-    button.setAttribute("aria-pressed", String(state.selectedAlertId === alert.id));
-    const top = node("div", "alert-card-top");
-    top.append(badge(alert.severity, alert.severity));
-    top.append(badge(alert.evidenceStatus, alert.evidenceStatus));
-    button.append(top);
-    button.append(node("h3", "", alert.title));
-    const meta = node("div", "alert-meta");
-    meta.append(node("span", "", formatUtcTimestamp(alert.observedAt)));
-    meta.append(node("span", "", shortHash(alert.id)));
-    button.append(meta);
-    button.addEventListener("click", () => selectAlert(alert.id));
-    elements.alertList.append(button);
+    button.dataset.profileId = option.id;
+    button.setAttribute("role", "listitem");
+    button.setAttribute("aria-pressed", String(option.id === state.selectedProfileId));
+    const top = node("span", "profile-option-top");
+    top.append(node("span", "profile-name", option.label));
+    top.append(node("span", `profile-mode ${option.isActive ? "active" : "fixture"}`, option.isActive ? "Live scan enabled" : "Fixture replay"));
+    button.append(top, node("span", "profile-id", option.id));
+    button.addEventListener("click", () => selectProfile(option.id));
+    elements.profileSelector.append(button);
   }
 }
 
-function evidenceItem(label, value, link) {
+function renderArchive() {
+  const entries = buildArchiveEntries(archiveProfiles);
+  elements.archiveBody.replaceChildren();
+  elements.archiveEmpty.hidden = entries.length > 0;
+  elements.archiveBody.closest(".archive-table-wrap").hidden = entries.length === 0;
+  for (const entry of entries) {
+    const row = node("tr");
+    const protocol = node("td");
+    protocol.dataset.label = "Protocol";
+    protocol.append(node("strong", "", entry.protocol), node("span", "archive-profile-id", entry.profileId));
+    const event = node("td", "mono", entry.event);
+    event.dataset.label = "Event";
+    const block = node("td");
+    block.dataset.label = "Block and date";
+    block.append(node("strong", "mono", entry.block), node("span", "archive-date", formatUtcTimestamp(entry.timestamp)));
+    const disposition = node("td");
+    disposition.dataset.label = "Disposition";
+    disposition.append(badge(entry.disposition));
+    const checks = node("td", "mono", `${entry.checkCount} / ${entry.checkCount}`);
+    checks.dataset.label = "Checks";
+    const receipt = node("td", "mono receipt-cell", shortHash(entry.receiptId));
+    receipt.dataset.label = "Receipt";
+    receipt.title = entry.receiptId;
+    const action = node("td");
+    action.dataset.label = "Action";
+    const replay = node("button", "replay-action", "Replay fixture");
+    replay.type = "button";
+    replay.dataset.replayProfile = entry.profileId;
+    replay.addEventListener("click", () => {
+      selectProfile(entry.profileId, "verified-fixture");
+      document.querySelector("#investigation").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    action.append(replay);
+    row.append(protocol, event, block, disposition, checks, receipt, action);
+    elements.archiveBody.append(row);
+  }
+}
+
+function renderCaseSummary(detail, source) {
+  const profile = getArchiveProfile(detail.alert.targetId ?? detail.profile?.id);
+  const investigation = detail.evidence.upgradeInvestigation;
+  const receipt = detail.evidence.investigationReceipt;
+  const passed = investigation.checks.filter(({ status }) => status === "passed").length;
+  elements.caseProfileId.textContent = profile.id;
+  elements.caseProtocol.textContent = profile.displayName;
+  elements.caseTarget.textContent = `${profile.targetName} · Base mainnet`;
+  elements.caseEvent.textContent = detail.evidence.event.signature;
+  elements.casePlan.textContent = `${investigation.plan.id} · v${investigation.plan.version}`;
+  elements.caseStatus.textContent = investigation.evidenceStatus;
+  elements.caseDisposition.textContent = investigation.disposition;
+  elements.caseChecks.textContent = `${passed} of ${investigation.checks.length} passed`;
+  elements.caseReceipt.textContent = receipt?.receiptId ?? "Not issued";
+  elements.caseReceipt.title = receipt?.receiptId ?? "";
+  elements.activeProfileNote.textContent = profile.id === state.activeProfileId
+    ? "This is the server-active profile. A live bounded scan is available."
+    : `Archive view only. Live scanning remains fixed to ${getArchiveProfile(state.activeProfileId).displayName}.`;
+  setSourceBadge(source);
+}
+
+function evidenceItem(row) {
   const wrapper = node("div", "evidence-item");
-  const term = node("dt", "", label);
+  wrapper.append(node("dt", "", row.label));
   const description = node("dd");
-  description.append(link ? sourceLink(value, link) : document.createTextNode(value));
-  wrapper.append(term, description);
+  description.append(row.link ? sourceLink(row.value, row.link) : document.createTextNode(row.value));
+  wrapper.append(description);
   return wrapper;
 }
 
-function renderDetail(detail) {
-  const { alert, evidence } = detail;
-  elements.detail.replaceChildren();
+function downloadReceipt(receipt) {
+  const blob = new Blob([`${JSON.stringify(receipt, null, 2)}\n`], { type: "application/json" });
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = `watchtower-${receipt.receiptId}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(href), 0);
+}
 
-  const header = node("header", "detail-header");
-  const heading = node("div");
-  heading.append(node("p", "eyebrow", "Normalized alert"));
-  heading.append(node("p", "classification-label", alert.classificationLabel));
-  heading.append(node("h2", "", alert.title));
-  heading.append(node("p", "detail-summary", alert.summary));
-  const badgeStack = node("div", "badge-stack");
-  badgeStack.append(badge(alert.severity, alert.severity), badge(alert.evidenceStatus, alert.evidenceStatus));
-  header.append(heading, badgeStack);
-  elements.detail.append(header);
-
-  const trace = node("section", "trace-section");
-  const traceHeading = node("div", "trace-heading");
-  const traceHeadingText = node("div");
-  traceHeadingText.append(node("p", "eyebrow", "Deterministic investigation"));
-  traceHeadingText.append(node("h3", "", "Six-stage trace"));
-  const plan = evidence.upgradeInvestigation?.plan;
-  traceHeading.append(traceHeadingText);
-  if (plan) traceHeading.append(node("span", "trace-version", `${plan.id} · v${plan.version}`));
-  trace.append(traceHeading);
-
-  const traceList = node("ol", "trace-list");
+function renderTrace(detail) {
+  const section = node("section", "trace-section");
+  const heading = node("div", "content-heading");
+  heading.append(node("p", "kicker", "Investigation trace"), node("h3", "", "Six stages of verification"));
+  section.append(heading);
+  const list = node("ol", "trace-list");
   for (const stage of buildInvestigationTrace(detail)) {
     const item = node("li", `trace-stage ${stage.status}`);
-    const marker = node("span", "trace-index", String(stage.index).padStart(2, "0"));
+    item.append(node("span", "trace-number", String(stage.index).padStart(2, "0")));
     const body = node("div", "trace-body");
-    const top = node("div", "trace-stage-top");
-    top.append(node("h4", "", stage.title), badge(stage.status, stage.status));
-    body.append(top, node("p", "trace-summary", stage.summary));
-    if (stage.elapsedMs !== null) body.append(node("p", "trace-elapsed", `${stage.elapsedMs} ms`));
-
+    const top = node("div", "trace-top");
+    top.append(node("h4", "", stage.title), badge(stage.status));
+    body.append(top, node("p", "", stage.summary));
     if (stage.details.length > 0) {
-      const details = node("ul", "trace-checks");
+      const detailList = node("ul", "trace-details");
       for (const check of stage.details) {
-        const checkItem = node("li", `trace-check ${check.status}`);
-        const checkTop = node("div", "trace-check-top");
-        checkTop.append(node("span", "trace-check-label", check.label), badge(check.status, check.status));
-        checkItem.append(checkTop, node("p", "", check.summary));
-        if (check.elapsedMs !== null) checkItem.append(node("span", "trace-elapsed", `${check.elapsedMs} ms`));
-        details.append(checkItem);
+        const row = node("li");
+        row.append(node("span", "", check.label), badge(check.status));
+        detailList.append(row);
       }
-      body.append(details);
+      body.append(detailList);
     }
-
-    if (stage.links.length > 0) {
-      const links = node("div", "trace-links");
-      for (const link of stage.links) links.append(traceLink(link));
-      body.append(links);
-    }
-    item.append(marker, body);
-    traceList.append(item);
+    item.append(body);
+    list.append(item);
   }
-  trace.append(traceList);
-  elements.detail.append(trace);
+  section.append(list);
+  return section;
+}
 
-  const investigation = node("section", "investigation-grid");
-  const facts = node("div", "investigation-card");
-  facts.append(node("h3", "", "Observed facts"));
+function renderChecks(evidence) {
+  const section = node("section", "ledger-section");
+  const heading = node("div", "content-heading");
+  heading.append(node("p", "kicker", "Assertion ledger"), node("h3", "", "Expected against observed"));
+  section.append(heading);
+  const ledger = node("div", "check-ledger");
+  for (const check of evidence.upgradeInvestigation.checks) {
+    const article = node("article", `check-record ${check.status}`);
+    const top = node("div", "check-record-top");
+    top.append(node("h4", "", check.id), badge(check.status));
+    const metadata = node("dl", "check-metadata");
+    const fields = [
+      ["RPC method", check.method],
+      ["Block tag", check.blockTag],
+      ["Expected", check.assertion.expected],
+      ["Actual", check.assertion.actual ?? "Unavailable"],
+    ];
+    for (const [label, value] of fields) {
+      const group = node("div");
+      group.append(node("dt", "", label), node("dd", "", value));
+      metadata.append(group);
+    }
+    article.append(top, node("p", "check-description", check.assertion.description), metadata);
+    if (check.failure) article.append(node("p", "check-failure", `${check.failure.code}: ${check.failure.message}`));
+    ledger.append(article);
+  }
+  section.append(ledger);
+  return section;
+}
+
+function renderSources(evidence) {
+  const section = node("section", "sources-section");
+  const heading = node("div", "content-heading");
+  heading.append(node("p", "kicker", "Verifiable sources"), node("h3", "", "Open the underlying Base evidence"));
+  section.append(heading);
+  const links = node("div", "source-list");
+  links.append(sourceLink("Transaction", evidence.sources.transaction, "source-record"));
+  links.append(sourceLink("Block", evidence.sources.block, "source-record"));
+  for (const [role, href] of Object.entries(evidence.sources.addresses)) {
+    links.append(sourceLink(role.replaceAll("-", " "), href, "source-record"));
+  }
+  section.append(links);
+  return section;
+}
+
+function renderDetail(detail, source) {
+  const { alert, evidence } = detail;
+  elements.detail.replaceChildren();
+  const header = node("header", "detail-header");
+  const title = node("div");
+  title.append(node("p", "kicker", alert.classificationLabel), node("h3", "", alert.title), node("p", "detail-summary", alert.summary));
+  const status = node("div", "badge-stack");
+  status.append(badge(alert.severity), badge(alert.evidenceStatus));
+  header.append(title, status);
+  elements.detail.append(header, renderTrace(detail), renderChecks(evidence));
+
+  const context = node("section", "context-section");
+  const facts = node("article", "context-block");
+  facts.append(node("p", "kicker", "Observed facts"));
   const factList = node("ul");
   for (const fact of alert.investigation.observedFacts) factList.append(node("li", "", fact));
   facts.append(factList);
-
-  const interpretation = node("div", "investigation-card");
-  interpretation.append(node("h3", "", "Interpretation"));
-  interpretation.append(node("p", "", alert.investigation.interpretation.text));
-  interpretation.append(node("p", "rule-line", `Rule · ${alert.investigation.interpretation.severityRuleId}`));
-
-  const limits = node("div", "investigation-card full");
-  limits.append(node("h3", "", "Limits of this evidence"));
+  const limits = node("article", "context-block limitations");
+  limits.append(node("p", "kicker", "Limits"));
   const limitList = node("ul");
   for (const limitation of alert.investigation.limitations) limitList.append(node("li", "", limitation));
   limits.append(limitList);
-  investigation.append(facts, interpretation, limits);
-  elements.detail.append(investigation);
+  context.append(facts, limits);
+  elements.detail.append(context);
 
-  const evidenceTitle = node("p", "eyebrow evidence-title", "Evidence record");
-  evidenceTitle.id = "evidence-record";
-  elements.detail.append(evidenceTitle);
+  const evidenceSection = node("section", "evidence-section");
+  const evidenceHeading = node("div", "content-heading");
+  evidenceHeading.id = "evidence-record";
+  evidenceHeading.append(node("p", "kicker", "Evidence record"), node("h3", "", "Trigger and chain metadata"));
   const grid = node("dl", "evidence-grid");
-  for (const row of buildEvidenceRows(evidence, alert.classificationLabel)) {
-    grid.append(evidenceItem(row.label, row.value, row.link));
-  }
-  elements.detail.append(grid);
+  for (const row of buildEvidenceRows(evidence, alert.classificationLabel)) grid.append(evidenceItem(row));
+  evidenceSection.append(evidenceHeading, grid);
+  elements.detail.append(evidenceSection, renderSources(evidence));
 
   if (evidence.errors.length > 0) {
     const errors = node("section", "evidence-errors");
     errors.append(node("h3", "", "Incomplete evidence"));
-    const list = node("ul");
-    for (const error of evidence.errors) list.append(node("li", "", `${error.code}: ${error.message}`));
-    errors.append(list);
+    for (const error of evidence.errors) errors.append(node("p", "", `${error.code}: ${error.message}`));
     elements.detail.append(errors);
   }
-  state.detailAlertId = alert.id;
-}
 
-async function selectAlert(alertId) {
-  state.selectedAlertId = alertId;
-  renderAlertList();
-  if (state.detailAlertId !== alertId) {
-    elements.detail.replaceChildren(node("p", "detail-summary", "Loading current alert evidence…"));
-  }
-  elements.detail.setAttribute("aria-busy", "true");
-  try {
-    const detail = await request(`/api/alerts/${encodeURIComponent(alertId)}`);
-    if (!canRenderAlertDetail(state.alerts, state.selectedAlertId, detail.alert.id)) return;
-    renderDetail(detail);
-    renderFailures(detail.scanFailures);
-  } catch (error) {
-    if (state.selectedAlertId === alertId) {
-      state.detailAlertId = null;
-      elements.detail.replaceChildren(node("p", "detail-summary", error.message));
+  const receipt = evidence.investigationReceipt;
+  if (receipt) {
+    const receiptBar = node("section", "receipt-bar");
+    const copy = node("div");
+    copy.append(node("p", "kicker", "Replay receipt"), node("h3", "", shortHash(receipt.receiptId)), node("p", "", "Validated JSON binds the trigger, plan, checks, limitations, and final disposition."));
+    if (source === "live") {
+      const link = node("a", "primary-action", "Download receipt JSON");
+      link.href = `/api/receipts/${encodeURIComponent(receipt.receiptId)}`;
+      link.download = `watchtower-${receipt.receiptId}.json`;
+      receiptBar.append(copy, link);
+    } else {
+      const button = node("button", "primary-action", "Download receipt JSON");
+      button.type = "button";
+      button.addEventListener("click", () => downloadReceipt(receipt));
+      receiptBar.append(copy, button);
     }
-  } finally {
-    elements.detail.removeAttribute("aria-busy");
+    elements.detail.append(receiptBar);
   }
+  renderCaseSummary(detail, source);
 }
 
-async function refreshAlerts(selectFirst = false) {
+function showEmptyInvestigation(message, status = "incomplete") {
+  elements.detail.replaceChildren();
+  const empty = node("div", `detail-empty ${status}`);
+  empty.append(node("p", "kicker", status === "failed" ? "Failed investigation" : "No evidence selected"), node("h3", "", message));
+  elements.detail.append(empty);
+}
+
+function selectProfile(profileId, requestedSource) {
+  const profile = getArchiveProfile(profileId);
+  if (!profile) return;
+  state.selectedProfileId = profile.id;
+  renderProfiles();
+  const liveDetail = state.liveDetails.get(profile.id);
+  const source = requestedSource === "verified-fixture" || !liveDetail ? "verified-fixture" : "live";
+  const detail = source === "live" ? liveDetail : buildFixtureDetail(profile);
+  renderFailures(detail.scanFailures);
+  renderDetail(detail, source);
+  elements.scanButton.disabled = profile.id !== state.activeProfileId;
+  elements.scanButton.title = elements.scanButton.disabled ? "Live scanning is fixed to the server-active profile." : "Run the approved bounded historical scan.";
+  elements.scanStatus.textContent = source === "live"
+    ? "Showing the latest in-memory live RPC result."
+    : "Showing the committed verified fixture. Replay does not call the RPC.";
+}
+
+async function loadStoredLiveDetail() {
   const payload = await request("/api/alerts");
-  const previousAlertId = state.selectedAlertId;
-  state.alerts = payload.alerts;
-  state.selectedAlertId = reconcileAlertSelection(state.alerts, previousAlertId, selectFirst);
-  renderAlertList();
-  if (!state.selectedAlertId) {
-    state.detailAlertId = null;
-    elements.detail.replaceChildren(node("p", "detail-summary", "No alert is selected. Run the approved scan or select a current alert."));
-    return;
-  }
-  if (selectFirst || state.selectedAlertId !== previousAlertId) {
-    state.detailAlertId = null;
-    await selectAlert(state.selectedAlertId);
-  }
-}
-
-async function updateHealth() {
-  try {
-    const health = await fetchHealth(request);
-    if (health.status !== "ok") throw new Error("The health endpoint did not report ok.");
-    elements.healthLabel.textContent = "API healthy";
-    elements.healthDot.classList.remove("unhealthy");
-  } catch {
-    elements.healthLabel.textContent = "API unavailable";
-    elements.healthDot.classList.add("unhealthy");
-  }
+  const alert = payload.alerts.find(({ targetId }) => targetId === state.activeProfileId);
+  if (!alert) return;
+  const detail = await request(`/api/alerts/${encodeURIComponent(alert.id)}`);
+  state.liveDetails.set(alert.targetId, { ...detail, source: "live" });
 }
 
 async function runScan() {
+  if (state.selectedProfileId !== state.activeProfileId) return;
   elements.scanButton.disabled = true;
-  const range = state.config?.scan;
-  elements.scanStatus.textContent = range
-    ? `Scanning approved Base block ${range.fromBlock}…`
-    : "Scanning the approved Base block…";
+  elements.scanStatus.textContent = `Scanning approved Base block ${state.config.scan.fromBlock}.`;
   renderFailures([]);
   try {
     const result = await request("/api/scans", {
@@ -286,31 +366,64 @@ async function runScan() {
       headers: { "content-type": "application/json" },
       body: "{}",
     });
-    elements.scanStatus.textContent = `Scan ${result.status}. ${result.alerts.length} alert, ${result.failures.length} failures.`;
     renderFailures(result.failures);
-    await refreshAlerts(true);
+    if (result.alerts.length === 0 || result.evidence.length === 0) {
+      elements.scanStatus.textContent = `Scan ${result.status}. No complete alert is available. ${result.failures.length} failure records.`;
+      showEmptyInvestigation("The live scan returned no investigation evidence.", result.status === "failed" ? "failed" : "incomplete");
+      elements.caseStatus.textContent = result.status;
+      elements.caseDisposition.textContent = "not issued";
+      elements.caseChecks.textContent = "0 passed";
+      elements.caseReceipt.textContent = "Not issued";
+      setSourceBadge("live");
+      return;
+    }
+    const detail = { alert: result.alerts[0], evidence: result.evidence[0], scanFailures: result.failures, source: "live" };
+    state.liveDetails.set(result.targetId, detail);
+    renderDetail(detail, "live");
+    elements.scanStatus.textContent = `Live scan ${result.status}. ${result.alerts.length} alert and ${result.failures.length} failures.`;
   } catch (error) {
+    const failures = error.payload?.failures ?? [{ code: "request-failed", message: error.message }];
+    renderFailures(failures);
+    showEmptyInvestigation(error.message, "failed");
     elements.scanStatus.textContent = error.message;
-    renderFailures(error.payload?.failures ?? [{ code: "request-failed", message: error.message }]);
+    elements.caseStatus.textContent = "failed";
+    elements.caseDisposition.textContent = "not issued";
+    setSourceBadge("live");
   } finally {
-    elements.scanButton.disabled = false;
+    elements.scanButton.disabled = state.selectedProfileId !== state.activeProfileId;
+  }
+}
+
+async function updateHealth() {
+  try {
+    const health = await fetchHealth(request);
+    if (health.status !== "ok") throw new Error("Health check failed.");
+    elements.healthLabel.textContent = "System available";
+    elements.healthDot.className = "health-dot healthy";
+  } catch {
+    elements.healthLabel.textContent = "System unavailable";
+    elements.healthDot.className = "health-dot unhealthy";
   }
 }
 
 async function initialize() {
   elements.scanButton.addEventListener("click", runScan);
+  renderArchive();
   await updateHealth();
   try {
-    const config = await request("/api/config");
-    state.config = config;
-    elements.heroCopy.textContent = `Review the approved ${config.target.name} proxy upgrade through its block, transaction, receipt, log, and deterministic policy evidence.`;
-    elements.networkLabel.textContent = `${config.network.name} · ${config.network.chainId}`;
-    elements.targetLabel.textContent = config.target.name;
-    elements.rangeLabel.textContent = `${config.scan.fromBlock} → ${config.scan.toBlock}`;
-    elements.eventLabel.textContent = config.detector.classificationLabel;
-    elements.signatureLabel.textContent = config.detector.eventSignature;
-    await refreshAlerts(true);
+    state.config = await request("/api/config");
+    state.activeProfileId = state.config.profile.id;
+    state.selectedProfileId = state.activeProfileId;
+    if (!getArchiveProfile(state.activeProfileId)) throw new Error("The active server profile is outside the verified frontend registry.");
+    try {
+      await loadStoredLiveDetail();
+    } catch {
+      state.liveDetails.clear();
+    }
+    selectProfile(state.activeProfileId);
   } catch (error) {
+    renderProfiles();
+    showEmptyInvestigation(`Dashboard initialization failed: ${error.message}`, "failed");
     elements.scanStatus.textContent = `Dashboard initialization failed: ${error.message}`;
   }
 }

@@ -1,16 +1,15 @@
 # Project Status
 
-Last updated: 2026-08-24
+Last updated: 2026-08-25
 
-- Current milestone: ether.fi Base weETH OFT investigation profile implemented and selected.
-- Completed: Independently reproduced the qualifying block, transaction, successful receipt, upgrade log, implementation transition, 17,594-byte implementation code, LayerZero endpoint, token identity, and shared decimals through the configured Alchemy Base archive RPC. Added the committed ether.fi fixture, exact six-check investigation tests, pruned-history classification, and bounded documentation. Aave and Compound remain fixture-backed and covered.
-- Tests run: `npm test` passed 15 files and 111 tests. `npm run typecheck` passed with no TypeScript errors. `npm audit --audit-level=moderate` found 0 vulnerabilities. `git diff --check` passed. Tracked secret checks found no `.env`, Alchemy credential, or credentialed provider URL.
-- Live result: Two plain `npm run scan` attempts selected ether.fi block `23487559` but returned the safe `chain-id-rpc-dns` failure because the machine resolver returned `ENOTFOUND`. The same CLI routed through a temporary DNS-only preload to the DNS-over-HTTPS address for the unchanged configured Alchemy hostname completed with one informational `contract_upgrade` alert, one complete evidence record, zero failures, a corroborated disposition, alert `alert_ab98e3ce908cbf4261b579a876f24f230e33dab850fa117a563d301be636e74a`, and receipt `receipt_af9ac18199f550c4d6ccf64a16334dd03afbbe3a3bf06c705347e16684bd64b5`.
-- Result: ether.fi is now a supported, fixture-backed profile. Complete, contradicted, pruned-history, timeout, and rate-limit outcomes are tested. Runtime reads remain fixed to blocks `23487558` and `23487559`. No current-state fallback, arbitrary call, dynamic proxy discovery, alternate provider, new incident class, or client-controlled scope was added.
-- Current commit: This status update is included in `feat: add etherfi Base investigation profile`.
-- Public revision: Public and local `main` were aligned at `1daef0f2508e95504111106d2483cc54735878d0` before this task. This task's commit remains local and unpushed.
-- Next step: Push only with explicit authorization, then verify a clean public clone before claiming public reproducibility of the ether.fi profile.
-- Blockers: The machine's default resolver currently returns `ENOTFOUND` for the configured Alchemy hostname. DNS-over-HTTPS resolves it and the unchanged endpoint completes the scan. Plain local scanning remains DNS-blocked until the machine resolver recovers.
+- Current milestone: Multi-profile investigation archive frontend implemented.
+- Completed: Added a read-only selector for the three closed profiles, current investigation summary, committed-fixture archive, six-stage method, exact assertion ledger, source links, strict fixture receipt downloads, explicit live-versus-fixture labels, visible empty and failed states, and responsive table and evidence layouts. The browser cannot submit a profile, address, call, event, plan, block, or RPC URL. The API and scanner behavior remain unchanged.
+- Tests run: `npm test` passed 15 files and 118 tests. `npm run typecheck` passed with no TypeScript errors. `npm audit --audit-level=moderate` found 0 vulnerabilities. All three archive receipts passed the runtime receipt schema and canonical hash validation. Local HTTP checks passed for `/api/health`, `/api/config`, `/`, and `/archive-data.js`. JavaScript parsing passed for `app.js`, `archive-data.js`, and `view-model.js`.
+- Result: The frontend can replay exactly three real committed fixture investigations and can run a live scan only for the server-active ether.fi profile. Automated tests cover selector contents, archive entries, source labels, receipt links, empty state, failed investigations, stale detail behavior, and the mobile layout boundary.
+- Current commit: This status update is included in `feat: add multi-profile investigation archive`.
+- Public revision: Local HEAD before this task was `c98f0610794efab7b7e782319a3f3adc7ebb329e`. Tracked `origin/main` remains `1daef0f2508e95504111106d2483cc54735878d0`. The ether.fi and frontend commits remain local and unpushed.
+- Next step: Run rendered desktop and mobile inspection when an in-app or connected browser session is available, then push only with explicit authorization and verify a clean public clone before claiming public parity.
+- Blockers: No browser session was available for rendered inspection. The machine's default resolver may still return `ENOTFOUND` for plain Alchemy scans, while the previously verified DNS-only path reaches the unchanged provider.
 - Decisions needed: None. The bounded investigation gate remains approved.
 
 ## Setup and run instructions

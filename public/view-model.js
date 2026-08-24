@@ -18,6 +18,98 @@ export function canRenderAlertDetail(alerts, selectedAlertId, responseAlertId) {
   return selectedAlertId === responseAlertId && alerts.some(({ id }) => id === responseAlertId);
 }
 
+export function buildProfileOptions(profiles, activeProfileId) {
+  return profiles.map((profile) => ({
+    id: profile.id,
+    label: profile.displayName,
+    protocol: profile.protocol,
+    product: profile.product,
+    isActive: profile.id === activeProfileId,
+  }));
+}
+
+export function buildArchiveEntries(profiles) {
+  return [...profiles]
+    .filter(({ source }) => source === "verified-fixture")
+    .sort((left, right) => right.block.timestamp.localeCompare(left.block.timestamp))
+    .map((profile) => ({
+      profileId: profile.id,
+      protocol: profile.displayName,
+      event: profile.event,
+      block: profile.block.number,
+      timestamp: profile.block.timestamp,
+      disposition: profile.disposition,
+      checkCount: profile.receipt.checks.length,
+      receiptId: profile.receipt.receiptId,
+    }));
+}
+
+export function investigationSourceLabel(source) {
+  return source === "live" ? "Live RPC result" : "Verified fixture";
+}
+
+export function isMobileLayout(viewportWidth) {
+  return Number.isFinite(viewportWidth) && viewportWidth <= 720;
+}
+
+export function buildFixtureDetail(profile) {
+  const { receipt } = profile;
+  const { trigger } = receipt;
+  const evidence = {
+    id: `fixture-evidence-${profile.id}`,
+    status: "complete",
+    network: trigger.network,
+    block: trigger.block,
+    transaction: trigger.transaction,
+    log: trigger.log,
+    event: { signature: trigger.eventSignature, decodedArguments: trigger.decodedArguments },
+    relevantAddresses: profile.addresses.map(({ address, role }) => ({ address, role })),
+    detector: {
+      id: trigger.detector.id,
+      inputs: { configuredEmitter: trigger.log.emitter, configuredTopic0: trigger.log.topic0 },
+    },
+    severity: {
+      ruleId: trigger.detector.severityRuleId,
+      inputs: { implementation: trigger.decodedArguments.implementation, approved: "true", isZeroAddress: "false" },
+      result: trigger.detector.severity,
+    },
+    upgradeInvestigation: {
+      plan: receipt.plan,
+      disposition: receipt.finalDisposition,
+      evidenceStatus: "complete",
+      checks: receipt.checks,
+    },
+    investigationReceipt: receipt,
+    observedFacts: [
+      `The configured ${profile.displayName} proxy emitted Upgraded(address) at log index ${trigger.log.index}.`,
+      `The decoded implementation address is ${trigger.decodedArguments.implementation}.`,
+      `The transaction receipt status is ${trigger.transaction.receiptStatus}.`,
+    ],
+    sources: receipt.explorerLinks,
+    errors: [],
+  };
+  const alert = {
+    id: `fixture-alert-${profile.id}`,
+    targetId: profile.id,
+    classificationLabel: "Contract upgrade",
+    severity: trigger.detector.severity,
+    evidenceStatus: "complete",
+    title: `${profile.displayName} implementation investigation`,
+    summary: `${profile.targetName} emitted Upgraded(address). Six fixed historical checks corroborated the configured implementation and protocol identity values.`,
+    observedAt: trigger.block.timestamp,
+    investigation: {
+      observedFacts: evidence.observedFacts,
+      interpretation: {
+        severityRuleId: trigger.detector.severityRuleId,
+        text: "The decoded implementation matches the profile's approved implementation. The deterministic rule classifies that exact comparison as informational.",
+      },
+      limitations: receipt.limitations,
+    },
+    sources: receipt.explorerLinks,
+  };
+  return { alert, evidence, scanFailures: [], source: "verified-fixture", profile };
+}
+
 function recordLines(record) {
   const entries = Object.entries(record ?? {});
   return entries.length > 0 ? entries.map(([key, value]) => `${key}: ${value}`).join("\n") : "None";

@@ -125,16 +125,14 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The ether.fi Base weETH OFT profile is selected and fixture-backed. Its fixed
-block, transaction, proxy event, implementation transition, bytecode,
-LayerZero endpoint, token identity, and shared decimals were independently
-reproduced through the configured Alchemy Base archive RPC. Aave and Compound
-remain fixture-backed and deterministic.
+The multi-profile investigation frontend is implemented over the three
+committed verified fixtures. Its selector is a local archive filter only. The
+server-selected ether.fi profile remains the sole live scan target, while Aave
+and Compound are available as fixture replays with their validated receipt
+JSON, exact checks, limitations, and explorer sources.
 
-The ether.fi investigation performs exactly six historical reads at blocks
-`23487558` and `23487559`. Cross-chain conclusions are limited to the verified
-Base-side values. Remote peers, DVNs, executors, SyncPool behavior, Layer 1
-backing paths, and broader protocol safety are not verified. Do not add
-client-controlled targets, calls, addresses, plans, RPC URLs, block ranges,
-dynamic ABI loading, proxy discovery, multi-chain behavior, or investigations
-beyond the closed profile checks.
+The interface exposes no arbitrary target, call, address, plan, RPC URL, event,
+or block input. Future work must preserve that boundary. Do not add dynamic ABI
+loading, proxy discovery, multi-chain behavior, synthetic archive activity,
+authentication, notifications, payments, persistence, or investigations beyond
+the closed profile checks without a new recorded decision.
