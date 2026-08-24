@@ -12,7 +12,6 @@ import type {
   LogFilter,
   MalformedChainLog,
 } from "../src/chain/types.js";
-import { loadTargetConfig } from "../src/config/load.js";
 import { getTargetProfile } from "../src/profiles/registry.js";
 import { evidenceSchema, investigationReceiptSchema, scanResultSchema, type Evidence, type InvestigationReceipt } from "../src/domain/schemas.js";
 import { selectInvestigationPlan } from "../src/investigation/plans.js";
@@ -461,16 +460,12 @@ describe("bounded evidence scan", () => {
     expect(second.investigationReceipt?.receiptId).toBe(receipt.receiptId);
   });
 
-  it("keeps the Aave receipt deterministic through registry selection", async () => {
-    const selectedConfig = await loadTargetConfig();
-    const direct = await scanApprovedRange(new FixtureReader(), config);
-    const selected = await scanApprovedRange(new FixtureReader(), selectedConfig);
+  it("keeps the Aave receipt deterministic after adding other registry profiles", async () => {
+    const first = await scanApprovedRange(new FixtureReader(), config);
+    const second = await scanApprovedRange(new FixtureReader(), getTargetProfile("aave-v3-base-core"));
 
-    expect(selectedConfig.profileId).toBe("aave-v3-base-core");
-    expect(selected.evidence[0].investigationReceipt?.receiptId).toBe(
-      direct.evidence[0].investigationReceipt?.receiptId,
-    );
-    expect(selected.evidence[0].investigationReceipt).toEqual(direct.evidence[0].investigationReceipt);
+    expect(second.evidence[0].investigationReceipt?.receiptId).toBe(first.evidence[0].investigationReceipt?.receiptId);
+    expect(second.evidence[0].investigationReceipt).toEqual(first.evidence[0].investigationReceipt);
   });
 
   it("keeps the canonical receipt ID stable across Ethereum address casing", async () => {

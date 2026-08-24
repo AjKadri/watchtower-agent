@@ -601,8 +601,8 @@ const rawProfiles: Record<TargetProfileId, ProfileInput> = {
     }],
     severityPolicy: severityPolicy(compoundImplementation, compoundTransaction),
     expectedFixture: {
-      status: "pending",
-      path: null,
+      status: "committed",
+      path: "fixtures/base/compound-iii-usdc-upgrade-40235590",
       verifiedAt: "2026-08-24",
       logIndex: "270",
       transactionStatus: "success",

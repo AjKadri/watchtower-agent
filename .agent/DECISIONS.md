@@ -386,3 +386,37 @@ Reason: A closed discriminated registry adds two approved protocol definitions
 without opening request-controlled scope. Keeping the selection server-side and
 the check definitions literal preserves deterministic evidence and receipt IDs
 while making target-specific behavior explicit and testable.
+
+## 2026-08-24: Approve the Compound III Base USDC Comet fixture
+
+Status: Accepted
+
+The selected runtime profile is `compound-iii-base-usdc-comet`. It scans only
+Base block `40235590`, proxy
+`0xb125E6687d4313864e53df431d5425969c15Eb2F`, transaction
+`0x5de36ea4daf596890b2f0f3696547bda11090d16c9eaf8f2d35bb4b4ca13f1f4`,
+and the indexed `Upgraded(address)` topic already approved by the closed
+registry.
+
+The configured Alchemy Base archive RPC independently reproduced these fixed
+historical values on 2026-08-24:
+
+- EIP-1967 implementation at block `40235589`:
+  `0xd84933745943df8edc45ff0f0ef7bd55324a22b6`
+- EIP-1967 implementation at block `40235590`:
+  `0x89e9b098bb0e3d09f4288fb2b9632b4dcb40bbf6`
+- implementation bytecode at block `40235590`: present, `18,599` bytes,
+  keccak256 `0x7ad880dc9e6aeb907ddcab4b15beede0c5e85565558aa3277fac2fbbbe137ac8`
+- `governor()` at blocks `40235589` and `40235590`:
+  `0xCC3E7c85Bb0EE4f09380e041fee95a0caeDD4a02`
+- `baseToken()` at block `40235590`: Base USDC,
+  `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+
+The receipt was successful and contained the qualifying proxy log at index
+`270`. The investigation performs exactly these six reads at N-1 or N. It does
+not use current-state fallbacks, arbitrary calls, dynamic discovery, or values
+supplied by the browser. A conflicting successful required read produces
+`contradicted`. An unavailable required historical read produces `incomplete`.
+
+Reason: The archive verification establishes a reproducible fixed Compound
+upgrade investigation without broadening Watchtower's closed capabilities.

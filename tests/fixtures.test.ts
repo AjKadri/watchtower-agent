@@ -17,18 +17,20 @@ type ExpectedEvent = {
   expectedSeverityRuleId: string;
 };
 
-const fixtureRoot = "../fixtures/base/aave-v3-upgrade-41105890/";
-const config = getTargetProfile("aave-v3-base-core");
-const block = readJson<Block>(`${fixtureRoot}block.json`, import.meta.url);
-const receipt = readJson<Receipt>(`${fixtureRoot}receipt.json`, import.meta.url);
-const transaction = readJson<Transaction>(`${fixtureRoot}transaction.json`, import.meta.url);
-const events = readJson<ExpectedEvent[]>(`${fixtureRoot}expected-events.json`, import.meta.url);
-
 function indexedAddress(topic: string): string {
   return `0x${topic.slice(-40)}`.toLowerCase();
 }
 
-describe("verified Base fixture", () => {
+describe.each([
+  ["Aave V3 Base Pool", "aave-v3-base-core", "../fixtures/base/aave-v3-upgrade-41105890/"],
+  ["Compound III Base USDC Comet", "compound-iii-base-usdc-comet", "../fixtures/base/compound-iii-usdc-upgrade-40235590/"],
+] as const)("verified %s fixture", (_label, profileId, fixtureRoot) => {
+  const config = getTargetProfile(profileId);
+  const block = readJson<Block>(`${fixtureRoot}block.json`, import.meta.url);
+  const receipt = readJson<Receipt>(`${fixtureRoot}receipt.json`, import.meta.url);
+  const transaction = readJson<Transaction>(`${fixtureRoot}transaction.json`, import.meta.url);
+  const events = readJson<ExpectedEvent[]>(`${fixtureRoot}expected-events.json`, import.meta.url);
+
   it("keeps block and transaction identity consistent with the target", () => {
     expect(receipt.status).toBe("success");
     expect(receipt.blockNumber).toBe(block.number);

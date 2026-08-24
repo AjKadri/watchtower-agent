@@ -4,11 +4,12 @@ Watchtower is being developed as an evidence-backed Base incident monitoring
 agent.
 
 Watchtower provides a deterministic, read-only evidence pipeline and minimal
-investigation dashboard for one verified Aave V3 Base Pool proxy upgrade. It
+investigation dashboard for verified Aave V3 Base Pool and Compound III Base
+USDC Comet proxy upgrades. The selected live demo is Compound. The repository
 contains validated configuration, strict event decoding, normalized records,
 structured failures, an Express API, and a vanilla browser interface. It does
-not contain continuous monitoring, notifications, authentication, wallet access,
-a database, deployment infrastructure, or LLM integration.
+not contain continuous monitoring, notifications, authentication, wallet
+access, a database, deployment infrastructure, or LLM integration.
 
 ## Start here
 
@@ -53,10 +54,11 @@ list. Select `Run verified scan` to request the approved historical scan.
 
 ## Opt-in live demo scan
 
-The safe example uses the public read-only endpoint
-`https://base-mainnet.public.blastapi.io`. Copy `.env.example` to `.env` before
-running the command. Never place a credentialed RPC URL in a committed file or
-shared command output.
+The selected Compound profile requires an archive-capable Base RPC because all
+six investigation checks use fixed historical block tags. Copy `.env.example`
+to `.env`, then replace its example endpoint with the configured Alchemy Base
+archive URL. Keep that credentialed URL only in the ignored `.env` file. Never
+place it in source, fixtures, logs, or shared command output.
 
 Run the fixed historical scan:
 
@@ -64,13 +66,7 @@ Run the fixed historical scan:
 npm run scan
 ```
 
-The equivalent one-command form is:
-
-```sh
-BASE_RPC_URL=https://base-mainnet.public.blastapi.io npm run scan
-```
-
-The command scans only block `41105890`. It writes the structured result to
+The command scans only block `40235590`. It writes the structured result to
 standard output and exits with a nonzero status if the scan fails. The endpoint
 is not embedded in application code, and no scan runs unless this command is
 invoked.
@@ -78,19 +74,18 @@ invoked.
 Expected verified result:
 
 - scan status: `complete`
-- alert ID: `alert_f2cdc9894350f2e6cd280508dad9edb4d63707c5cc6efdeb2c8d53aab7812c3e`
+- alert ID: `alert_7269430ed02948441dc0025540832fa20a3dd4d216fa8835e492f4ac332fa9d1`
 - severity: `informational`
 - severity rule: `target-is-approved`
 - evidence status: `complete`
 - alerts: `1`
 - failures: `0`
 
-On 2026-08-23, the clean-clone CLI run completed in 3.96 seconds and the final
-primary-workspace rerun completed in 3.03 seconds. A scan through the local API
-completed in 2.268 seconds. The P1 verification run through the documented
-public endpoint completed in 7.12 seconds. These are single-run observations,
-not latency guarantees. Public endpoint load and network conditions can change
-them.
+The earlier 2026-08-23 timings describe the Aave public-endpoint profile. On
+2026-08-24, the selected Compound scan completed through the configured Alchemy
+archive endpoint after working around the machine's DNS resolver. These are
+single-run observations, not latency guarantees. Provider load and network
+conditions can change them.
 
 ## API
 
@@ -142,21 +137,22 @@ profiles:
 - Compound III Base USDC Comet
 - ether.fi Base weETH OFT
 
-`config/target.json` selects the Aave profile by ID, so the existing dashboard
-and runnable fixture still scan Base mainnet block `41105890` for one event from
-one verified transaction:
+`config/target.json` selects the Compound profile by ID. The dashboard and CLI
+therefore scan Base mainnet block `40235590` for one event from one verified
+transaction:
 
-- `Upgraded(address)` from the configured Aave V3 Base Pool proxy
+- `Upgraded(address)` from the configured Compound III Base USDC Comet proxy
 
 The public configuration, normalized alert, and dashboard use the single human
 classification label `Contract upgrade`. The machine identifiers remain
 `contract_upgrade` for the incident class and `proxy_upgraded` for the event
 type.
 
-The Aave fixture contains selected logs and records its BaseScan and official
-Aave address-book sources. Compound and ether.fi have validated registry
-metadata and explicit bounded check definitions, but their fixture files are
-not part of this refactor.
+The Aave and Compound fixtures contain selected logs and record their BaseScan
+and official protocol sources. Compound also records the six values reproduced
+through the configured Alchemy Base archive RPC. The ether.fi profile has
+validated registry metadata and explicit bounded check definitions, but its
+fixture remains pending.
 
 Known unsupported event types and cases:
 
@@ -219,8 +215,9 @@ The topic is the hash of `Upgraded(address)`. The indexed implementation topic
 decodes to the configured approved implementation. Both the emitting proxy and
 implementation returned deployed bytecode. Configuration-derived fields, roles,
 severity inputs, deterministic IDs, summaries, and limitations were checked
-against the registered Aave profile selected by `config/target.json` and the
-automated tests.
+against the registered Aave profile and the automated tests. The selected
+profile is now Compound, while the Aave fixture remains reproducible by its
+closed registry ID.
 
 Every explorer link displayed for the complete alert returned HTTP 200:
 
@@ -229,10 +226,44 @@ Every explorer link displayed for the complete alert returned HTTP 200:
 - [emitting Pool proxy](https://basescan.org/address/0xa238dd80c259a72e81d7e4664a9801593f98d1c5)
 - [decoded implementation](https://basescan.org/address/0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4)
 
+### Compound III Base USDC Comet verification
+
+On 2026-08-24, the configured Alchemy Base archive RPC reproduced the selected
+Compound profile without using current-state reads. The RPC URL and credential
+were not printed or committed.
+
+| Evidence group | Verified value |
+| --- | --- |
+| Network | Base mainnet, chain ID `8453` |
+| Block | `40235590`, hash `0x87b4a904a696c3620e48f69aca523712b20f87796b6124dc3bf1c60e059caf76`, timestamp `2026-01-01T09:42:07.000Z` |
+| Transaction | `0x5de36ea4daf596890b2f0f3696547bda11090d16c9eaf8f2d35bb4b4ca13f1f4` |
+| Sender and recipient | `0x9f771c534f12d711a91f1ad5bb8b4941b5252768` to `0x18281dfc4d00905da1aaa6731414eaba843c468a` |
+| Receipt and log | success, transaction index `42`, `Upgraded(address)` at log index `270` |
+| Implementation at N-1 | `0xd84933745943df8edc45ff0f0ef7bd55324a22b6` from the EIP-1967 slot at block `40235589` |
+| Implementation at N | `0x89e9b098bb0e3d09f4288fb2b9632b4dcb40bbf6` from the EIP-1967 slot at block `40235590` |
+| Implementation bytecode at N | present, `18,599` bytes, keccak256 `0x7ad880dc9e6aeb907ddcab4b15beede0c5e85565558aa3277fac2fbbbe137ac8` |
+| `governor()` at N-1 and N | `0xCC3E7c85Bb0EE4f09380e041fee95a0caeDD4a02` |
+| `baseToken()` at N | Base USDC, `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+
+The fixed checks corroborate the proxy implementation transition and the
+Comet market identity. They do not establish governance intent, proposal
+correctness, complete configuration safety, or the safety of related contracts.
+Archive pruning, timeouts, rate limits, and unavailable historical calls produce
+an incomplete investigation. Watchtower never substitutes a current-state read.
+
+Direct sources:
+
+- [qualifying transaction](https://basescan.org/tx/0x5de36ea4daf596890b2f0f3696547bda11090d16c9eaf8f2d35bb4b4ca13f1f4)
+- [block 40235590](https://basescan.org/block/40235590)
+- [Comet proxy](https://basescan.org/address/0xb125E6687d4313864e53df431d5425969c15Eb2F)
+- [new implementation](https://basescan.org/address/0x89e9b098bb0e3d09f4288fb2b9632b4dcb40bbf6)
+- [official Compound Base USDC deployment](https://github.com/compound-finance/comet/blob/main/deployments/base/usdc/roots.json)
+
 ## RPC behavior and limitations
 
-The verified working endpoint is
-`https://base-mainnet.public.blastapi.io`. Watchtower requires historical
+The selected Compound investigation requires an archive-capable Base endpoint
+for its fixed N-1 and N storage and contract reads. The configured Alchemy Base
+archive RPC reproduced all six checks. Watchtower also requires historical
 `eth_getLogs`, block, transaction, receipt, and latest-block access. Its viem
 HTTP transport uses a 10-second request timeout, two retries, and a 250 ms retry
 delay.
@@ -339,15 +370,22 @@ tests passed, TypeScript reported no errors, and npm audit reported zero
 vulnerabilities. Three attempts to run the configured Alchemy archive-RPC scan
 stopped safely at chain verification with `chain-id-rpc-dns`. A direct lookup
 of Alchemy's public Base hostname also returned `ENOTFOUND`. No alternate
-provider was substituted, so the required current live success remains an
-external validation blocker.
+provider was substituted during that verification, so live success was blocked
+at that time.
 
 The 2026-08-24 closed-profile registry verification reported 13 test files and
 92 tests passed. `npm run typecheck` reported no TypeScript errors.
 
-The verified public HEAD is
-`0d84203674861f76ab024c8150ae79e5c580b3ea`. Public `main` and local `main`
-were aligned at that revision when this task started. The address-normalization,
-CLI-classification, and handoff commits from this task remain local because this
-task prohibits pushing. Current post-task branch parity is therefore not
-claimed.
+The 2026-08-24 Compound implementation verification reported 14 test files and
+101 tests passed. `npm run typecheck` reported no TypeScript errors. Plain
+`npm run scan` selected the Compound profile but returned the safe
+`chain-id-rpc-dns` failure because the machine resolver still returned
+`ENOTFOUND`. Running the same scanner through a temporary local DNS bridge to
+the unchanged configured Alchemy endpoint completed with one informational
+alert, one complete evidence record, zero failures, a corroborated disposition,
+and deterministic receipt
+`receipt_9e87dba3784fba97a3c51f81bf5d34e878342113eeeb65e3a83f07a4ae07327f`.
+
+The current public `origin/main` is `7e261a9`. The closed-registry and Compound
+implementation commits remain local and unpushed. Public parity is therefore
+not claimed.

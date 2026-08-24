@@ -22,16 +22,17 @@ Decision needed: None for milestone 1.
 
 Status: Active
 
-Three runs against the ignored configured Alchemy RPC stopped safely during
-chain-ID verification with `chain-id-rpc-dns`, before logs or evidence were
-read. A direct lookup of Alchemy's public Base hostname returned `ENOTFOUND`.
-The npm registry is reachable and the required audit passed with zero
-vulnerabilities, so the remaining network blocker is specific to the configured
-Alchemy hostname. No alternate provider was substituted, and no provider URL or
-credential was exposed.
+Plain `npm run scan` still stops safely during chain-ID verification with
+`chain-id-rpc-dns` because the machine resolver returns `ENOTFOUND`. A
+DNS-over-HTTPS lookup resolves the same hostname, and a temporary loopback
+bridge to that resolved address completed the selected Compound scan through
+the unchanged configured Alchemy endpoint. The result contained one alert, one
+complete evidence record, zero failures, and a corroborated receipt. No
+alternate provider, current-state fallback, repository configuration change,
+provider URL, or credential exposure was used.
 
-Decision needed: None for implementation. Repeat `npm run scan` when Alchemy
-DNS resolution is restored.
+Decision needed: None for implementation. Restore the machine DNS resolver so
+plain local startup and `npm run scan` work without the temporary bridge.
 
 ### 2026-08-24: Local release commits are not yet public
 

@@ -13,17 +13,25 @@ import { readJson } from "./helpers.js";
 const config = getTargetProfile("aave-v3-base-core");
 
 describe("closed target profile registry", () => {
-  it("keeps the fixture-backed Aave profile unchanged", async () => {
-    const loaded = await loadTargetConfig();
-
-    expect(loaded).toEqual(config);
-    expect(loaded.network).toMatchObject({ name: "base-mainnet", chainId: 8453 });
-    expect(loaded.scan).toMatchObject({
+  it("keeps the fixture-backed Aave profile unchanged", () => {
+    expect(config.network).toMatchObject({ name: "base-mainnet", chainId: 8453 });
+    expect(config.scan).toMatchObject({
       fromBlock: "41105890",
       toBlock: "41105890",
       knownTransactions: ["0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a"],
     });
-    expect(loaded.expectedFixture).toMatchObject({ status: "committed", logIndex: "641" });
+    expect(config.expectedFixture).toMatchObject({ status: "committed", logIndex: "641" });
+  });
+
+  it("loads Compound as the selected committed profile", async () => {
+    const loaded = await loadTargetConfig();
+
+    expect(loaded).toEqual(getTargetProfile("compound-iii-base-usdc-comet"));
+    expect(loaded.expectedFixture).toMatchObject({
+      status: "committed",
+      path: "fixtures/base/compound-iii-usdc-upgrade-40235590",
+      logIndex: "270",
+    });
   });
 
   it("registers exactly the three approved Base profiles", () => {
@@ -42,7 +50,8 @@ describe("closed target profile registry", () => {
       expect(profile.investigation.checks).toHaveLength(6);
       expect(profile.plans.approved.capabilityBudget.maximumReads).toBe(6);
     }
-    expect(profiles.slice(1).every(({ expectedFixture }) => expectedFixture.status === "pending" && expectedFixture.path === null)).toBe(true);
+    expect(profiles.map(({ expectedFixture }) => expectedFixture.status)).toEqual(["committed", "committed", "pending"]);
+    expect(profiles[2].expectedFixture.path).toBeNull();
   });
 
   it("rejects unknown profile IDs and selection overrides", () => {

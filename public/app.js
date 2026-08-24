@@ -16,6 +16,7 @@ const elements = {
   failurePanel: document.querySelector("#failure-panel"),
   healthDot: document.querySelector("#health-dot"),
   healthLabel: document.querySelector("#health-label"),
+  heroCopy: document.querySelector("#hero-copy"),
   networkLabel: document.querySelector("#network-label"),
   rangeLabel: document.querySelector("#range-label"),
   scanButton: document.querySelector("#scan-button"),
@@ -24,7 +25,7 @@ const elements = {
   targetLabel: document.querySelector("#target-label"),
 };
 
-const state = { alerts: [], selectedAlertId: null, detailAlertId: null };
+const state = { alerts: [], selectedAlertId: null, detailAlertId: null, config: null };
 
 function node(tag, className, text) {
   const element = document.createElement(tag);
@@ -274,7 +275,10 @@ async function updateHealth() {
 
 async function runScan() {
   elements.scanButton.disabled = true;
-  elements.scanStatus.textContent = "Scanning approved Base block 41105890…";
+  const range = state.config?.scan;
+  elements.scanStatus.textContent = range
+    ? `Scanning approved Base block ${range.fromBlock}…`
+    : "Scanning the approved Base block…";
   renderFailures([]);
   try {
     const result = await request("/api/scans", {
@@ -298,6 +302,8 @@ async function initialize() {
   await updateHealth();
   try {
     const config = await request("/api/config");
+    state.config = config;
+    elements.heroCopy.textContent = `Review the approved ${config.target.name} proxy upgrade through its block, transaction, receipt, log, and deterministic policy evidence.`;
     elements.networkLabel.textContent = `${config.network.name} · ${config.network.chainId}`;
     elements.targetLabel.textContent = config.target.name;
     elements.rangeLabel.textContent = `${config.scan.fromBlock} → ${config.scan.toBlock}`;

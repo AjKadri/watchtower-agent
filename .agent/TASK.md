@@ -125,17 +125,15 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The closed profile-registry refactor defines the approved Aave V3 Base Pool,
-Compound III Base USDC Comet, and ether.fi Base weETH OFT targets. The active
-profile remains server-selected through `config/target.json`. Aave retains the
-only committed fixture and dashboard flow. Compound and ether.fi fixture and
-dashboard work requires a separate approved task.
+The Compound III Base USDC Comet profile is selected and fixture-backed. Its
+fixed block, transaction, proxy event, implementation transition, bytecode,
+governor, and Base USDC assertions were reproduced through the configured
+Alchemy Base archive RPC. A complete live scan produced one informational
+alert, complete evidence, a corroborated receipt, and zero failures.
 
-The local suite contains 13 test files and 92 tests, and TypeScript passes. The
-remaining live gate is external DNS resolution for the configured Alchemy Base
-hostname. Repeat the unchanged Aave `npm run scan` when that hostname resolves,
-and require one complete `contract_upgrade` alert, complete evidence, a
-corroborated investigation, a valid receipt, and zero failures. Do not add
-client-controlled targets, calls, addresses, plans, RPC URLs, block ranges,
-dynamic ABI loading, proxy discovery, multi-chain behavior, new fixtures, or
-dashboard controls without a new approved task.
+The local suite contains 14 test files and 101 tests, and TypeScript passes.
+Aave remains fixture-backed and deterministic. ether.fi remains the only
+fixture-pending profile. Implementing it requires a separate approved task and
+fresh archive verification. Do not add client-controlled targets, calls,
+addresses, plans, RPC URLs, block ranges, dynamic ABI loading, proxy discovery,
+multi-chain behavior, or any investigation beyond the closed profile checks.

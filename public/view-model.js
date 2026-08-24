@@ -59,6 +59,12 @@ const checkLabels = {
   "configured-pool": "PoolAddressesProvider getPool() at N",
   "pool-revision-before": "Optional POOL_REVISION() at N-1",
   "pool-revision-at-upgrade": "Optional POOL_REVISION() at N",
+  "governor-before": "Comet governor() at N-1",
+  "governor-at-upgrade": "Comet governor() at N",
+  "base-token-at-upgrade": "Comet baseToken() at N",
+  "endpoint-at-upgrade": "OFT endpoint() at N",
+  "token-at-upgrade": "OFT token() at N",
+  "shared-decimals-at-upgrade": "OFT sharedDecimals() at N",
 };
 
 function checkSummary(check) {
@@ -116,9 +122,20 @@ export function buildInvestigationTrace(detail) {
   const plan = investigation?.plan;
   const checks = investigation?.checks ?? [];
   const skippedChecks = plan?.skippedChecks ?? [];
-  const historical = checksFor(["implementation-before", "implementation-at-upgrade"], checks, skippedChecks);
-  const implementation = checksFor(["implementation-bytecode"], checks, skippedChecks);
-  const protocol = checksFor(["configured-pool", "pool-revision-before", "pool-revision-at-upgrade"], checks, skippedChecks);
+  const historicalIds = ["implementation-before", "implementation-at-upgrade"];
+  const implementationIds = ["implementation-bytecode"];
+  const commonIds = new Set([...historicalIds, ...implementationIds]);
+  const plannedIds = [...(plan?.selectedChecks ?? []), ...skippedChecks];
+  const protocolIds = [...new Set(plannedIds.filter((id) => !commonIds.has(id)))];
+  const historical = checksFor(historicalIds, checks, skippedChecks);
+  const implementation = checksFor(implementationIds, checks, skippedChecks);
+  const protocol = checksFor(protocolIds, checks, skippedChecks);
+  const identityLinks = [
+    ["Verify provider", evidence.sources.addresses.provider],
+    ["Verify governor", evidence.sources.addresses.governor],
+    ["Verify Base USDC", evidence.sources.addresses["base-token"]],
+    ["Verify LayerZero endpoint", evidence.sources.addresses["layerzero-endpoint"]],
+  ].filter(([, href]) => Boolean(href)).map(([label, href]) => ({ label, href, external: true }));
   const receipt = evidence.investigationReceipt;
   const eventComplete = Boolean(
     evidence.block.timestamp
@@ -194,11 +211,9 @@ export function buildInvestigationTrace(detail) {
       title: "Protocol identity checked",
       status: stageStatus(protocol),
       elapsedMs: elapsedFor(protocol),
-      summary: "The configured provider identity check and any plan-authorized revision checks are shown below.",
+      summary: "The profile's fixed protocol identity checks are shown below.",
       details: protocol,
-      links: evidence.sources.addresses.provider
-        ? [{ label: "Verify provider", href: evidence.sources.addresses.provider, external: true }]
-        : [],
+      links: identityLinks,
     },
     {
       id: "receipt-issued",

@@ -1,0 +1,13 @@
+{
+  "fixtureVersion": 1,
+  "network": "base-mainnet",
+  "chainId": 8453,
+  "verifiedAt": "2026-08-24",
+  "curation": "selected-logs",
+  "archiveProvider": "configured-alchemy-base-mainnet",
+  "sources": {
+    "transaction": "https://basescan.org/tx/0x5de36ea4daf596890b2f0f3696547bda11090d16c9eaf8f2d35bb4b4ca13f1f4",
+    "block": "https://basescan.org/block/40235590",
+    "deployment": "https://github.com/compound-finance/comet/blob/main/deployments/base/usdc/roots.json"
+  }
+}

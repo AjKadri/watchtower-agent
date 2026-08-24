@@ -1,0 +1,15 @@
+[
+  {
+    "detectorId": "compound-comet-upgraded",
+    "incidentClass": "contract_upgrade",
+    "eventName": "Upgraded",
+    "eventSignature": "Upgraded(address)",
+    "logIndex": "270",
+    "emitter": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+    "decodedArguments": {
+      "implementation": "0x89E9B098bB0e3D09F4288FB2B9632B4dCb40BBf6"
+    },
+    "expectedSeverity": "informational",
+    "expectedSeverityRuleId": "target-is-approved"
+  }
+]

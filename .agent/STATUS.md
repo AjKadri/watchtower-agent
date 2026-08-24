@@ -2,14 +2,14 @@
 
 Last updated: 2026-08-24
 
-- Current milestone: Closed target-profile registry refactor implemented for the three approved Base targets.
-- Completed: Added validated Aave V3 Base Pool, Compound III Base USDC Comet, and ether.fi Base weETH OFT profiles. Scanner, planner, investigation executor, receipt validation, API public configuration, and existing dashboard data now consume the selected profile. Unknown profiles, selector overrides, foreign check IDs, arbitrary addresses, and arbitrary calls are rejected. Aave remains the selected fixture and its receipt payload stays deterministic.
-- Tests run: `npm test` passed 13 files and 92 tests. `npm run typecheck` passed with no TypeScript errors. Focused registry, planner, investigation, scanner, schema, fixture, and severity tests passed 7 files and 70 tests. API and server startup tests passed 2 files and 8 tests outside the restricted sandbox because they bind a loopback port. `git diff --check` passed.
-- Result: The requested registry refactor is complete. All three profiles are closed and typed, the API cannot select or override profile capabilities, and existing Aave behavior remains covered. No Compound or ether.fi fixtures or dashboard controls were added.
-- Current commit: This status update is included in `refactor: add closed target profile registry`.
-- Public revision: `origin/main` was `7e261a9` at task start. The requested refactor commit remains local and unpushed.
-- Next step: In a separately approved task, add verified fixtures and dashboard selection for Compound and ether.fi. Repeat the unchanged Aave live scan when the configured Alchemy hostname resolves.
-- Blockers: The configured Alchemy Base hostname previously returned `ENOTFOUND`, which still blocks a current live scan. Live scanning was not required for this refactor.
+- Current milestone: Compound III Base USDC Comet investigation profile implemented and selected.
+- Completed: Independently reproduced the qualifying transaction, block, upgrade log, implementation transition, 18,599-byte implementation code, governor at N-1 and N, and Base USDC at N through the configured Alchemy archive RPC. Added the committed Compound fixture, exact six-check investigation tests, closed-profile dashboard trace support, and Compound documentation. Aave behavior remains covered and ether.fi remains fixture-pending.
+- Tests run: `npm test` passed 14 files and 101 tests. `npm run typecheck` passed with no TypeScript errors. Focused Compound, registry, fixture, scanner, and frontend tests passed. Plain `npm run scan` selected Compound but returned the safe `chain-id-rpc-dns` failure because the machine resolver still returned `ENOTFOUND`. The same command routed through a temporary DNS-over-HTTPS-resolved loopback bridge to the unchanged configured Alchemy endpoint exited 0 with one alert, one complete evidence record, zero failures, a corroborated disposition, and receipt `receipt_9e87dba3784fba97a3c51f81bf5d34e878342113eeeb65e3a83f07a4ae07327f`.
+- Result: Compound is a supported, fixture-backed profile. Complete, contradicted, and incomplete outcomes are tested. Runtime reads remain fixed to blocks `40235589` and `40235590`, and no current-state fallback, arbitrary call, dynamic discovery, alternate provider, or client-controlled scope was added.
+- Current commit: This status update is included in `feat: add Compound Base investigation profile`.
+- Public revision: `origin/main` is `7e261a9`. This task's commit remains local and unpushed.
+- Next step: Implement the ether.fi fixture only after independently reproducing every fixed historical value through the configured archive RPC.
+- Blockers: The machine's default resolver still returns `ENOTFOUND` for the configured Alchemy hostname. DNS-over-HTTPS resolves it and the verified endpoint completes the scan, but plain local startup remains DNS-blocked until the resolver recovers.
 - Decisions needed: None. The bounded investigation gate remains approved.
 
 ## Setup and run instructions
@@ -38,3 +38,9 @@ configuration. No RPC URL, credential, provider body, or stack trace was added
 to tracked files or validation output. The address-casing fix passes all local
 fixture and schema checks, while the current live retry remains blocked by
 Alchemy hostname resolution.
+
+The 2026-08-24 Compound verification used only the configured Alchemy Base
+archive RPC and exact historical block tags. A temporary loopback bridge worked
+around the machine DNS resolver without changing the provider or repository.
+The complete scan produced one informational alert, complete evidence, a
+corroborated deterministic receipt, and zero failures.

@@ -149,6 +149,32 @@ describe("dashboard view model", () => {
     })]);
   });
 
+  it("renders the fixed Compound identity checks as a complete protocol stage", () => {
+    const compoundEvidence = structuredClone(evidence);
+    const compoundIds = ["governor-before", "governor-at-upgrade", "base-token-at-upgrade"];
+    compoundEvidence.upgradeInvestigation.plan.selectedChecks = [
+      "implementation-before",
+      "implementation-at-upgrade",
+      "implementation-bytecode",
+      ...compoundIds,
+    ];
+    compoundEvidence.upgradeInvestigation.checks = [
+      ...checks.slice(0, 3),
+      check("governor-before", "eth_call", "0x265f245"),
+      check("governor-at-upgrade", "eth_call", "0x265f246"),
+      check("base-token-at-upgrade", "eth_call", "0x265f246"),
+    ];
+    delete compoundEvidence.sources.addresses.provider;
+    compoundEvidence.sources.addresses.governor = "https://basescan.org/address/governor";
+    compoundEvidence.sources.addresses["base-token"] = "https://basescan.org/address/usdc";
+
+    const trace = buildInvestigationTrace({ alert, evidence: compoundEvidence });
+
+    expect(trace[4].status).toBe("complete");
+    expect(trace[4].details.map(({ id }) => id)).toEqual(compoundIds);
+    expect(trace[4].links.map(({ label }) => label)).toEqual(["Verify governor", "Verify Base USDC"]);
+  });
+
   it("keeps incomplete investigation and skipped checks visible", () => {
     const incompleteEvidence = structuredClone(evidence);
     incompleteEvidence.block.timestamp = null;

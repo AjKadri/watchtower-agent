@@ -1,0 +1,12 @@
+{
+  "previousBlock": "40235589",
+  "upgradeBlock": "40235590",
+  "implementationSlot": "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+  "implementationBeforeWord": "0x000000000000000000000000d84933745943df8edc45ff0f0ef7bd55324a22b6",
+  "implementationAtUpgradeWord": "0x00000000000000000000000089e9b098bb0e3d09f4288fb2b9632b4dcb40bbf6",
+  "implementationByteLength": "18599",
+  "implementationCodeHash": "0x7ad880dc9e6aeb907ddcab4b15beede0c5e85565558aa3277fac2fbbbe137ac8",
+  "governorBeforeResult": "0x000000000000000000000000cc3e7c85bb0ee4f09380e041fee95a0caedd4a02",
+  "governorAtUpgradeResult": "0x000000000000000000000000cc3e7c85bb0ee4f09380e041fee95a0caedd4a02",
+  "baseTokenAtUpgradeResult": "0x000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+}
