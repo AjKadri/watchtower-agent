@@ -56,7 +56,7 @@ export function classifyRpcError(error: unknown): RpcFailureCategory {
   if (error instanceof SyntaxError || /invalid json|malformed (json|response)|parse.*json|json.*parse/.test(text)) {
     return "malformed-response";
   }
-  if (/method not found|execution reverted|function selector was not recognized|unsupported method/.test(text)) {
+  if (/method not found|execution reverted|function selector was not recognized|unsupported method|pruned|missing trie node|historical state.*(?:unavailable|not available)|state.*not available/.test(text)) {
     return "unsupported";
   }
   return "unavailable";

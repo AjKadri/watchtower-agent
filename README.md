@@ -4,8 +4,9 @@ Watchtower is being developed as an evidence-backed Base incident monitoring
 agent.
 
 Watchtower provides a deterministic, read-only evidence pipeline and minimal
-investigation dashboard for verified Aave V3 Base Pool and Compound III Base
-USDC Comet proxy upgrades. The selected live demo is Compound. The repository
+investigation dashboard for verified Aave V3 Base Pool, Compound III Base USDC
+Comet, and ether.fi Base weETH OFT proxy upgrades. The selected live demo is
+ether.fi. The repository
 contains validated configuration, strict event decoding, normalized records,
 structured failures, an Express API, and a vanilla browser interface. It does
 not contain continuous monitoring, notifications, authentication, wallet
@@ -54,7 +55,7 @@ list. Select `Run verified scan` to request the approved historical scan.
 
 ## Opt-in live demo scan
 
-The selected Compound profile requires an archive-capable Base RPC because all
+The selected ether.fi profile requires an archive-capable Base RPC because all
 six investigation checks use fixed historical block tags. Copy `.env.example`
 to `.env`, then replace its example endpoint with the configured Alchemy Base
 archive URL. Keep that credentialed URL only in the ignored `.env` file. Never
@@ -66,7 +67,7 @@ Run the fixed historical scan:
 npm run scan
 ```
 
-The command scans only block `40235590`. It writes the structured result to
+The command scans only block `23487559`. It writes the structured result to
 standard output and exits with a nonzero status if the scan fails. The endpoint
 is not embedded in application code, and no scan runs unless this command is
 invoked.
@@ -74,16 +75,17 @@ invoked.
 Expected verified result:
 
 - scan status: `complete`
-- alert ID: `alert_7269430ed02948441dc0025540832fa20a3dd4d216fa8835e492f4ac332fa9d1`
+- alert ID: `alert_ab98e3ce908cbf4261b579a876f24f230e33dab850fa117a563d301be636e74a`
 - severity: `informational`
 - severity rule: `target-is-approved`
 - evidence status: `complete`
 - alerts: `1`
 - failures: `0`
+- receipt ID: `receipt_af9ac18199f550c4d6ccf64a16334dd03afbbe3a3bf06c705347e16684bd64b5`
 
 The earlier 2026-08-23 timings describe the Aave public-endpoint profile. On
-2026-08-24, the selected Compound scan completed through the configured Alchemy
-archive endpoint after working around the machine's DNS resolver. These are
+2026-08-24, the selected Compound and ether.fi values were independently
+reproduced through the configured Alchemy archive endpoint. These are
 single-run observations, not latency guarantees. Provider load and network
 conditions can change them.
 
@@ -137,22 +139,20 @@ profiles:
 - Compound III Base USDC Comet
 - ether.fi Base weETH OFT
 
-`config/target.json` selects the Compound profile by ID. The dashboard and CLI
-therefore scan Base mainnet block `40235590` for one event from one verified
+`config/target.json` selects the ether.fi profile by ID. The dashboard and CLI
+therefore scan Base mainnet block `23487559` for one event from one verified
 transaction:
 
-- `Upgraded(address)` from the configured Compound III Base USDC Comet proxy
+- `Upgraded(address)` from the configured ether.fi Base weETH OFT proxy
 
 The public configuration, normalized alert, and dashboard use the single human
 classification label `Contract upgrade`. The machine identifiers remain
 `contract_upgrade` for the incident class and `proxy_upgraded` for the event
 type.
 
-The Aave and Compound fixtures contain selected logs and record their BaseScan
-and official protocol sources. Compound also records the six values reproduced
-through the configured Alchemy Base archive RPC. The ether.fi profile has
-validated registry metadata and explicit bounded check definitions, but its
-fixture remains pending.
+All three fixtures contain selected logs and record their BaseScan and official
+protocol sources. Compound and ether.fi also record six values independently
+reproduced through the configured Alchemy Base archive RPC.
 
 Known unsupported event types and cases:
 
@@ -216,7 +216,7 @@ decodes to the configured approved implementation. Both the emitting proxy and
 implementation returned deployed bytecode. Configuration-derived fields, roles,
 severity inputs, deterministic IDs, summaries, and limitations were checked
 against the registered Aave profile and the automated tests. The selected
-profile is now Compound, while the Aave fixture remains reproducible by its
+profile is now ether.fi, while the Aave fixture remains reproducible by its
 closed registry ID.
 
 Every explorer link displayed for the complete alert returned HTTP 200:
@@ -259,9 +259,44 @@ Direct sources:
 - [new implementation](https://basescan.org/address/0x89e9b098bb0e3d09f4288fb2b9632b4dcb40bbf6)
 - [official Compound Base USDC deployment](https://github.com/compound-finance/comet/blob/main/deployments/base/usdc/roots.json)
 
+### ether.fi Base weETH OFT verification
+
+On 2026-08-24, the configured Alchemy Base archive RPC reproduced the selected
+ether.fi profile using only the exact historical blocks. The RPC URL and
+credential were not committed.
+
+| Evidence group | Verified value |
+| --- | --- |
+| Network | Base mainnet, chain ID `8453` |
+| Block | `23487559`, hash `0xeab850b0bf771ea85a8c36a41e61d731656f0dba0695f18f70542068976f0a8d`, timestamp `2024-12-09T17:14:25.000Z` |
+| Transaction | `0x8e5e5ea61db41bc1f403552c7303324c37d50406d40ef02e10a1b634f535dfe2` |
+| Sender and recipient | `0x620d7e459cffcdc56a874536dc19147de801a4a1` to `0xf9d64d54d32ee2bdceaabfa60c4c438e224427d0` |
+| Receipt and log | success, transaction index `93`, `Upgraded(address)` at log index `190` |
+| Implementation at N-1 | `0x20ee00f43ef299dba82ba6fef537756dabe38cc7` from the EIP-1967 slot at block `23487558` |
+| Implementation at N | `0xde8a2c33655aca88f258988ed74d1511876343d1` from the EIP-1967 slot at block `23487559` |
+| Implementation bytecode at N | present, `17,594` bytes, keccak256 `0x7f8bf0bedf0194598158e5b9d5510568e9d30a02b3f8e80d0acf15bf46546fb4` |
+| `endpoint()` at N | LayerZero Endpoint V2, `0x1a44076050125825900e736c501f859c50fe728c` |
+| `token()` at N | configured weETH OFT proxy, `0x04c0599ae5a44757c0af6f9ec3b93da8976c150a` |
+| `sharedDecimals()` at N | `6` |
+
+The six checks corroborate only the Base-side proxy implementation transition,
+deployed implementation code, and configured OFT identity values. They do not
+establish the safety of remote peers, DVNs, executors, SyncPool operations,
+Layer 1 backing paths, governance intent, or other contracts. Pruned history,
+timeouts, rate limits, and unavailable historical calls produce an incomplete
+investigation. Watchtower never substitutes a current-state read.
+
+Direct sources:
+
+- [qualifying transaction](https://basescan.org/tx/0x8e5e5ea61db41bc1f403552c7303324c37d50406d40ef02e10a1b634f535dfe2)
+- [block 23487559](https://basescan.org/block/23487559)
+- [weETH OFT proxy](https://basescan.org/address/0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A)
+- [new implementation](https://basescan.org/address/0xde8A2C33655ACA88f258988ED74D1511876343D1)
+- [official ether.fi cross-chain repository](https://github.com/etherfi-protocol/weETH-cross-chain)
+
 ## RPC behavior and limitations
 
-The selected Compound investigation requires an archive-capable Base endpoint
+The selected ether.fi investigation requires an archive-capable Base endpoint
 for its fixed N-1 and N storage and contract reads. The configured Alchemy Base
 archive RPC reproduced all six checks. Watchtower also requires historical
 `eth_getLogs`, block, transaction, receipt, and latest-block access. Its viem
@@ -275,6 +310,12 @@ timeouts, rate limits, malformed responses, wrong-chain endpoints, and
 incomplete evidence. Provider URLs, raw provider messages, and stack traces are
 not returned through scan results. Use a credentialed provider only through the
 ignored local `.env` file.
+
+During the 2026-08-24 ether.fi validation, the machine's default resolver
+returned `ENOTFOUND` for two plain `npm run scan` attempts. A temporary
+DNS-only preload used the public address returned by DNS-over-HTTPS and the
+unchanged configured Alchemy hostname. The bounded scan then completed. This is
+a local resolver limitation, not a provider substitution or repository setting.
 
 ## Partial and failed scans
 

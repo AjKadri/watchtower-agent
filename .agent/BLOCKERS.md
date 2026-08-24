@@ -18,36 +18,30 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
-### 2026-08-24: Configured Alchemy hostname does not resolve
-
-Status: Active
-
-Plain `npm run scan` still stops safely during chain-ID verification with
-`chain-id-rpc-dns` because the machine resolver returns `ENOTFOUND`. A
-DNS-over-HTTPS lookup resolves the same hostname, and a temporary loopback
-bridge to that resolved address completed the selected Compound scan through
-the unchanged configured Alchemy endpoint. The result contained one alert, one
-complete evidence record, zero failures, and a corroborated receipt. No
-alternate provider, current-state fallback, repository configuration change,
-provider URL, or credential exposure was used.
-
-Decision needed: None for implementation. Restore the machine DNS resolver so
-plain local startup and `npm run scan` work without the temporary bridge.
-
 ### 2026-08-24: Local release commits are not yet public
 
 Status: Active
 
 Public and local `main` were aligned at verified public HEAD
-`0d84203674861f76ab024c8150ae79e5c580b3ea` when this task started. The current
-address-normalization, CLI-classification, and handoff commits are present only
-on the local branch. Public reproducibility of these new corrections cannot be
-claimed until they are pushed.
+`1daef0f2508e95504111106d2483cc54735878d0` when this task started. The
+ether.fi profile commit created by this task remains local until it is pushed.
+Public reproducibility of this profile cannot be claimed before then.
 
-Decision needed: Explicit authorization to push. This task prohibits pushing,
-so no remote state was changed.
+Decision needed: Explicit authorization to push. No push was requested, so no
+remote state was changed.
 
 ## Resolved blockers
+
+### 2026-08-24: Configured Alchemy archive access verified
+
+Status: Resolved
+
+The configured Alchemy Base archive RPC independently reproduced the ether.fi
+block, transaction, receipt, upgrade log, both implementation-slot values,
+implementation bytecode, and all three fixed OFT calls at their exact block
+tags. Provider configuration remains only in the ignored `.env` file.
+
+Decision needed: None.
 
 ### 2026-08-23: Public origin and clean checkout verified
 

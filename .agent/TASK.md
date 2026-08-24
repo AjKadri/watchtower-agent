@@ -125,15 +125,16 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The Compound III Base USDC Comet profile is selected and fixture-backed. Its
-fixed block, transaction, proxy event, implementation transition, bytecode,
-governor, and Base USDC assertions were reproduced through the configured
-Alchemy Base archive RPC. A complete live scan produced one informational
-alert, complete evidence, a corroborated receipt, and zero failures.
+The ether.fi Base weETH OFT profile is selected and fixture-backed. Its fixed
+block, transaction, proxy event, implementation transition, bytecode,
+LayerZero endpoint, token identity, and shared decimals were independently
+reproduced through the configured Alchemy Base archive RPC. Aave and Compound
+remain fixture-backed and deterministic.
 
-The local suite contains 14 test files and 101 tests, and TypeScript passes.
-Aave remains fixture-backed and deterministic. ether.fi remains the only
-fixture-pending profile. Implementing it requires a separate approved task and
-fresh archive verification. Do not add client-controlled targets, calls,
-addresses, plans, RPC URLs, block ranges, dynamic ABI loading, proxy discovery,
-multi-chain behavior, or any investigation beyond the closed profile checks.
+The ether.fi investigation performs exactly six historical reads at blocks
+`23487558` and `23487559`. Cross-chain conclusions are limited to the verified
+Base-side values. Remote peers, DVNs, executors, SyncPool behavior, Layer 1
+backing paths, and broader protocol safety are not verified. Do not add
+client-controlled targets, calls, addresses, plans, RPC URLs, block ranges,
+dynamic ABI loading, proxy discovery, multi-chain behavior, or investigations
+beyond the closed profile checks.

@@ -718,8 +718,8 @@ const rawProfiles: Record<TargetProfileId, ProfileInput> = {
     }],
     severityPolicy: severityPolicy(etherfiImplementation, etherfiTransaction),
     expectedFixture: {
-      status: "pending",
-      path: null,
+      status: "committed",
+      path: "fixtures/base/etherfi-weeth-oft-upgrade-23487559",
       verifiedAt: "2026-08-24",
       logIndex: "190",
       transactionStatus: "success",

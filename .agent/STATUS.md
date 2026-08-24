@@ -2,14 +2,15 @@
 
 Last updated: 2026-08-24
 
-- Current milestone: Compound III Base USDC Comet investigation profile implemented and selected.
-- Completed: Independently reproduced the qualifying transaction, block, upgrade log, implementation transition, 18,599-byte implementation code, governor at N-1 and N, and Base USDC at N through the configured Alchemy archive RPC. Added the committed Compound fixture, exact six-check investigation tests, closed-profile dashboard trace support, and Compound documentation. Aave behavior remains covered and ether.fi remains fixture-pending.
-- Tests run: `npm test` passed 14 files and 101 tests. `npm run typecheck` passed with no TypeScript errors. Focused Compound, registry, fixture, scanner, and frontend tests passed. Plain `npm run scan` selected Compound but returned the safe `chain-id-rpc-dns` failure because the machine resolver still returned `ENOTFOUND`. The same command routed through a temporary DNS-over-HTTPS-resolved loopback bridge to the unchanged configured Alchemy endpoint exited 0 with one alert, one complete evidence record, zero failures, a corroborated disposition, and receipt `receipt_9e87dba3784fba97a3c51f81bf5d34e878342113eeeb65e3a83f07a4ae07327f`.
-- Result: Compound is a supported, fixture-backed profile. Complete, contradicted, and incomplete outcomes are tested. Runtime reads remain fixed to blocks `40235589` and `40235590`, and no current-state fallback, arbitrary call, dynamic discovery, alternate provider, or client-controlled scope was added.
-- Current commit: This status update is included in `feat: add Compound Base investigation profile`.
-- Public revision: `origin/main` is `7e261a9`. This task's commit remains local and unpushed.
-- Next step: Implement the ether.fi fixture only after independently reproducing every fixed historical value through the configured archive RPC.
-- Blockers: The machine's default resolver still returns `ENOTFOUND` for the configured Alchemy hostname. DNS-over-HTTPS resolves it and the verified endpoint completes the scan, but plain local startup remains DNS-blocked until the resolver recovers.
+- Current milestone: ether.fi Base weETH OFT investigation profile implemented and selected.
+- Completed: Independently reproduced the qualifying block, transaction, successful receipt, upgrade log, implementation transition, 17,594-byte implementation code, LayerZero endpoint, token identity, and shared decimals through the configured Alchemy Base archive RPC. Added the committed ether.fi fixture, exact six-check investigation tests, pruned-history classification, and bounded documentation. Aave and Compound remain fixture-backed and covered.
+- Tests run: `npm test` passed 15 files and 111 tests. `npm run typecheck` passed with no TypeScript errors. `npm audit --audit-level=moderate` found 0 vulnerabilities. `git diff --check` passed. Tracked secret checks found no `.env`, Alchemy credential, or credentialed provider URL.
+- Live result: Two plain `npm run scan` attempts selected ether.fi block `23487559` but returned the safe `chain-id-rpc-dns` failure because the machine resolver returned `ENOTFOUND`. The same CLI routed through a temporary DNS-only preload to the DNS-over-HTTPS address for the unchanged configured Alchemy hostname completed with one informational `contract_upgrade` alert, one complete evidence record, zero failures, a corroborated disposition, alert `alert_ab98e3ce908cbf4261b579a876f24f230e33dab850fa117a563d301be636e74a`, and receipt `receipt_af9ac18199f550c4d6ccf64a16334dd03afbbe3a3bf06c705347e16684bd64b5`.
+- Result: ether.fi is now a supported, fixture-backed profile. Complete, contradicted, pruned-history, timeout, and rate-limit outcomes are tested. Runtime reads remain fixed to blocks `23487558` and `23487559`. No current-state fallback, arbitrary call, dynamic proxy discovery, alternate provider, new incident class, or client-controlled scope was added.
+- Current commit: This status update is included in `feat: add etherfi Base investigation profile`.
+- Public revision: Public and local `main` were aligned at `1daef0f2508e95504111106d2483cc54735878d0` before this task. This task's commit remains local and unpushed.
+- Next step: Push only with explicit authorization, then verify a clean public clone before claiming public reproducibility of the ether.fi profile.
+- Blockers: The machine's default resolver currently returns `ENOTFOUND` for the configured Alchemy hostname. DNS-over-HTTPS resolves it and the unchanged endpoint completes the scan. Plain local scanning remains DNS-blocked until the machine resolver recovers.
 - Decisions needed: None. The bounded investigation gate remains approved.
 
 ## Setup and run instructions

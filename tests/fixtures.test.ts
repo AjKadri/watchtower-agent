@@ -24,6 +24,7 @@ function indexedAddress(topic: string): string {
 describe.each([
   ["Aave V3 Base Pool", "aave-v3-base-core", "../fixtures/base/aave-v3-upgrade-41105890/"],
   ["Compound III Base USDC Comet", "compound-iii-base-usdc-comet", "../fixtures/base/compound-iii-usdc-upgrade-40235590/"],
+  ["ether.fi Base weETH OFT", "etherfi-base-weeth-oft", "../fixtures/base/etherfi-weeth-oft-upgrade-23487559/"],
 ] as const)("verified %s fixture", (_label, profileId, fixtureRoot) => {
   const config = getTargetProfile(profileId);
   const block = readJson<Block>(`${fixtureRoot}block.json`, import.meta.url);

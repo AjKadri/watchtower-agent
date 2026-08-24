@@ -420,3 +420,45 @@ supplied by the browser. A conflicting successful required read produces
 
 Reason: The archive verification establishes a reproducible fixed Compound
 upgrade investigation without broadening Watchtower's closed capabilities.
+
+## 2026-08-24: Approve the ether.fi Base weETH OFT fixture
+
+Status: Accepted
+
+The selected runtime profile is `etherfi-base-weeth-oft`. It scans only Base
+block `23487559`, proxy `0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A`,
+transaction
+`0x8e5e5ea61db41bc1f403552c7303324c37d50406d40ef02e10a1b634f535dfe2`,
+and the indexed `Upgraded(address)` topic already approved by the closed
+registry. SyncPool, ProxyAdmin, and LayerZero Endpoint V2 are fixed named
+related addresses. They are not dynamically discovered scan targets.
+
+The configured Alchemy Base archive RPC independently reproduced these values
+on 2026-08-24:
+
+- EIP-1967 implementation at block `23487558`:
+  `0x20ee00f43ef299dba82ba6fef537756dabe38cc7`
+- EIP-1967 implementation at block `23487559`:
+  `0xde8a2c33655aca88f258988ed74d1511876343d1`
+- implementation bytecode at block `23487559`: present, `17,594` bytes,
+  keccak256 `0x7f8bf0bedf0194598158e5b9d5510568e9d30a02b3f8e80d0acf15bf46546fb4`
+- `endpoint()` at block `23487559`:
+  `0x1a44076050125825900e736c501f859c50fe728c`
+- `token()` at block `23487559`:
+  `0x04c0599ae5a44757c0af6f9ec3b93da8976c150a`
+- `sharedDecimals()` at block `23487559`: `6`
+
+The receipt was successful and contained the qualifying proxy log at index
+`190`. The investigation performs exactly these six reads at N-1 or N. It does
+not use current-state fallbacks, arbitrary calls, dynamic proxy discovery, or
+values supplied by the browser. A conflicting successful required read
+produces `contradicted`. Pruned history, a timeout, rate limiting, or another
+unavailable required historical read produces `incomplete`.
+
+The investigation supports only Base-side evidence. It does not claim that
+remote peers, DVNs, executors, SyncPool operations, Layer 1 backing paths, or
+the wider ether.fi and LayerZero systems are safe.
+
+Reason: The archive verification establishes a reproducible fixed ether.fi OFT
+upgrade investigation without broadening Watchtower's incident classes or
+request-controlled capabilities.

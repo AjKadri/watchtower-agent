@@ -23,14 +23,14 @@ describe("closed target profile registry", () => {
     expect(config.expectedFixture).toMatchObject({ status: "committed", logIndex: "641" });
   });
 
-  it("loads Compound as the selected committed profile", async () => {
+  it("loads ether.fi as the selected committed profile", async () => {
     const loaded = await loadTargetConfig();
 
-    expect(loaded).toEqual(getTargetProfile("compound-iii-base-usdc-comet"));
+    expect(loaded).toEqual(getTargetProfile("etherfi-base-weeth-oft"));
     expect(loaded.expectedFixture).toMatchObject({
       status: "committed",
-      path: "fixtures/base/compound-iii-usdc-upgrade-40235590",
-      logIndex: "270",
+      path: "fixtures/base/etherfi-weeth-oft-upgrade-23487559",
+      logIndex: "190",
     });
   });
 
@@ -50,8 +50,8 @@ describe("closed target profile registry", () => {
       expect(profile.investigation.checks).toHaveLength(6);
       expect(profile.plans.approved.capabilityBudget.maximumReads).toBe(6);
     }
-    expect(profiles.map(({ expectedFixture }) => expectedFixture.status)).toEqual(["committed", "committed", "pending"]);
-    expect(profiles[2].expectedFixture.path).toBeNull();
+    expect(profiles.map(({ expectedFixture }) => expectedFixture.status)).toEqual(["committed", "committed", "committed"]);
+    expect(profiles[2].expectedFixture.path).toBe("fixtures/base/etherfi-weeth-oft-upgrade-23487559");
   });
 
   it("rejects unknown profile IDs and selection overrides", () => {

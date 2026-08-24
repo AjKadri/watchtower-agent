@@ -1,0 +1,15 @@
+[
+  {
+    "detectorId": "etherfi-weeth-oft-upgraded",
+    "incidentClass": "contract_upgrade",
+    "eventName": "Upgraded",
+    "eventSignature": "Upgraded(address)",
+    "logIndex": "190",
+    "emitter": "0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A",
+    "decodedArguments": {
+      "implementation": "0xde8A2C33655ACA88f258988ED74D1511876343D1"
+    },
+    "expectedSeverity": "informational",
+    "expectedSeverityRuleId": "target-is-approved"
+  }
+]
