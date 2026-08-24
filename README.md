@@ -275,12 +275,23 @@ payload containing exactly `schemaVersion`, `trigger`, `plan`, `checks`,
 `receiptId` is excluded from that payload. Object keys are serialized in sorted
 order while array order is preserved. Receipt creation and schema validation
 use the same canonicalization, and validation independently recomputes the ID.
+Exact 20-byte Ethereum address values are normalized to one EIP-55 form before
+comparison and hashing. Equivalent lowercase and checksum addresses therefore
+produce the same receipt ID. Hashes, topics, calldata, URLs, labels, and other
+non-address strings are not changed by address normalization.
 
 Runtime schema refinements also reject inconsistent check status, result,
 assertion, and failure combinations. They derive the required final disposition
 from required check outcomes and require receipt trigger, plan, checks,
 disposition, and explorer links to match the containing evidence and
 investigation records.
+
+CLI failures preserve their source boundary. Configuration schema failures use
+`configuration-validation-failed`, other runtime result schema failures use
+`runtime-validation-failed`, receipt or evidence consistency failures use
+`evidence-consistency-failed`, and uncaught RPC failures use `rpc-failed` with
+only a safe category. These outputs omit stack traces, provider URLs,
+credentials, and raw provider bodies.
 
 ## Configuration
 
@@ -308,16 +319,17 @@ npm audit --audit-level=moderate
 npm run dev
 ```
 
-The 2026-08-24 local release verification reported 11 test files and 78 tests
-passed, and TypeScript reported no errors. Two attempts to run the configured
-archive-RPC scan stopped safely at chain verification with
-`chain-id-rpc-dns`. The npm audit request also failed because the registry name
-could not be resolved. These are current external-network validation
-limitations, not successful scan or audit results. No alternate provider was
-substituted.
+The 2026-08-24 address-regression verification reported 13 test files and 87
+tests passed, TypeScript reported no errors, and npm audit reported zero
+vulnerabilities. Three attempts to run the configured Alchemy archive-RPC scan
+stopped safely at chain verification with `chain-id-rpc-dns`. A direct lookup
+of Alchemy's public Base hostname also returned `ENOTFOUND`. No alternate
+provider was substituted, so the required current live success remains an
+external validation blocker.
 
-The tracked public branch remains at
-`7587cce1b439038b0354217bfd265a96f1b367e8`. Receipt integrity and UI milestone
-commits after that revision exist only on the local branch until an authorized
-push occurs. Public reproducibility of these newer changes is therefore not yet
+The verified public HEAD is
+`0d84203674861f76ab024c8150ae79e5c580b3ea`. Public `main` and local `main`
+were aligned at that revision when this task started. The address-normalization,
+CLI-classification, and handoff commits from this task remain local because this
+task prohibits pushing. Current post-task branch parity is therefore not
 claimed.

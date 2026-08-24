@@ -2,14 +2,14 @@
 
 Last updated: 2026-08-24
 
-- Current milestone: Final replay-receipt release blockers complete locally.
-- Completed: Receipt IDs are recomputed from a stable canonical payload that excludes `receiptId`. Strict runtime refinements reject forged IDs, inconsistent check status, result, assertion, or failure combinations, contradictory required-check dispositions, and receipt fields that disagree with their containing evidence or investigation. Atomic replacement removes a prior receipt after both failed and partial rescans.
-- Tests run: `npm test` passed 11 files and 78 tests. `npm run typecheck` passed with no TypeScript errors. Two `npm run scan` attempts returned a safe failed result at chain verification with code `chain-id-rpc-dns`, zero alerts, and zero evidence. `npm audit --audit-level=moderate` could not reach the npm advisory endpoint because registry DNS resolution failed. Tracked-file secret checks and `git diff --check` passed.
-- Result: Receipt creation and validation use the same explicit canonicalization. Repeated fixture scans and reordered payload keys produce the same receipt ID. Every requested tampering and stale-receipt regression is covered.
-- Local revision: Runtime commit `be696bb` and regression commit `473cfe7`, followed by the documentation commit containing this status update.
-- Public revision: Tracked `origin/main` remains `7587cce1b439038b0354217bfd265a96f1b367e8`. The local branch is ahead and has not been pushed. Public reproducibility of the newer investigation, receipt UI, and integrity changes is not claimed.
-- Next step: Obtain explicit authorization before pushing the local commits. Do not add signing, EAS anchoring, authentication, notifications, monitoring, extra targets or events, wallet access, transactions, LLM integration, or Agent Router calls without approval.
-- Blockers: No local implementation blocker. Current live scan and audit verification are limited by external DNS resolution. Public release verification is also blocked until the unpublished commits are pushed by an authorized action.
+- Current milestone: Address-casing receipt regression and CLI classification fixed locally. Live release verification remains DNS-blocked.
+- Completed: Added one shared EVM address normalizer and applied it to fixed configuration, viem values, evidence, trigger and check comparisons, severity policy, and canonical receipt hashing. Equivalent lowercase and checksum addresses now compare equally and produce the same receipt ID. CLI errors now separate configuration validation, runtime result validation, receipt or evidence consistency, and RPC failures using safe output.
+- Tests run: `npm test` passed 13 files and 87 tests. `npm run typecheck` passed with no TypeScript errors. Three `npm run scan` attempts returned `status: failed` at chain verification with `chain-id-rpc-dns`, zero alerts, and zero evidence. A direct Alchemy Base hostname lookup returned `ENOTFOUND`. `npm audit --audit-level=moderate` passed with zero vulnerabilities. Tracked-file secret checks and `git diff --check` passed.
+- Result: All fixture-backed and real-shaped validation paths pass, including lowercase viem emitters against checksum configuration, checksum runtime values against lowercase configuration, implementation casing, complete receipt validation, stable casing-independent receipt IDs, and runtime CLI failure classification. The required current live scan result was not reproduced because Alchemy DNS resolution failed before RPC chain verification.
+- Local revision: Address normalization commit `3451a49` and CLI classification commit `7e6336a`, followed by the documentation commit containing this status update.
+- Public revision: Verified public HEAD is `0d84203674861f76ab024c8150ae79e5c580b3ea`. Public and local `main` were aligned there at task start. This task's commits remain local and unpushed as required.
+- Next step: Repeat `npm run scan` without changing providers when Alchemy DNS resolves. Require a complete scan with one `contract_upgrade` alert, complete evidence, a corroborated investigation, a valid receipt, and zero failures. Obtain explicit authorization before any push.
+- Blockers: The configured Alchemy Base hostname currently returns `ENOTFOUND`, blocking the required live scan. This task's commits are not public because pushing is explicitly prohibited.
 - Decisions needed: None. The bounded investigation gate remains approved.
 
 ## Setup and run instructions
@@ -35,4 +35,6 @@ fixture without exposing provider configuration.
 
 The 2026-08-24 receipt-integrity verification used the same ignored local
 configuration. No RPC URL, credential, provider body, or stack trace was added
-to tracked files or validation output.
+to tracked files or validation output. The address-casing fix passes all local
+fixture and schema checks, while the current live retry remains blocked by
+Alchemy hostname resolution.

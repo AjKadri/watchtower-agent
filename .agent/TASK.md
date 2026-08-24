@@ -120,15 +120,21 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The final local release blockers are closed through runtime commit `be696bb`
-and regression commit `473cfe7`, followed by the handoff documentation commit
-that contains this update. Receipt IDs are validated against an explicit
-canonical payload, check and disposition invariants are enforced by runtime
-schemas, and receipt fields must agree with their containing evidence and
-investigation records. The local suite contains 11 test files and 78 tests.
+The address-casing receipt regression is fixed locally in `3451a49`. Exact
+Ethereum address values now use one shared semantic normalization path for
+configuration, viem data, evidence, investigation assertions, policy checks,
+receipt comparisons, and canonical receipt hashing. CLI failure classification
+is fixed locally in `7e6336a`, so runtime validation and evidence-consistency
+defects are not mislabeled as configuration failures. The local suite contains
+13 test files and 87 tests, TypeScript passes, and npm audit reports zero
+vulnerabilities.
 
-The public GitHub branch remains at
-`7587cce1b439038b0354217bfd265a96f1b367e8`, so the newer local milestones and
-release-integrity corrections are not yet publicly reproducible. A push
-requires separate authorization. Do not expand the target, event, storage,
-monitoring, frontend, or deployment scope without a new approved task.
+The current public HEAD is
+`0d84203674861f76ab024c8150ae79e5c580b3ea`. Public and local `main` were aligned
+there when this task started. This task's commits remain local because pushing
+is prohibited. The remaining live gate is external DNS resolution for the
+configured Alchemy Base hostname. Repeat the unchanged `npm run scan` when that
+hostname resolves, and require one complete `contract_upgrade` alert, complete
+evidence, a corroborated investigation, a valid receipt, and zero failures.
+Do not expand the target, event, storage, monitoring, frontend, or deployment
+scope without a new approved task.

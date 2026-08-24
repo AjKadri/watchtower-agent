@@ -18,28 +18,30 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
-### 2026-08-24: Current external validation is DNS-limited
+### 2026-08-24: Configured Alchemy hostname does not resolve
 
 Status: Active
 
-Two runs against the ignored configured RPC stopped safely during chain-ID
-verification with `chain-id-rpc-dns`, before logs or evidence were read. The
-required npm audit also could not resolve `registry.npmjs.org`. No alternate RPC
-provider was substituted, and no provider URL or credential was exposed.
+Three runs against the ignored configured Alchemy RPC stopped safely during
+chain-ID verification with `chain-id-rpc-dns`, before logs or evidence were
+read. A direct lookup of Alchemy's public Base hostname returned `ENOTFOUND`.
+The npm registry is reachable and the required audit passed with zero
+vulnerabilities, so the remaining network blocker is specific to the configured
+Alchemy hostname. No alternate provider was substituted, and no provider URL or
+credential was exposed.
 
-Decision needed: None for implementation. Repeat `npm run scan` and
-`npm audit --audit-level=moderate` when DNS access is restored.
+Decision needed: None for implementation. Repeat `npm run scan` when Alchemy
+DNS resolution is restored.
 
 ### 2026-08-24: Local release commits are not yet public
 
 Status: Active
 
-The tracked public branch remains at
-`7587cce1b439038b0354217bfd265a96f1b367e8`. The investigation, receipt UI,
-receipt-integrity, regression, and current handoff commits are present only on
-the local branch. The local implementation and validation are complete, but
-public reproducibility of these newer revisions cannot be claimed until they
-are pushed.
+Public and local `main` were aligned at verified public HEAD
+`0d84203674861f76ab024c8150ae79e5c580b3ea` when this task started. The current
+address-normalization, CLI-classification, and handoff commits are present only
+on the local branch. Public reproducibility of these new corrections cannot be
+claimed until they are pushed.
 
 Decision needed: Explicit authorization to push. This task prohibits pushing,
 so no remote state was changed.
