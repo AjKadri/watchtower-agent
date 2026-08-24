@@ -62,4 +62,18 @@ describe("target configuration", () => {
     expect(config.severityPolicy.examples.filter(({ kind }) => kind === "verified-onchain")).toHaveLength(1);
     expect(config.severityPolicy.examples.filter(({ kind }) => kind === "counterfactual-policy")).toHaveLength(2);
   });
+
+  it("accepts fixed configuration addresses with lowercase or checksum casing", () => {
+    const input = readJson<Record<string, any>>("../config/target.json", import.meta.url);
+    input.target.primaryContract.address = input.target.primaryContract.address.toLowerCase();
+    input.detectors[0].contractAddresses[0] = input.detectors[0].contractAddresses[0].toLowerCase();
+    input.investigation.poolAddressesProvider = input.investigation.poolAddressesProvider.toLowerCase();
+    input.investigation.expected.pool = input.investigation.expected.pool.toLowerCase();
+    input.severityPolicy.approvedTargetAddresses[0] = input.severityPolicy.approvedTargetAddresses[0].toLowerCase();
+
+    const parsed = targetConfigSchema.parse(input);
+
+    expect(parsed.target.primaryContract.address).toBe(config.target.primaryContract.address);
+    expect(parsed.severityPolicy.approvedTargetAddresses[0]).toBe(config.severityPolicy.approvedTargetAddresses[0]);
+  });
 });

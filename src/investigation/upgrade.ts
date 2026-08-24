@@ -1,10 +1,11 @@
-import { getAddress, hexToBigInt, keccak256, toHex } from "viem";
+import { hexToBigInt, keccak256, toHex } from "viem";
 
 import { RpcReadError, type RpcFailureCategory } from "../chain/errors.js";
 import type { Address, ChainReader, Hex } from "../chain/types.js";
 import type { TargetConfig } from "../config/schema.js";
 import type { UpgradeInvestigation, UpgradeInvestigationCheck } from "../domain/schemas.js";
 import { upgradeInvestigationSchema } from "../domain/schemas.js";
+import { normalizeEvmAddress, sameEvmAddress } from "../evm/address.js";
 import {
   investigationPlanSchema,
   selectInvestigationPlan,
@@ -56,7 +57,7 @@ function normalizeAddressWord(value: Hex): Address {
   if (!/^0x[0-9a-f]{64}$/i.test(value)) {
     throw new RpcReadError("historical address result", "malformed-response");
   }
-  return `0x${value.slice(-40).toLowerCase()}`;
+  return normalizeEvmAddress(`0x${value.slice(-40)}`);
 }
 
 function normalizeUint256(value: Hex): string {
@@ -134,7 +135,7 @@ export async function investigateApprovedUpgrade(
   const proxy = config.target.primaryContract.address;
   const provider = investigation.poolAddressesProvider;
   const expected = investigation.expected;
-  const implementation = getAddress(decodedImplementation);
+  const implementation = normalizeEvmAddress(decodedImplementation);
 
   const definitions: CheckDefinition[] = [
     {
@@ -145,10 +146,10 @@ export async function investigateApprovedUpgrade(
       parameters: { address: proxy, slot: investigation.implementationSlot },
       blockNumber: previousBlock,
       description: "The configured proxy implementation slot at N-1 matches the verified pre-upgrade implementation.",
-      expected: expected.implementationBefore.toLowerCase(),
+      expected: normalizeEvmAddress(expected.implementationBefore),
       read: async () => ({ kind: "address", value: normalizeAddressWord(await reader.getStorageAt(proxy, investigation.implementationSlot, previousBlock)) }),
-      actual: (result) => result.kind === "address" ? result.value.toLowerCase() : "invalid-result-kind",
-      matches: (result) => result.kind === "address" && result.value.toLowerCase() === expected.implementationBefore.toLowerCase(),
+      actual: (result) => result.kind === "address" ? normalizeEvmAddress(result.value) : "invalid-result-kind",
+      matches: (result) => result.kind === "address" && sameEvmAddress(result.value, expected.implementationBefore),
     },
     {
       id: "implementation-at-upgrade",
@@ -158,12 +159,12 @@ export async function investigateApprovedUpgrade(
       parameters: { address: proxy, slot: investigation.implementationSlot },
       blockNumber: upgradeBlock,
       description: "The configured proxy implementation slot at N matches both the approved and decoded implementation.",
-      expected: expected.implementationAfter.toLowerCase(),
+      expected: normalizeEvmAddress(expected.implementationAfter),
       read: async () => ({ kind: "address", value: normalizeAddressWord(await reader.getStorageAt(proxy, investigation.implementationSlot, upgradeBlock)) }),
-      actual: (result) => result.kind === "address" ? result.value.toLowerCase() : "invalid-result-kind",
+      actual: (result) => result.kind === "address" ? normalizeEvmAddress(result.value) : "invalid-result-kind",
       matches: (result) => result.kind === "address"
-        && result.value.toLowerCase() === expected.implementationAfter.toLowerCase()
-        && implementation.toLowerCase() === expected.implementationAfter.toLowerCase(),
+        && sameEvmAddress(result.value, expected.implementationAfter)
+        && sameEvmAddress(implementation, expected.implementationAfter),
     },
     {
       id: "implementation-bytecode",
@@ -192,10 +193,10 @@ export async function investigateApprovedUpgrade(
       parameters: { to: provider, data: investigation.getPoolCallData },
       blockNumber: upgradeBlock,
       description: "The configured PoolAddressesProvider returns the configured Pool proxy at N.",
-      expected: expected.pool.toLowerCase(),
+      expected: normalizeEvmAddress(expected.pool),
       read: async () => ({ kind: "address", value: normalizeAddressWord(await reader.call(provider, investigation.getPoolCallData, upgradeBlock)) }),
-      actual: (result) => result.kind === "address" ? result.value.toLowerCase() : "invalid-result-kind",
-      matches: (result) => result.kind === "address" && result.value.toLowerCase() === expected.pool.toLowerCase(),
+      actual: (result) => result.kind === "address" ? normalizeEvmAddress(result.value) : "invalid-result-kind",
+      matches: (result) => result.kind === "address" && sameEvmAddress(result.value, expected.pool),
     },
     {
       id: "pool-revision-before",

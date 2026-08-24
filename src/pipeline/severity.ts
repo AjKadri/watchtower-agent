@@ -1,5 +1,6 @@
 import type { TargetConfig } from "../config/schema.js";
 import type { Address } from "../chain/types.js";
+import { normalizeEvmAddress, sameEvmAddress } from "../evm/address.js";
 
 export type SeverityDecision = {
   severity: "high" | "suspicious" | "informational";
@@ -10,9 +11,9 @@ export type SeverityDecision = {
 const zeroAddress = "0x0000000000000000000000000000000000000000";
 
 export function classifyUpgrade(implementation: Address, policy: TargetConfig["severityPolicy"]): SeverityDecision {
-  const normalized = implementation.toLowerCase();
-  const approved = policy.approvedTargetAddresses.some((address) => address.toLowerCase() === normalized);
-  const inputs = { implementation, approved: String(approved), isZeroAddress: String(normalized === zeroAddress) };
+  const normalized = normalizeEvmAddress(implementation);
+  const approved = policy.approvedTargetAddresses.some((address) => sameEvmAddress(address, normalized));
+  const inputs = { implementation: normalized, approved: String(approved), isZeroAddress: String(normalized === zeroAddress) };
 
   if (normalized === zeroAddress) {
     return { severity: "high", ruleId: "target-is-zero-address", inputs };

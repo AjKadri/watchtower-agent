@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { RpcReadError, type RpcFailureCategory } from "../src/chain/errors.js";
 import type {
+  Address,
   ChainBlock,
   ChainLog,
   ChainReader,
@@ -12,8 +13,9 @@ import type {
   MalformedChainLog,
 } from "../src/chain/types.js";
 import { targetConfigSchema } from "../src/config/schema.js";
-import { evidenceSchema, investigationReceiptSchema, type Evidence, type InvestigationReceipt } from "../src/domain/schemas.js";
+import { evidenceSchema, investigationReceiptSchema, scanResultSchema, type Evidence, type InvestigationReceipt } from "../src/domain/schemas.js";
 import { selectInvestigationPlan } from "../src/investigation/plans.js";
+import { normalizeEvmAddress } from "../src/evm/address.js";
 import { createReceiptId } from "../src/pipeline/ids.js";
 import { scanApprovedRange } from "../src/pipeline/scanner.js";
 import { readJson } from "./helpers.js";
@@ -148,7 +150,7 @@ async function completeEvidence(): Promise<Evidence> {
 }
 
 describe("bounded evidence scan", () => {
-  it("builds one complete informational alert from the verified fixture", async () => {
+  it("builds one complete real-shaped scan result that passes receipt validation", async () => {
     const reader = new FixtureReader();
     const result = await scanApprovedRange(reader, config);
 
@@ -179,8 +181,8 @@ describe("bounded evidence scan", () => {
     expect(result.evidence[0]).toMatchObject({
       transaction: {
         hash: fixtureTransaction.hash,
-        sender: fixtureTransaction.from,
-        recipient: fixtureTransaction.to,
+        sender: normalizeEvmAddress(fixtureTransaction.from),
+        recipient: normalizeEvmAddress(fixtureTransaction.to),
         receiptStatus: "success",
       },
       log: { index: "641", emitter: fixtureLog.address },
@@ -208,12 +210,27 @@ describe("bounded evidence scan", () => {
     const receipt = result.evidence[0].investigationReceipt;
     expect(receipt).not.toBeNull();
     expect(investigationReceiptSchema.parse(JSON.parse(JSON.stringify(receipt)))).toEqual(receipt);
+    expect(scanResultSchema.safeParse(JSON.parse(JSON.stringify(result))).success).toBe(true);
     expect(reader.filters).toEqual([{
       address: config.target.primaryContract.address,
       topic0: config.detectors[0].topic0,
       fromBlock: 41_105_890n,
       toBlock: 41_105_890n,
     }]);
+  });
+
+  it("accepts a lowercase viem emitter against checksum configuration and receipt data", async () => {
+    const reader = new FixtureReader();
+    reader.logs = [{ ...fixtureLog, address: fixtureLog.address.toLowerCase() as Address }];
+
+    const result = await scanApprovedRange(reader, config);
+
+    expect(result).toMatchObject({
+      status: "complete",
+      alerts: [{ incidentClass: "contract_upgrade", evidenceStatus: "complete" }],
+      evidence: [{ status: "complete", investigationReceipt: { finalDisposition: "corroborated" } }],
+      failures: [],
+    });
   });
 
   it("produces stable IDs and prevents duplicate alerts and evidence fetches", async () => {
@@ -441,6 +458,23 @@ describe("bounded evidence scan", () => {
 
     expect(createReceiptId(reorderedPayload)).toBe(receipt.receiptId);
     expect(second.investigationReceipt?.receiptId).toBe(receipt.receiptId);
+  });
+
+  it("keeps the canonical receipt ID stable across Ethereum address casing", async () => {
+    const evidence = await completeEvidence();
+    const receipt = evidence.investigationReceipt as InvestigationReceipt;
+    const lowercaseAddresses = (value: unknown): unknown => {
+      if (typeof value === "string" && /^0x[0-9a-fA-F]{40}$/.test(value)) return value.toLowerCase();
+      if (Array.isArray(value)) return value.map(lowercaseAddresses);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, lowercaseAddresses(item)]));
+      }
+      return value;
+    };
+    const lowercaseReceipt = lowercaseAddresses(receipt) as InvestigationReceipt;
+
+    expect(createReceiptId(lowercaseReceipt)).toBe(receipt.receiptId);
+    expect(investigationReceiptSchema.parse(lowercaseReceipt).receiptId).toBe(receipt.receiptId);
   });
 
   it.each([

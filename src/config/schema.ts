@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/, "expected an Ethereum address");
+import { EVM_ADDRESS_PATTERN, normalizeEvmAddress, sameEvmAddress } from "../evm/address.js";
+
+const address = z.string().regex(EVM_ADDRESS_PATTERN, "expected an Ethereum address").transform(normalizeEvmAddress);
+const fixedAddress = (expected: string) => address.refine((value) => sameEvmAddress(value, expected), `expected ${expected}`);
 const hash = z.string().regex(/^0x[0-9a-fA-F]{64}$/, "expected a 32-byte hash");
 
 const detectorSchema = z.object({
@@ -10,7 +13,7 @@ const detectorSchema = z.object({
   eventName: z.literal("Upgraded"),
   eventSignature: z.literal("Upgraded(address)"),
   topic0: z.literal("0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b"),
-  contractAddresses: z.tuple([address]),
+  contractAddresses: z.tuple([fixedAddress("0xA238Dd80C259a72e81d7e4664a9801593F98d1c5")]),
   abiFile: z.literal("config/abis/aave-base-upgrade-events.json"),
   decodedTargetArgument: z.literal("implementation"),
 }).strict();
@@ -36,7 +39,7 @@ export const targetConfigSchema = z
       id: z.literal("aave-v3-base-core"),
       name: z.string().min(1),
       primaryContract: z.object({
-        address: z.literal("0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"),
+        address: fixedAddress("0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"),
         role: z.literal("pool-proxy"),
       }).strict(),
       relatedContracts: z.tuple([]),
@@ -55,14 +58,14 @@ export const targetConfigSchema = z
       previousBlock: z.literal("41105889"),
       upgradeBlock: z.literal("41105890"),
       implementationSlot: z.literal("0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"),
-      poolAddressesProvider: z.literal("0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D"),
+      poolAddressesProvider: fixedAddress("0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D"),
       getPoolCallData: z.literal("0x026b1d5f"),
       poolRevisionCallData: z.literal("0x0148170e"),
       expected: z.object({
-        implementationBefore: z.literal("0x79ab8fc5ba13daf37b4e978a543286bc2a16508c"),
-        implementationAfter: z.literal("0xdb578d67a83e94de73c9e0c14280f804f6c1c3e4"),
+        implementationBefore: fixedAddress("0x79ab8fc5ba13daf37b4e978a543286bc2a16508c"),
+        implementationAfter: fixedAddress("0xdb578d67a83e94de73c9e0c14280f804f6c1c3e4"),
         implementationByteLength: z.literal("22757"),
-        pool: z.literal("0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"),
+        pool: fixedAddress("0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"),
         poolRevisionBefore: z.literal("9"),
         poolRevisionAfter: z.literal("10"),
       }).strict(),
@@ -85,7 +88,7 @@ export const targetConfigSchema = z
     detectors: z.tuple([detectorSchema]),
     severityPolicy: z.object({
       approvedTargetAddresses: z.tuple([
-        z.literal("0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4"),
+        fixedAddress("0xDb578D67A83E94DE73c9e0C14280f804F6C1c3e4"),
       ]),
       rules: z.tuple([
         z.object({
@@ -132,8 +135,7 @@ export const targetConfigSchema = z
     }
 
     if (
-      config.detectors[0].contractAddresses[0].toLowerCase() !==
-      config.target.primaryContract.address.toLowerCase()
+      !sameEvmAddress(config.detectors[0].contractAddresses[0], config.target.primaryContract.address)
     ) {
       context.addIssue({ code: "custom", path: ["detectors", 0, "contractAddresses"], message: "detector must target the primary contract" });
     }

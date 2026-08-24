@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { normalizeEvmAddresses } from "../evm/address.js";
+
 function deterministicId(namespace: string, parts: readonly string[]): string {
   const digest = createHash("sha256").update(parts.join("\n")).digest("hex");
   return `${namespace}_${digest}`;
@@ -29,7 +31,7 @@ export function stableSerialize(value: unknown): string {
 }
 
 export function canonicalReceiptPayload(receipt: CanonicalReceiptPayload): CanonicalReceiptPayload {
-  return {
+  return normalizeEvmAddresses({
     schemaVersion: receipt.schemaVersion,
     trigger: receipt.trigger,
     plan: receipt.plan,
@@ -38,7 +40,7 @@ export function canonicalReceiptPayload(receipt: CanonicalReceiptPayload): Canon
     limitations: receipt.limitations,
     finalDisposition: receipt.finalDisposition,
     explorerLinks: receipt.explorerLinks,
-  };
+  });
 }
 
 export function createScanId(chainId: number, targetId: string, fromBlock: bigint, toBlock: bigint): string {

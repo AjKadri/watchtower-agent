@@ -1,9 +1,11 @@
 import { z } from "zod";
 
 import { investigationCheckIdSchema, investigationPlanSchema } from "../investigation/plans.js";
-import { createReceiptId, stableSerialize } from "../pipeline/ids.js";
+import { createReceiptId } from "../pipeline/ids.js";
+import { EVM_ADDRESS_PATTERN, evmAwareEqual, evmAwareStringEqual, normalizeEvmAddress, sameEvmAddress } from "../evm/address.js";
 
-const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
+const address = z.string().regex(EVM_ADDRESS_PATTERN).transform(normalizeEvmAddress);
+const fixedAddress = (expected: string) => address.refine((value) => sameEvmAddress(value, expected));
 const hash = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 const decimalString = z.string().regex(/^(0|[1-9][0-9]*)$/);
 const blockTag = z.string().regex(/^0x[0-9a-f]+$/);
@@ -72,7 +74,7 @@ export const investigationReceiptTriggerSchema = z.object({
     }).strict(),
     log: z.object({
       index: decimalString,
-      emitter: z.literal("0xa238dd80c259a72e81d7e4664a9801593f98d1c5").or(z.literal("0xA238Dd80C259a72e81d7e4664a9801593F98d1c5")),
+      emitter: fixedAddress("0xA238Dd80C259a72e81d7e4664a9801593F98d1c5"),
       topic0: z.literal("0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b"),
       rawTopics: z.array(hash).min(1),
     }).strict(),
@@ -112,7 +114,7 @@ export const investigationReceiptSchema = z.object({
     const actualKeys = Object.keys(actual).sort();
     const expectedKeys = Object.keys(expected).sort();
     return actualKeys.length === expectedKeys.length
-      && actualKeys.every((key, index) => key === expectedKeys[index] && actual[key]?.toLowerCase() === expected[key]?.toLowerCase());
+      && actualKeys.every((key, index) => key === expectedKeys[index] && evmAwareStringEqual(actual[key] ?? "", expected[key] ?? ""));
   };
   const proxy = "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5";
   const provider = "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D";
@@ -152,7 +154,7 @@ export const investigationReceiptSchema = z.object({
         context.addIssue({ code: "custom", path: ["checks", index, "assertion"], message: "an unavailable check cannot claim an actual result or match" });
       }
     }
-    if (resultActual !== null && check.assertion.actual?.toLowerCase() !== resultActual.toLowerCase()) {
+    if (resultActual !== null && !evmAwareStringEqual(check.assertion.actual ?? "", resultActual)) {
       context.addIssue({ code: "custom", path: ["checks", index, "assertion", "actual"], message: "assertion actual must match the normalized check result" });
     }
     let validScope = false;
@@ -249,7 +251,7 @@ export const evidenceSchema = z.object({
     },
   };
   const compare = (actual: unknown, expected: unknown, path: PropertyKey[], message: string) => {
-    if (stableSerialize(actual) !== stableSerialize(expected)) {
+    if (!evmAwareEqual(actual, expected)) {
       context.addIssue({ code: "custom", path, message });
     }
   };
