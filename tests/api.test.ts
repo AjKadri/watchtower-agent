@@ -48,6 +48,7 @@ const log: ChainLog = {
 class ApiFixtureReader implements ChainReader {
   filters: LogFilter[] = [];
   failLogs = false;
+  failBlock = false;
 
   async getChainId(): Promise<number> { return 8453; }
   async getLatestBlockNumber(): Promise<bigint> { return 50_000_000n; }
@@ -57,6 +58,7 @@ class ApiFixtureReader implements ChainReader {
     return { logs: [log], malformed: [] };
   }
   async getBlock(): Promise<ChainBlock> {
+    if (this.failBlock) throw new Error("fixture block failure");
     return { hash: block.hash, number: BigInt(block.number), timestamp: BigInt(Date.parse(block.timestamp) / 1_000) };
   }
   async getTransaction(): Promise<ChainTransaction> { return transaction; }
@@ -294,6 +296,32 @@ describe("Watchtower API", () => {
     expect(await (await fetch(`${baseUrl}/api/scans/${failed.scanId}`)).json()).toMatchObject({ status: "failed" });
     expect(await (await fetch(`${baseUrl}/api/alerts`)).json()).toEqual({ alerts: [] });
     expect((await fetch(`${baseUrl}/api/alerts/${previousAlertId}`)).status).toBe(404);
+    expect((await fetch(`${baseUrl}/api/receipts/${previousReceiptId}`)).status).toBe(404);
+  });
+
+  it("removes a stale receipt after a partial rescan", async () => {
+    const reader = new ApiFixtureReader();
+    const baseUrl = await serve(reader);
+    const successful = await (await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    })).json();
+    const previousReceiptId = successful.evidence[0].investigationReceipt.receiptId;
+
+    reader.failBlock = true;
+    const partialResponse = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const partial = await partialResponse.json();
+
+    expect(partial).toMatchObject({
+      scanId: successful.scanId,
+      status: "partial",
+      evidence: [{ investigationReceipt: null }],
+    });
     expect((await fetch(`${baseUrl}/api/receipts/${previousReceiptId}`)).status).toBe(404);
   });
 });

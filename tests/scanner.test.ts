@@ -12,7 +12,9 @@ import type {
   MalformedChainLog,
 } from "../src/chain/types.js";
 import { targetConfigSchema } from "../src/config/schema.js";
-import { investigationReceiptSchema } from "../src/domain/schemas.js";
+import { evidenceSchema, investigationReceiptSchema, type Evidence, type InvestigationReceipt } from "../src/domain/schemas.js";
+import { selectInvestigationPlan } from "../src/investigation/plans.js";
+import { createReceiptId } from "../src/pipeline/ids.js";
 import { scanApprovedRange } from "../src/pipeline/scanner.js";
 import { readJson } from "./helpers.js";
 
@@ -132,6 +134,17 @@ class FixtureReader implements ChainReader {
       ? investigationFixture.poolRevisionBeforeResult
       : investigationFixture.poolRevisionAtUpgradeResult;
   }
+}
+
+function rehashReceipt(receipt: InvestigationReceipt): void {
+  receipt.receiptId = createReceiptId(receipt);
+}
+
+async function completeEvidence(): Promise<Evidence> {
+  const result = await scanApprovedRange(new FixtureReader(), config);
+  const evidence = result.evidence[0];
+  if (!evidence?.investigationReceipt) throw new Error("fixture scan omitted the investigation receipt");
+  return structuredClone(evidence);
 }
 
 describe("bounded evidence scan", () => {
@@ -401,6 +414,99 @@ describe("bounded evidence scan", () => {
     providerCheck.parameters.to = "0x1111111111111111111111111111111111111111";
 
     expect(investigationReceiptSchema.safeParse(forged).success).toBe(false);
+  });
+
+  it("rejects a forged receipt ID", async () => {
+    const evidence = await completeEvidence();
+    const forged = evidence.investigationReceipt as InvestigationReceipt;
+    forged.receiptId = `receipt_${"0".repeat(64)}`;
+
+    expect(investigationReceiptSchema.safeParse(forged).success).toBe(false);
+  });
+
+  it("keeps the canonical receipt hash stable across key order and repeated scans", async () => {
+    const first = await completeEvidence();
+    const second = await completeEvidence();
+    const receipt = first.investigationReceipt as InvestigationReceipt;
+    const reorderedPayload = {
+      explorerLinks: receipt.explorerLinks,
+      finalDisposition: receipt.finalDisposition,
+      limitations: receipt.limitations,
+      errors: receipt.errors,
+      checks: receipt.checks,
+      plan: receipt.plan,
+      trigger: receipt.trigger,
+      schemaVersion: receipt.schemaVersion,
+    };
+
+    expect(createReceiptId(reorderedPayload)).toBe(receipt.receiptId);
+    expect(second.investigationReceipt?.receiptId).toBe(receipt.receiptId);
+  });
+
+  it.each([
+    ["passed check with a false assertion", (receipt: InvestigationReceipt) => {
+      receipt.checks[0].assertion.matches = false;
+    }],
+    ["passed check with a null result", (receipt: InvestigationReceipt) => {
+      receipt.checks[0].result = null;
+    }],
+    ["passed check with failure details", (receipt: InvestigationReceipt) => {
+      const failure = { code: "synthetic-timeout", category: "timeout" as const, message: "Synthetic safe test failure." };
+      receipt.checks[0].failure = failure;
+      receipt.errors = [failure];
+    }],
+    ["failed check without failure details", (receipt: InvestigationReceipt) => {
+      const check = receipt.checks[0];
+      check.status = "failed";
+      check.result = null;
+      check.assertion.actual = null;
+      check.assertion.matches = null;
+      check.failure = null;
+      receipt.finalDisposition = "incomplete";
+    }],
+    ["assertion actual that differs from its result", (receipt: InvestigationReceipt) => {
+      receipt.checks[0].assertion.actual = "0x1111111111111111111111111111111111111111";
+    }],
+    ["final disposition that conflicts with required checks", (receipt: InvestigationReceipt) => {
+      receipt.finalDisposition = "contradicted";
+    }],
+  ])("rejects a receipt containing a %s", async (_case, mutate) => {
+    const evidence = await completeEvidence();
+    const receipt = evidence.investigationReceipt as InvestigationReceipt;
+    mutate(receipt);
+    rehashReceipt(receipt);
+
+    expect(investigationReceiptSchema.safeParse(receipt).success).toBe(false);
+  });
+
+  it.each([
+    ["trigger", (evidence: Evidence) => {
+      const receipt = evidence.investigationReceipt as InvestigationReceipt;
+      receipt.trigger.transaction.sender = "0x1111111111111111111111111111111111111111";
+      rehashReceipt(receipt);
+    }],
+    ["plan", (evidence: Evidence) => {
+      evidence.upgradeInvestigation.plan = selectInvestigationPlan({
+        targetId: "aave-v3-base-core",
+        eventSignature: "Upgraded(address)",
+        triggerEvidenceStatus: "complete",
+        severityRuleId: "target-is-not-approved",
+      });
+    }],
+    ["checks", (evidence: Evidence) => {
+      evidence.upgradeInvestigation.checks[0].assertion.description = "A different containing investigation check.";
+    }],
+    ["disposition", (evidence: Evidence) => {
+      evidence.upgradeInvestigation.disposition = "contradicted";
+    }],
+    ["explorer links", (evidence: Evidence) => {
+      evidence.sources.transaction = `https://basescan.org/tx/${"1".repeat(64)}`;
+    }],
+  ])("rejects receipt %s fields that disagree with containing evidence or investigation", async (_field, mutate) => {
+    const evidence = await completeEvidence();
+    mutate(evidence);
+
+    expect(evidenceSchema.safeParse(evidence).success).toBe(false);
   });
 
   it("returns a visible failed result for RPC and invalid-range failures", async () => {
