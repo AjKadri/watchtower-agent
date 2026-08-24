@@ -269,6 +269,19 @@ JSON. Stale alert detail is cleared when the in-memory alert list becomes empty
 or replaces the selected alert. Scan failures and incomplete-evidence errors
 remain visible rather than being replaced by a generated explanation.
 
+Each replay receipt uses a deterministic SHA-256 ID derived from a canonical
+payload containing exactly `schemaVersion`, `trigger`, `plan`, `checks`,
+`errors`, `limitations`, `finalDisposition`, and `explorerLinks`. The
+`receiptId` is excluded from that payload. Object keys are serialized in sorted
+order while array order is preserved. Receipt creation and schema validation
+use the same canonicalization, and validation independently recomputes the ID.
+
+Runtime schema refinements also reject inconsistent check status, result,
+assertion, and failure combinations. They derive the required final disposition
+from required check outcomes and require receipt trigger, plan, checks,
+disposition, and explorer links to match the containing evidence and
+investigation records.
+
 ## Configuration
 
 Non-secret target settings live in `config/target.json`. The server and CLI read
@@ -295,6 +308,16 @@ npm audit --audit-level=moderate
 npm run dev
 ```
 
-The 2026-08-23 P1 verification reported 9 test files and 40 tests passed,
-TypeScript reported no errors, the documented public-endpoint scan reproduced
-one complete informational alert, and npm audit found zero vulnerabilities.
+The 2026-08-24 local release verification reported 11 test files and 78 tests
+passed, and TypeScript reported no errors. Two attempts to run the configured
+archive-RPC scan stopped safely at chain verification with
+`chain-id-rpc-dns`. The npm audit request also failed because the registry name
+could not be resolved. These are current external-network validation
+limitations, not successful scan or audit results. No alternate provider was
+substituted.
+
+The tracked public branch remains at
+`7587cce1b439038b0354217bfd265a96f1b367e8`. Receipt integrity and UI milestone
+commits after that revision exist only on the local branch until an authorized
+push occurs. Public reproducibility of these newer changes is therefore not yet
+claimed.

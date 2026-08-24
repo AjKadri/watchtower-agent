@@ -18,7 +18,31 @@ Decision needed: None for milestone 1.
 
 ## Active blockers
 
-None.
+### 2026-08-24: Current external validation is DNS-limited
+
+Status: Active
+
+Two runs against the ignored configured RPC stopped safely during chain-ID
+verification with `chain-id-rpc-dns`, before logs or evidence were read. The
+required npm audit also could not resolve `registry.npmjs.org`. No alternate RPC
+provider was substituted, and no provider URL or credential was exposed.
+
+Decision needed: None for implementation. Repeat `npm run scan` and
+`npm audit --audit-level=moderate` when DNS access is restored.
+
+### 2026-08-24: Local release commits are not yet public
+
+Status: Active
+
+The tracked public branch remains at
+`7587cce1b439038b0354217bfd265a96f1b367e8`. The investigation, receipt UI,
+receipt-integrity, regression, and current handoff commits are present only on
+the local branch. The local implementation and validation are complete, but
+public reproducibility of these newer revisions cannot be claimed until they
+are pushed.
+
+Decision needed: Explicit authorization to push. This task prohibits pushing,
+so no remote state was changed.
 
 ## Resolved blockers
 

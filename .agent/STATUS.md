@@ -2,14 +2,15 @@
 
 Last updated: 2026-08-24
 
-- Current milestone: Visible investigation trace and replay receipt UI complete.
-- Completed: The existing scan and alert-detail responses expose the deterministic investigation and validated receipt. Added strict deterministic-ID validation to scan, alert, and receipt lookups, plus `GET /api/receipts/:receiptId` for validated JSON attachment download. The in-memory store removes stale receipt indexes during atomic scan replacement. The dashboard now renders the existing six-stage investigation in the original visual language, including selected plan and budget, passed, failed, unsupported, and skipped checks, source links, conditional elapsed time, final disposition, receipt ID, and receipt download. Stale detail responses are rejected and cleared when selection changes.
-- Tests run: `npm test` passed 11 files and 64 tests. `npm run typecheck` passed with no TypeScript errors. `npm run scan` completed against the configured Alchemy Base archive RPC. `npm audit --audit-level=moderate` reported zero vulnerabilities. `node --check public/app.js` and `node --check public/view-model.js` passed.
-- Result: The CLI and local API scans each returned one informational `contract_upgrade` alert, one complete evidence record, a `corroborated` six-check investigation, receipt `receipt_b5047efed41b7c2536717f0338fea22a142057ce99b30928d4d700d2fd160fee`, and zero failures. Local `/api/health` passed. The receipt download returned parseable JSON with six checks, the corroborated disposition, JSON content type, attachment disposition, and no-store caching. The RPC URL, key, provider bodies, and stack traces were not exposed.
-- Current revision: The milestone commit containing this status update, with parent `1688b46` (`feat: add deterministic investigation plans and receipts`).
-- Next step: Do not add signing, EAS anchoring, authentication, notifications, monitoring, extra targets or events, wallet access, transactions, LLM integration, or Agent Router calls without approval.
-- Blockers: No repository implementation blocker. Rendered browser inspection was unavailable because this environment had no connected in-app or external browser. HTTP, asset syntax, view-model, API, and integration checks passed.
-- Decisions needed: None. The bounded investigation gate is approved.
+- Current milestone: Final replay-receipt release blockers complete locally.
+- Completed: Receipt IDs are recomputed from a stable canonical payload that excludes `receiptId`. Strict runtime refinements reject forged IDs, inconsistent check status, result, assertion, or failure combinations, contradictory required-check dispositions, and receipt fields that disagree with their containing evidence or investigation. Atomic replacement removes a prior receipt after both failed and partial rescans.
+- Tests run: `npm test` passed 11 files and 78 tests. `npm run typecheck` passed with no TypeScript errors. Two `npm run scan` attempts returned a safe failed result at chain verification with code `chain-id-rpc-dns`, zero alerts, and zero evidence. `npm audit --audit-level=moderate` could not reach the npm advisory endpoint because registry DNS resolution failed. Tracked-file secret checks and `git diff --check` passed.
+- Result: Receipt creation and validation use the same explicit canonicalization. Repeated fixture scans and reordered payload keys produce the same receipt ID. Every requested tampering and stale-receipt regression is covered.
+- Local revision: Runtime commit `be696bb` and regression commit `473cfe7`, followed by the documentation commit containing this status update.
+- Public revision: Tracked `origin/main` remains `7587cce1b439038b0354217bfd265a96f1b367e8`. The local branch is ahead and has not been pushed. Public reproducibility of the newer investigation, receipt UI, and integrity changes is not claimed.
+- Next step: Obtain explicit authorization before pushing the local commits. Do not add signing, EAS anchoring, authentication, notifications, monitoring, extra targets or events, wallet access, transactions, LLM integration, or Agent Router calls without approval.
+- Blockers: No local implementation blocker. Current live scan and audit verification are limited by external DNS resolution. Public release verification is also blocked until the unpublished commits are pushed by an authorized action.
+- Decisions needed: None. The bounded investigation gate remains approved.
 
 ## Setup and run instructions
 
@@ -31,3 +32,7 @@ The 2026-08-24 archive capability spike used the Alchemy Base Mainnet archive
 RPC configured through the ignored `BASE_RPC_URL`. Historical storage, code,
 `getPool()`, and optional `POOL_REVISION()` calls all passed for the approved
 fixture without exposing provider configuration.
+
+The 2026-08-24 receipt-integrity verification used the same ignored local
+configuration. No RPC URL, credential, provider body, or stack trace was added
+to tracked files or validation output.

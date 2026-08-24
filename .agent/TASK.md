@@ -46,6 +46,9 @@ For each candidate event, Watchtower must use read-only Base data to retrieve an
 - a concise explanation limited to facts supported by the collected evidence
 - direct explorer links to the transaction, block, and relevant addresses
 - an explicit error or incomplete-evidence state when required data cannot be retrieved
+- a replay receipt whose ID is independently recomputed from its canonical
+  payload and whose trigger, plan, checks, disposition, and explorer links agree
+  with the containing evidence and investigation records
 
 Explanations must distinguish observed facts from interpretation. The app must not invent identities, intent, causality, or risk claims that the evidence does not support.
 
@@ -117,11 +120,15 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The reviewed P0 and P1 fixes and remaining cleanup are complete at public HEAD
-`7587cce1b439038b0354217bfd265a96f1b367e8`. The public GitHub origin is
-available, an unauthenticated clone passed, `npm ci` passed from that clean
-checkout, and the technical re-review passed. Fixture incident classes use
-`contract_upgrade`. Scan requests return HTTP 415 for missing or unsupported
-content types, HTTP 400 for malformed JSON or invalid fields, and HTTP 413 for
-oversized bodies. There are no active blockers. Do not expand the target, event,
-storage, monitoring, frontend, or deployment scope without a new approved task.
+The final local release blockers are closed through runtime commit `be696bb`
+and regression commit `473cfe7`, followed by the handoff documentation commit
+that contains this update. Receipt IDs are validated against an explicit
+canonical payload, check and disposition invariants are enforced by runtime
+schemas, and receipt fields must agree with their containing evidence and
+investigation records. The local suite contains 11 test files and 78 tests.
+
+The public GitHub branch remains at
+`7587cce1b439038b0354217bfd265a96f1b367e8`, so the newer local milestones and
+release-integrity corrections are not yet publicly reproducible. A push
+requires separate authorization. Do not expand the target, event, storage,
+monitoring, frontend, or deployment scope without a new approved task.
