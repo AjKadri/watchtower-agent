@@ -1,22 +1,35 @@
 # Watchtower
 
-Watchtower is a read-only investigation tool for contract upgrades on Base. It
-turns a configured `Upgraded(address)` event into a bounded historical
-investigation, shows the evidence behind each conclusion, and issues a
-deterministic replay receipt.
+## The problem
 
-It is built for protocol security teams, incident responders, auditors, and
-researchers who need to verify what changed without trusting a generated
-narrative.
+An upgrade event says that a proxy changed implementation. It does not establish
+what state existed before the transaction, whether code existed at the decoded
+implementation, or whether the contract still matched protocol-specific
+identity values at that historical block.
 
-- [Reproducible demo](#run-the-demo)
+## Who Watchtower is for
+
+Watchtower serves protocol security teams, incident responders, auditors, and
+researchers who need a reproducible upgrade investigation instead of an
+unsupported narrative.
+
+## What Watchtower does
+
+Watchtower turns one configured `Upgraded(address)` event into a bounded,
+read-only historical investigation. It verifies the trigger evidence, selects a
+fixed deterministic plan, runs exact-block checks, derives a deterministic
+disposition, and issues a replayable receipt that the browser can verify
+independently.
+
+- [Public demo: reproducible local walkthrough](#run-the-demo)
 - [GitHub repository](https://github.com/AjKadri/watchtower-agent)
 - [Aave fixture transaction](https://basescan.org/tx/0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a)
 - [Compound fixture transaction](https://basescan.org/tx/0x5de36ea4daf596890b2f0f3696547bda11090d16c9eaf8f2d35bb4b4ca13f1f4)
 - [ether.fi fixture transaction](https://basescan.org/tx/0x8e5e5ea61db41bc1f403552c7303324c37d50406d40ef02e10a1b634f535dfe2)
 
-A hosted public demo is not published yet. The repository includes a complete
-local demo and three committed, verified investigation fixtures.
+A hosted URL is not published yet. The linked walkthrough runs the complete
+public demo locally and includes three committed, verified investigation
+fixtures.
 
 ## Supported profiles
 
@@ -33,18 +46,25 @@ server-selected profile.
 The committed fixtures contain only real evidence from these three upgrades.
 The active live-scan profile is ether.fi Base weETH OFT.
 
-## Demo flow
+## Six-stage investigation
 
-1. Open the investigation archive and select one of the three verified profiles.
-2. Replay its committed upgrade investigation without making an RPC request.
-3. Inspect the six-stage trace, expected and observed values, exact block tags,
-   RPC methods, assertion states, limitations, and BaseScan sources.
-4. Download the validated JSON receipt and verify its deterministic ID.
-5. With an archive-capable Base RPC configured, run the active ether.fi scan and
-   compare the live result with the committed fixture.
+1. Event observed. Verify the configured proxy, transaction, log, topic, and
+   decoded implementation.
+2. Plan selected. Choose exactly one versioned plan with a fixed capability and
+   read budget.
+3. Historical state checked. Read the EIP-1967 implementation slot at the
+   profile's exact N-1 and N block tags.
+4. Implementation checked. Confirm bytecode at the decoded implementation at N.
+5. Protocol identity checked. Execute only the profile's fixed historical calls.
+6. Receipt issued. Bind the trigger, plan, checks, limitations, links, and
+   disposition into canonical JSON.
 
-The interface labels every result as `Verified fixture` or `Live RPC result`.
-Failed, skipped, unsupported, and incomplete checks remain visible.
+The interface tells the full 60-second story: choose one of the three profiles,
+inspect its real historical event, follow plan selection and bounded checks,
+see the disposition resolve, open the receipt, then recompute its SHA-256 ID in
+the browser. Every investigation is explicitly labeled `Live RPC
+investigation`, `Verified fixture replay`, `Incomplete investigation`, or
+`Failed investigation`. A replay never appears as a live scan.
 
 ## What the evidence proves
 
@@ -65,13 +85,28 @@ Each receipt records:
 - direct explorer links
 
 The receipt ID is a SHA-256 hash of a canonical payload that excludes the ID
-itself. Validation recomputes that hash and checks consistency across the
-trigger, evidence, plan, checks, disposition, and links. Equivalent Ethereum
-address casing produces the same canonical receipt ID.
+itself. Server validation checks consistency across the trigger, evidence,
+plan, checks, disposition, and links. The receipt view independently
+reconstructs the canonical payload, normalizes Ethereum addresses, and
+recomputes the ID with browser Web Crypto. Equivalent address casing produces
+the same receipt ID.
 
 These receipts prove the recorded observations and deterministic assertions.
 They do not prove upgrade intent, governance legitimacy, implementation safety,
 remote cross-chain safety, or the security of related contracts.
+
+The final disposition, severity, assertions, and receipt hash are deterministic.
+No LLM participates in the verdict path.
+
+## Orion judging criteria
+
+| Criterion | Watchtower evidence |
+| --- | --- |
+| Usefulness | Gives security teams a bounded way to verify what changed during a supported Base upgrade. |
+| Execution | Combines archive RPC reads, runtime validation, deterministic planning, visible failures, and a focused investigation interface. |
+| Originality | Produces an evidence-bounded replay receipt instead of relying on a generated incident narrative. |
+| Verifiability | Ships real fixtures, exact block tags, BaseScan links, normalized assertions, and independent browser receipt hashing. |
+| Ecosystem fit | Demonstrates a read-only investigation agent for three verified Base protocol profiles with closed capabilities and deterministic outputs. |
 
 ## Architecture
 
@@ -98,7 +133,8 @@ Express API and in-memory store -> vanilla investigation workspace
   receipt invariants at runtime.
 - Express exposes the API and static interface.
 - Vanilla HTML, CSS, and JavaScript render the archive, investigation trace,
-  evidence details, failures, and receipt downloads.
+  evidence details, failures, receipt downloads, and browser-side receipt
+  verification.
 - Process memory is sufficient because the bounded scans and deterministic IDs
   reproduce the same records from Base. Committed fixtures provide the public
   archive.
@@ -237,7 +273,7 @@ compiled server through `npm start`, requests `GET /api/health`, and sends a
 graceful SIGTERM. It uses a non-routable placeholder RPC URL because the health
 route and fixture-backed tests do not require a live provider or secret.
 
-The current release-hardening suite contains 132 tests covering all three
+The current release-hardening suite contains 136 tests covering all three
 profiles, deterministic receipt integrity, API behavior, malformed RPC evidence,
 scan concurrency and deadline cleanup, frontend states, production configuration,
 runtime pinning, CI requirements, and failure handling.
