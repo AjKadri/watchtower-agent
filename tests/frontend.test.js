@@ -11,7 +11,7 @@ import {
   canRenderAlertDetail,
   fetchHealth,
   formatUtcTimestamp,
-  investigationSourceLabel,
+  investigationStateLabel,
   isStructuredScanResult,
   isMobileLayout,
   reconcileAlertSelection,
@@ -170,8 +170,11 @@ describe("dashboard view model", () => {
   });
 
   it("keeps fixture and live source labels explicit", () => {
-    expect(investigationSourceLabel("verified-fixture")).toBe("Verified fixture");
-    expect(investigationSourceLabel("live")).toBe("Live RPC result");
+    const complete = { scanStatus: "complete", evidence: { status: "complete", upgradeInvestigation: { evidenceStatus: "complete", disposition: "corroborated" } } };
+    expect(investigationStateLabel(complete, "verified-fixture")).toBe("Verified fixture replay");
+    expect(investigationStateLabel(complete, "live")).toBe("Live RPC investigation");
+    expect(investigationStateLabel({ ...complete, scanStatus: "partial" }, "live")).toBe("Incomplete investigation");
+    expect(investigationStateLabel({ scanStatus: "failed" }, "live")).toBe("Failed investigation");
   });
 
   it("ships valid deterministic fixture receipts and receipt links", () => {
@@ -201,6 +204,9 @@ describe("dashboard view model", () => {
     expect(html).toContain('id="archive-body"');
     expect(html).toContain('id="archive-empty"');
     expect(html).toContain('id="failure-panel"');
+    expect(html).toContain('aria-label="Sixty-second Watchtower demo flow"');
+    expect(html).toContain("Verify in browser");
+    expect(html).toContain('id="case-journey"');
     expect(css).toContain("@media (max-width: 720px)");
     expect(css).toContain(".archive-table td::before");
     expect(css).toContain(".investigation-shell { grid-template-columns: 1fr; }");

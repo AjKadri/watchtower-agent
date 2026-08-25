@@ -56,8 +56,16 @@ export function buildArchiveEntries(profiles) {
     }));
 }
 
-export function investigationSourceLabel(source) {
-  return source === "live" ? "Live RPC result" : "Verified fixture";
+export function investigationStateLabel(detail, source) {
+  if (detail?.scanStatus === "failed") return "Failed investigation";
+  const investigation = detail?.evidence?.upgradeInvestigation;
+  if (
+    detail?.scanStatus === "partial"
+    || detail?.evidence?.status === "incomplete"
+    || investigation?.evidenceStatus === "incomplete"
+    || investigation?.disposition === "incomplete"
+  ) return "Incomplete investigation";
+  return source === "live" ? "Live RPC investigation" : "Verified fixture replay";
 }
 
 export function isMobileLayout(viewportWidth) {

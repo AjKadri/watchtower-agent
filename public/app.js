@@ -8,7 +8,7 @@ import {
   buildProfileOptions,
   fetchHealth,
   formatUtcTimestamp,
-  investigationSourceLabel,
+  investigationStateLabel,
   isStructuredScanResult,
 } from "/view-model.js";
 
@@ -19,6 +19,7 @@ const elements = {
   caseChecks: document.querySelector("#case-checks"),
   caseDisposition: document.querySelector("#case-disposition"),
   caseEvent: document.querySelector("#case-event"),
+  caseJourney: document.querySelector("#case-journey"),
   casePlan: document.querySelector("#case-plan"),
   caseProfileId: document.querySelector("#case-profile-id"),
   caseProtocol: document.querySelector("#case-protocol"),
@@ -89,9 +90,17 @@ function renderFailures(failures = []) {
   }
 }
 
-function setSourceBadge(source) {
-  elements.sourceBadge.textContent = investigationSourceLabel(source);
-  elements.sourceBadge.className = `source-badge ${source === "live" ? "live" : "fixture"}`;
+function setSourceBadge(detail, source) {
+  const label = investigationStateLabel(detail, source);
+  const variant = label === "Live RPC investigation"
+    ? "live"
+    : label === "Verified fixture replay"
+      ? "fixture"
+      : label === "Failed investigation"
+        ? "failed"
+        : "incomplete";
+  elements.sourceBadge.textContent = label;
+  elements.sourceBadge.className = `source-badge ${variant}`;
 }
 
 function renderProfiles() {
@@ -164,10 +173,11 @@ function renderCaseSummary(detail, source) {
   elements.caseChecks.textContent = `${passed} of ${investigation.checks.length} passed`;
   elements.caseReceipt.textContent = receipt?.receiptId ?? "Not issued";
   elements.caseReceipt.title = receipt?.receiptId ?? "";
+  elements.caseJourney.textContent = `Event observed → ${investigation.disposition}`;
   elements.activeProfileNote.textContent = profile.id === state.activeProfileId
     ? "This is the server-active profile. A live bounded scan is available."
     : `Archive view only. Live scanning remains fixed to ${getArchiveProfile(state.activeProfileId).displayName}.`;
-  setSourceBadge(source);
+  setSourceBadge(detail, source);
 }
 
 function evidenceItem(row) {
@@ -407,7 +417,7 @@ async function runScan() {
     elements.scanStatus.textContent = error.message;
     elements.caseStatus.textContent = "failed";
     elements.caseDisposition.textContent = "not issued";
-    setSourceBadge("live");
+    setSourceBadge({ scanStatus: "failed" }, "live");
   } finally {
     elements.scanButton.disabled = state.selectedProfileId !== state.activeProfileId;
   }
@@ -422,10 +432,10 @@ function renderScanResult(result) {
     elements.caseDisposition.textContent = "not issued";
     elements.caseChecks.textContent = "0 passed";
     elements.caseReceipt.textContent = "Not issued";
-    setSourceBadge("live");
+    setSourceBadge({ scanStatus: result.status }, "live");
     return;
   }
-  const detail = { alert: result.alerts[0], evidence: result.evidence[0], scanFailures: result.failures, source: "live" };
+  const detail = { alert: result.alerts[0], evidence: result.evidence[0], scanFailures: result.failures, scanStatus: result.status, source: "live" };
   state.liveDetails.set(result.targetId, detail);
   renderDetail(detail, "live");
   elements.scanStatus.textContent = `Live scan ${result.status}. ${result.alerts.length} alert and ${result.failures.length} failures.`;
@@ -462,6 +472,7 @@ async function initialize() {
     renderProfiles();
     showEmptyInvestigation(`Dashboard initialization failed: ${error.message}`, "failed");
     elements.scanStatus.textContent = `Dashboard initialization failed: ${error.message}`;
+    setSourceBadge({ scanStatus: "failed" }, "live");
   }
 }
 

@@ -50,6 +50,15 @@
             <p class="kicker">Target registry</p>
             <h2 id="profiles-title">Choose a verified profile</h2>
           </div>
+          <ol class="demo-path" aria-label="Sixty-second Watchtower demo flow">
+            <li><span>01</span>Choose protocol</li>
+            <li><span>02</span>Observe upgrade</li>
+            <li><span>03</span>Select plan</li>
+            <li><span>04</span>Run fixed checks</li>
+            <li><span>05</span>Resolve disposition</li>
+            <li><span>06</span>Open receipt</li>
+            <li><span>07</span>Verify in browser</li>
+          </ol>
           <div id="profile-selector" class="profile-selector" role="list" aria-label="Configured target profiles"></div>
         </section>
 
@@ -60,7 +69,7 @@
               <h2 id="current-title">Evidence workspace</h2>
             </div>
             <div class="source-controls">
-              <span id="source-badge" class="source-badge fixture">Verified fixture</span>
+              <span id="source-badge" class="source-badge fixture">Verified fixture replay</span>
               <button id="scan-button" class="primary-action" type="button">Run active profile scan</button>
             </div>
           </div>
@@ -85,6 +94,7 @@
                 <div><dt>Plan</dt><dd id="case-plan">Loading</dd></div>
                 <div><dt>Status</dt><dd id="case-status">Loading</dd></div>
                 <div><dt>Disposition</dt><dd id="case-disposition">Loading</dd></div>
+                <div><dt>Progression</dt><dd id="case-journey">Event observed → loading</dd></div>
                 <div><dt>Checks</dt><dd id="case-checks">Loading</dd></div>
                 <div><dt>Receipt</dt><dd id="case-receipt">Loading</dd></div>
               </dl>
