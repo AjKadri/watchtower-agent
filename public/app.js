@@ -1,4 +1,5 @@
 import { archiveProfiles, getArchiveProfile } from "/archive-data.js";
+import { verifyReceipt } from "/receipt-verifier.js";
 import {
   buildArchiveEntries,
   buildEvidenceRows,
@@ -188,6 +189,31 @@ function downloadReceipt(receipt) {
   setTimeout(() => URL.revokeObjectURL(href), 0);
 }
 
+function receiptVerificationControl(receipt) {
+  const wrapper = node("div", "receipt-actions");
+  const result = node("p", "receipt-verification", "Verification has not been run in this browser.");
+  result.setAttribute("role", "status");
+  const button = node("button", "secondary-action", "Verify receipt");
+  button.type = "button";
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    result.className = "receipt-verification pending";
+    result.textContent = "Recomputing the canonical receipt ID in this browser.";
+    try {
+      const verification = await verifyReceipt(receipt);
+      result.className = `receipt-verification ${verification.verified ? "verified" : "failed"}`;
+      result.textContent = verification.verified ? "Receipt verified" : "Receipt verification failed";
+    } catch {
+      result.className = "receipt-verification failed";
+      result.textContent = "Receipt verification failed";
+    } finally {
+      button.disabled = false;
+    }
+  });
+  wrapper.append(button, result);
+  return wrapper;
+}
+
 function renderTrace(detail) {
   const section = node("section", "trace-section");
   const heading = node("div", "content-heading");
@@ -308,17 +334,19 @@ function renderDetail(detail, source) {
     const receiptBar = node("section", "receipt-bar");
     const copy = node("div");
     copy.append(node("p", "kicker", "Replay receipt"), node("h3", "", shortHash(receipt.receiptId)), node("p", "", "Validated JSON binds the trigger, plan, checks, limitations, and final disposition."));
+    const actions = receiptVerificationControl(receipt);
     if (source === "live") {
       const link = node("a", "primary-action", "Download receipt JSON");
       link.href = `/api/receipts/${encodeURIComponent(receipt.receiptId)}`;
       link.download = `watchtower-${receipt.receiptId}.json`;
-      receiptBar.append(copy, link);
+      actions.prepend(link);
     } else {
       const button = node("button", "primary-action", "Download receipt JSON");
       button.type = "button";
       button.addEventListener("click", () => downloadReceipt(receipt));
-      receiptBar.append(copy, button);
+      actions.prepend(button);
     }
+    receiptBar.append(copy, actions);
     elements.detail.append(receiptBar);
   }
   renderCaseSummary(detail, source);

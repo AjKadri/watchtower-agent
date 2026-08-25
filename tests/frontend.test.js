@@ -17,6 +17,7 @@ import {
   reconcileAlertSelection,
 } from "../public/view-model.js";
 import { archiveProfiles } from "../public/archive-data.js";
+import { createReceiptId, normalizeEvmAddress, verifyReceipt } from "../public/receipt-verifier.js";
 import { investigationReceiptSchema } from "../src/domain/schemas.js";
 import { getTargetProfile } from "../src/profiles/registry.js";
 
@@ -327,5 +328,43 @@ describe("dashboard view model", () => {
       expect.objectContaining({ id: "implementation-at-upgrade", status: "mismatch" }),
     ]));
     expect(trace[5].status).toBe("failed");
+  });
+});
+
+describe("browser receipt verification", () => {
+  it("verifies each committed receipt by recomputing its canonical SHA-256 ID", async () => {
+    for (const profile of archiveProfiles) {
+      await expect(verifyReceipt(profile.receipt)).resolves.toMatchObject({ verified: true });
+    }
+  });
+
+  it("rejects a forged receipt ID", async () => {
+    const forged = structuredClone(archiveProfiles[0].receipt);
+    forged.receiptId = `receipt_${"0".repeat(64)}`;
+
+    await expect(verifyReceipt(forged)).resolves.toMatchObject({ verified: false });
+  });
+
+  it("keeps canonical receipt IDs stable across Ethereum address casing", async () => {
+    const receipt = structuredClone(archiveProfiles[2].receipt);
+    const lowercaseAddresses = (value) => {
+      if (typeof value === "string" && /^0x[0-9a-fA-F]{40}$/.test(value)) return value.toLowerCase();
+      if (value === null || typeof value !== "object") return value;
+      if (Array.isArray(value)) return value.map(lowercaseAddresses);
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, lowercaseAddresses(item)]));
+    };
+    const lowercase = lowercaseAddresses(receipt);
+
+    expect(normalizeEvmAddress("0xde8a2c33655aca88f258988ed74d1511876343d1")).toBe("0xde8A2C33655ACA88f258988ED74D1511876343D1");
+    await expect(createReceiptId(lowercase)).resolves.toBe(receipt.receiptId);
+    await expect(verifyReceipt(lowercase)).resolves.toMatchObject({ verified: true });
+  });
+
+  it("renders a visible browser verification action and both outcomes", () => {
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+
+    expect(app).toContain('"Verify receipt"');
+    expect(app).toContain('"Receipt verified"');
+    expect(app).toContain('"Receipt verification failed"');
   });
 });
