@@ -1,0 +1,78 @@
+name: Release checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm audit --audit-level=moderate
+
+  production-smoke:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install production dependencies and build
+        run: |
+          npm ci --omit=dev
+          npm run build
+      - name: Start compiled server, check health, and shut down
+        env:
+          BASE_RPC_URL: https://example.invalid
+          PORT: "3000"
+        run: |
+          set -euo pipefail
+          npm start > /tmp/watchtower-start.log 2>&1 &
+          npm_pid=$!
+          cleanup() {
+            if kill -0 "$npm_pid" 2>/dev/null; then
+              kill -TERM "$npm_pid" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+
+          healthy=false
+          for _ in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/health > /tmp/watchtower-health.json; then
+              healthy=true
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$healthy" != "true" ]]; then
+            cat /tmp/watchtower-start.log
+            exit 1
+          fi
+          grep -q '"status":"ok"' /tmp/watchtower-health.json
+
+          node_pid="$(ps -eo pid=,args= | awk '/[n]ode .*dist\/server\/main\.js/ { print $1; exit }')"
+          test -n "$node_pid"
+          kill -TERM "$node_pid"
+          wait "$npm_pid"
+          trap - EXIT
+
+          if kill -0 "$node_pid" 2>/dev/null; then
+            echo "Compiled Watchtower process did not shut down."
+            exit 1
+          fi
