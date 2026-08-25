@@ -56,6 +56,19 @@ only its committed evidence in the browser. `Run active profile scan` is enabled
 only for the server-selected ether.fi profile and requests the existing
 approved one-block RPC scan.
 
+Build and run the production artifact:
+
+```sh
+npm run build
+npm start
+```
+
+`npm run build` compiles `src/` to the ignored `dist/` directory. `npm start`
+runs `dist/server/main.js` with plain Node.js and does not load `tsx`. TypeScript
+and its declaration packages are production build dependencies so the exact
+clean-checkout sequence below also works after omitting development packages.
+`tsx` and Vitest remain development-only.
+
 ## Opt-in live demo scan
 
 The selected ether.fi profile requires an archive-capable Base RPC because all
@@ -446,10 +459,22 @@ Use these commands for a clean checkout and current verification:
 npm ci
 npm test
 npm run typecheck
+npm run build
 npm run scan
 npm audit --audit-level=moderate
 npm run dev
 ```
+
+For a production-only checkout, use:
+
+```sh
+npm ci --omit=dev
+npm run build
+npm start
+```
+
+After startup, request `GET /api/health`. Send `SIGTERM` or `SIGINT` for a
+graceful shutdown after in-flight HTTP requests have closed.
 
 The 2026-08-24 address-regression verification reported 13 test files and 87
 tests passed, TypeScript reported no errors, and npm audit reported zero
@@ -480,6 +505,14 @@ three-profile archive asset. A browser session was unavailable in this
 environment, so rendered screenshot inspection remains an explicit validation
 limitation rather than a claimed pass.
 
-The tracked public branch is `origin/main` at
-`1daef0f2508e95504111106d2483cc54735878d0`. The ether.fi profile and this
-frontend milestone remain local and unpushed. Public parity is not claimed.
+The 2026-08-25 release-hardening verification reported 15 test files and 128
+tests passed. Typecheck, compiled build, diff checks, and tracked secret checks
+passed. npm audit reported zero vulnerabilities. A clean candidate checkout
+passed `npm ci --omit=dev` and `npm run build`, then `npm start` served a healthy
+ether.fi response. The compiled entrypoint handled SIGTERM with exit status 0.
+
+The tracked public branch was `origin/main` at
+`db7d9995d1b625bff9744402f5414ada80ce9512` before this batch. The three
+release-hardening commits remain local until explicitly pushed and verified
+from an unauthenticated public clone. Public parity for this batch is not
+claimed.

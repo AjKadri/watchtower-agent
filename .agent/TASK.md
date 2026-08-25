@@ -125,11 +125,13 @@ Before considering the MVP complete:
 
 ## Current next step
 
-The multi-profile investigation frontend is implemented over the three
-committed verified fixtures. Its selector is a local archive filter only. The
-server-selected ether.fi profile remains the sole live scan target, while Aave
-and Compound are available as fixture replays with their validated receipt
-JSON, exact checks, limitations, and explorer sources.
+The first release-hardening batch is implemented. Scan HTTP outcomes now use
+201 for complete, 200 for partial, 502 or 503 for upstream failure, and the
+existing 400, 415, or 413 request statuses. ChainReader evidence responses are
+runtime-validated and malformed candidate evidence is isolated. Production
+startup uses compiled JavaScript in `dist/`. The documented production-only
+clean-checkout install, build, health request, and graceful shutdown smoke test
+passed on 2026-08-25.
 
 The interface exposes no arbitrary target, call, address, plan, RPC URL, event,
 or block input. Future work must preserve that boundary. Do not add dynamic ABI

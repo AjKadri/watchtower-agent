@@ -179,6 +179,18 @@ Reason: TypeScript interfaces do not validate provider data at runtime, and one
 bad response object must not turn independent verified candidates into a silent
 gap.
 
+## 2026-08-25: Run production from compiled JavaScript
+
+`npm run build` compiles `src/` into the ignored `dist/` directory through
+`tsconfig.build.json`. `npm start` runs `dist/server/main.js` with plain Node.js.
+`tsx` remains development-only. TypeScript and the Node and Express declaration
+packages are production build dependencies because the required clean-checkout
+sequence runs the build after `npm ci --omit=dev`.
+
+Reason: Production startup must not depend on a TypeScript execution loader,
+and the documented production-only install must be able to create its own
+artifact from tracked source.
+
 ## 2026-08-22: Keep alerts in memory for the MVP
 
 Status: Accepted

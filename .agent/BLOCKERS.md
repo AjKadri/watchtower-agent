@@ -23,10 +23,10 @@ Decision needed: None for milestone 1.
 Status: Active
 
 Tracked `origin/main` remains at
-`1daef0f2508e95504111106d2483cc54735878d0`. Local `main` includes the ether.fi
-profile commit and the multi-profile frontend commit created by this task.
-Public reproducibility of those milestones cannot be claimed before they are
-pushed and checked from a clean public clone.
+`db7d9995d1b625bff9744402f5414ada80ce9512`. Local `main` includes the three
+release-hardening commits from this task. Public reproducibility of this batch
+cannot be claimed before those commits are pushed and checked from an
+unauthenticated clean public clone.
 
 Decision needed: Explicit authorization to push. No push was requested, so no
 remote state was changed.
@@ -44,6 +44,17 @@ Decision needed: None for implementation. Repeat rendered desktop and mobile
 inspection when a browser session is available.
 
 ## Resolved blockers
+
+### 2026-08-25: Compiled production install and startup verified
+
+Status: Resolved
+
+A clean candidate checkout passed `npm ci --omit=dev` and `npm run build`.
+`npm start` served the sanitized health response from compiled JavaScript, and
+the compiled entrypoint handled SIGTERM with exit status 0. Production startup
+does not load `tsx`.
+
+Decision needed: None.
 
 ### 2026-08-24: Configured Alchemy archive access verified
 

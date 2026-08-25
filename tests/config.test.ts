@@ -12,7 +12,23 @@ import { readJson } from "./helpers.js";
 
 const config = getTargetProfile("aave-v3-base-core");
 
+type PackageManifest = {
+  scripts: Record<string, string>;
+  dependencies: Record<string, string>;
+  devDependencies: Record<string, string>;
+};
+
 describe("closed target profile registry", () => {
+  it("defines a compiled production artifact without tsx at startup", () => {
+    const manifest = readJson<PackageManifest>("../package.json", import.meta.url);
+
+    expect(manifest.scripts.build).toBe("tsc -p tsconfig.build.json");
+    expect(manifest.scripts.start).toBe("node --env-file-if-exists=.env dist/server/main.js");
+    expect(manifest.scripts.start).not.toContain("tsx");
+    expect(manifest.dependencies.typescript).toBeDefined();
+    expect(manifest.devDependencies.tsx).toBeDefined();
+  });
+
   it("keeps the fixture-backed Aave profile unchanged", () => {
     expect(config.network).toMatchObject({ name: "base-mainnet", chainId: 8453 });
     expect(config.scan).toMatchObject({

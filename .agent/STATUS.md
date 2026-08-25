@@ -2,14 +2,14 @@
 
 Last updated: 2026-08-25
 
-- Current milestone: Release hardening batches REV-1 and REV-3 complete, REV-5 pending.
-- Completed: In addition to the scan HTTP contract, strict runtime validation now covers block, transaction, receipt, and nested receipt-log responses. Candidate evidence construction is isolated, safe malformed-response failures identify the affected candidate, and valid sibling candidates continue.
-- Tests run: `npm test` passed 15 files and 127 tests. `npm run typecheck` and `git diff --check` passed.
-- Result: Invalid transaction addresses, missing receipt fields, malformed block identity, malformed receipt logs, receipt construction failure, and valid-sibling continuation are covered without exposing injected provider data.
-- Current commit: This status update is included in `fix: contain malformed RPC evidence`.
+- Current milestone: Release hardening batches REV-1, REV-3, and REV-5 complete.
+- Completed: Scan HTTP outcomes are explicit, ChainReader evidence responses are runtime-validated with per-candidate containment, and production runs compiled JavaScript from `dist/` without `tsx`.
+- Tests run: `npm test` passed 15 files and 128 tests. `npm run typecheck`, `npm run build`, `npm audit --audit-level=moderate`, `git diff --check`, and the tracked secret scan passed. Audit reported 0 vulnerabilities.
+- Result: A clean candidate checkout passed `npm ci --omit=dev`, installing 94 packages and auditing 95 with 0 vulnerabilities. `npm run build` succeeded. `npm start` served `GET /api/health` with `status: ok`, network `base-mainnet`, and target `etherfi-base-weeth-oft`. The compiled entrypoint handled SIGTERM and exited with status 0.
+- Current commit: This status update is included in `build: add production Watchtower artifact`.
 - Public revision: Local HEAD and tracked `origin/main` were aligned at `db7d9995d1b625bff9744402f5414ada80ce9512` before this release-hardening batch. New hardening commits remain local until explicitly pushed.
-- Next step: Implement REV-5 compiled production startup and run the complete release validation matrix.
-- Blockers: No browser session was available for rendered inspection. The machine's default resolver may still return `ENOTFOUND` for plain Alchemy scans, while the previously verified DNS-only path reaches the unchanged provider.
+- Next step: Push only with explicit authorization, verify the resulting public HEAD from an unauthenticated clean clone, and repeat rendered desktop and mobile inspection when a browser session is available.
+- Blockers: The three release-hardening commits are local and not yet public. No browser session was available for rendered inspection.
 - Decisions needed: None. The bounded investigation gate remains approved.
 
 ## Setup and run instructions
