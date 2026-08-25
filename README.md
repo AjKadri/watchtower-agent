@@ -107,12 +107,13 @@ Express API and in-memory store -> vanilla investigation workspace
 
 Requirements:
 
-- Node.js 24 or newer
-- npm
+- Node.js 24.x
+- npm 11.x
 
 ```sh
 git clone https://github.com/AjKadri/watchtower-agent.git
 cd watchtower-agent
+nvm use
 npm ci
 cp .env.example .env
 npm test
@@ -142,7 +143,9 @@ npm start
 ```
 
 `npm start` runs `dist/server/main.js` with plain Node.js. Production startup
-does not load `tsx`.
+does not load `tsx`. `.nvmrc`, `packageManager`, and package engine metadata pin
+the supported toolchain. The install preflight exits with a clear message on an
+unsupported Node major version.
 
 ## API
 
@@ -171,6 +174,7 @@ Scan response semantics:
 - HTTP 200 with the structured result for a partial scan
 - HTTP 502 for malformed upstream data or a wrong-chain RPC
 - HTTP 503 for other upstream availability failures
+- HTTP 429 when another scan is already active in the process
 - HTTP 415 for missing or unsupported content type
 - HTTP 400 for malformed JSON, invalid fields, or invalid approved bounds
 - HTTP 413 for request bodies larger than 16 KB
@@ -178,6 +182,13 @@ Scan response semantics:
 Structured scan results and safe failures remain available in non-2xx scan
 responses. Provider URLs, credentials, response bodies, and stack traces are
 never included.
+
+The public API permits one active scan per process and applies a fixed 30-second
+total deadline. A deadline returns a structured `scan-deadline-timeout` failure
+with HTTP 503. That failed attempt atomically replaces artifacts with the same
+scan ID, and late completion has no path back into the store. The next request
+may start normally after the deadline. Existing bounded viem request timeouts
+and retries remain unchanged.
 
 ## Failure handling
 
@@ -220,9 +231,16 @@ npm run build
 npm audit --audit-level=moderate
 ```
 
-The current release-hardening suite contains 128 tests covering all three
+GitHub Actions runs the same checks on Node 24 for pushes and pull requests. A
+separate production job runs `npm ci --omit=dev`, rebuilds `dist/`, starts the
+compiled server through `npm start`, requests `GET /api/health`, and sends a
+graceful SIGTERM. It uses a non-routable placeholder RPC URL because the health
+route and fixture-backed tests do not require a live provider or secret.
+
+The current release-hardening suite contains 132 tests covering all three
 profiles, deterministic receipt integrity, API behavior, malformed RPC evidence,
-frontend states, production configuration, and failure handling.
+scan concurrency and deadline cleanup, frontend states, production configuration,
+runtime pinning, CI requirements, and failure handling.
 
 Fixture provenance and detailed verified values are available in:
 
