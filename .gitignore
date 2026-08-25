@@ -4,6 +4,20 @@
 !.env.example
 .agent/private/
 
+# Local agent collaboration and review artifacts
+AGENTS.md
+.agent/
+docs/notion/
+CODE_REVIEW.md
+.local-audit/
+.local-review/
+docs/audit/
+docs/review/
+AUDIT*.md
+*_AUDIT.md
+REVIEW*.md
+*_REVIEW.md
+
 # Logs and local runtime output
 *.log
 logs/
