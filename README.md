@@ -131,6 +131,13 @@ values. Missing or unsupported `Content-Type` values return HTTP 415. Malformed
 JSON or invalid JSON fields return HTTP 400. Bodies larger than 16 KB return
 HTTP 413. These errors use safe JSON codes and do not start an RPC scan.
 
+Complete scans return HTTP 201. Partial scans return HTTP 200 with the
+structured partial result. Failed scans return their structured scan body with
+HTTP 502 when the upstream response is malformed or from the wrong chain, and
+HTTP 503 for unavailable, DNS, timeout, rate-limit, unsupported-history, or
+confirmation failures. A non-2xx scan response still contains the deterministic
+scan ID, status, artifacts retained by that attempt, and safe failure records.
+
 Scans, alerts, and evidence exist only in process memory and are cleared when
 the server restarts. Repeating the scan recreates the same deterministic IDs.
 

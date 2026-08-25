@@ -153,6 +153,19 @@ Failed chunks, malformed supported logs, missing blocks or receipts, and incompl
 
 Reason: Silent gaps would undermine the evidence claim and could make an incomplete scan look authoritative.
 
+## 2026-08-25: Map scan outcomes to explicit HTTP semantics
+
+`POST /api/scans` returns HTTP 201 for a complete scan and HTTP 200 for a
+partial scan. It returns HTTP 502 for failed scans caused by malformed upstream
+data or the wrong chain, and HTTP 503 for other upstream availability failures.
+Request content, JSON, size, and approved-bound errors retain their existing
+400, 415, or 413 status. Every scan outcome returns the structured scan result
+body, including safe failures, even when its HTTP status is non-2xx.
+
+Reason: HTTP status should distinguish successful creation, usable partial
+evidence, invalid requests, and upstream failure without hiding the scan record
+that explains the outcome.
+
 ## 2026-08-22: Keep alerts in memory for the MVP
 
 Status: Accepted

@@ -2,13 +2,13 @@
 
 Last updated: 2026-08-25
 
-- Current milestone: Multi-profile investigation archive frontend implemented.
-- Completed: Added a read-only selector for the three closed profiles, current investigation summary, committed-fixture archive, six-stage method, exact assertion ledger, source links, strict fixture receipt downloads, explicit live-versus-fixture labels, visible empty and failed states, and responsive table and evidence layouts. The browser cannot submit a profile, address, call, event, plan, block, or RPC URL. The API and scanner behavior remain unchanged.
-- Tests run: `npm test` passed 15 files and 118 tests. `npm run typecheck` passed with no TypeScript errors. `npm audit --audit-level=moderate` found 0 vulnerabilities. All three archive receipts passed the runtime receipt schema and canonical hash validation. Local HTTP checks passed for `/api/health`, `/api/config`, `/`, and `/archive-data.js`. JavaScript parsing passed for `app.js`, `archive-data.js`, and `view-model.js`.
-- Result: The frontend can replay exactly three real committed fixture investigations and can run a live scan only for the server-active ether.fi profile. Automated tests cover selector contents, archive entries, source labels, receipt links, empty state, failed investigations, stale detail behavior, and the mobile layout boundary.
-- Current commit: This status update is included in `feat: add multi-profile investigation archive`.
-- Public revision: Local HEAD before this task was `c98f0610794efab7b7e782319a3f3adc7ebb329e`. Tracked `origin/main` remains `1daef0f2508e95504111106d2483cc54735878d0`. The ether.fi and frontend commits remain local and unpushed.
-- Next step: Run rendered desktop and mobile inspection when an in-app or connected browser session is available, then push only with explicit authorization and verify a clean public clone before claiming public parity.
+- Current milestone: Release hardening batch REV-1 complete, REV-3 and REV-5 pending.
+- Completed: Scan HTTP semantics now return 201 for complete, 200 for partial, 502 for malformed or wrong-chain upstream failures, 503 for other upstream failures, and the existing 400, 415, or 413 request errors. The frontend preserves and renders structured failed scan bodies from non-2xx responses.
+- Tests run: Focused API and frontend validation passed 2 files and 25 tests. `npm run typecheck`, `node --check public/app.js`, and `git diff --check` passed.
+- Result: Complete, partial, 502, 503, and invalid-request response paths preserve their documented semantics. The browser recognizes a structured scan response in a non-2xx body and displays its safe failures.
+- Current commit: This status update is included in `fix: align scan HTTP status semantics`.
+- Public revision: Local HEAD and tracked `origin/main` were aligned at `db7d9995d1b625bff9744402f5414ada80ce9512` before this release-hardening batch. New hardening commits remain local until explicitly pushed.
+- Next step: Implement REV-3 malformed RPC evidence containment, then REV-5 compiled production startup.
 - Blockers: No browser session was available for rendered inspection. The machine's default resolver may still return `ENOTFOUND` for plain Alchemy scans, while the previously verified DNS-only path reaches the unchanged provider.
 - Decisions needed: None. The bounded investigation gate remains approved.
 

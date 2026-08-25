@@ -8,6 +8,7 @@ import {
   fetchHealth,
   formatUtcTimestamp,
   investigationSourceLabel,
+  isStructuredScanResult,
 } from "/view-model.js";
 
 const elements = {
@@ -366,22 +367,12 @@ async function runScan() {
       headers: { "content-type": "application/json" },
       body: "{}",
     });
-    renderFailures(result.failures);
-    if (result.alerts.length === 0 || result.evidence.length === 0) {
-      elements.scanStatus.textContent = `Scan ${result.status}. No complete alert is available. ${result.failures.length} failure records.`;
-      showEmptyInvestigation("The live scan returned no investigation evidence.", result.status === "failed" ? "failed" : "incomplete");
-      elements.caseStatus.textContent = result.status;
-      elements.caseDisposition.textContent = "not issued";
-      elements.caseChecks.textContent = "0 passed";
-      elements.caseReceipt.textContent = "Not issued";
-      setSourceBadge("live");
+    renderScanResult(result);
+  } catch (error) {
+    if (isStructuredScanResult(error.payload)) {
+      renderScanResult(error.payload);
       return;
     }
-    const detail = { alert: result.alerts[0], evidence: result.evidence[0], scanFailures: result.failures, source: "live" };
-    state.liveDetails.set(result.targetId, detail);
-    renderDetail(detail, "live");
-    elements.scanStatus.textContent = `Live scan ${result.status}. ${result.alerts.length} alert and ${result.failures.length} failures.`;
-  } catch (error) {
     const failures = error.payload?.failures ?? [{ code: "request-failed", message: error.message }];
     renderFailures(failures);
     showEmptyInvestigation(error.message, "failed");
@@ -392,6 +383,24 @@ async function runScan() {
   } finally {
     elements.scanButton.disabled = state.selectedProfileId !== state.activeProfileId;
   }
+}
+
+function renderScanResult(result) {
+  renderFailures(result.failures);
+  if (result.alerts.length === 0 || result.evidence.length === 0) {
+    elements.scanStatus.textContent = `Scan ${result.status}. No complete alert is available. ${result.failures.length} failure records.`;
+    showEmptyInvestigation("The live scan returned no investigation evidence.", result.status === "failed" ? "failed" : "incomplete");
+    elements.caseStatus.textContent = result.status;
+    elements.caseDisposition.textContent = "not issued";
+    elements.caseChecks.textContent = "0 passed";
+    elements.caseReceipt.textContent = "Not issued";
+    setSourceBadge("live");
+    return;
+  }
+  const detail = { alert: result.alerts[0], evidence: result.evidence[0], scanFailures: result.failures, source: "live" };
+  state.liveDetails.set(result.targetId, detail);
+  renderDetail(detail, "live");
+  elements.scanStatus.textContent = `Live scan ${result.status}. ${result.alerts.length} alert and ${result.failures.length} failures.`;
 }
 
 async function updateHealth() {

@@ -2,6 +2,18 @@ export async function fetchHealth(request) {
   return request("/api/health");
 }
 
+export function isStructuredScanResult(value) {
+  return Boolean(
+    value
+    && typeof value === "object"
+    && typeof value.scanId === "string"
+    && ["complete", "partial", "failed"].includes(value.status)
+    && Array.isArray(value.alerts)
+    && Array.isArray(value.evidence)
+    && Array.isArray(value.failures),
+  );
+}
+
 export function formatUtcTimestamp(value) {
   if (!value) return "Time unavailable";
   const timestamp = new Date(value);

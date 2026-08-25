@@ -12,12 +12,26 @@ import {
   fetchHealth,
   formatUtcTimestamp,
   investigationSourceLabel,
+  isStructuredScanResult,
   isMobileLayout,
   reconcileAlertSelection,
 } from "../public/view-model.js";
 import { archiveProfiles } from "../public/archive-data.js";
 import { investigationReceiptSchema } from "../src/domain/schemas.js";
 import { getTargetProfile } from "../src/profiles/registry.js";
+
+describe("structured scan response handling", () => {
+  it("recognizes a failed scan body returned with a non-2xx status", () => {
+    expect(isStructuredScanResult({
+      scanId: `scan_${"0".repeat(64)}`,
+      status: "failed",
+      alerts: [],
+      evidence: [],
+      failures: [{ code: "chain-id-rpc-timeout" }],
+    })).toBe(true);
+    expect(isStructuredScanResult({ error: { code: "invalid-json" } })).toBe(false);
+  });
+});
 
 const plan = {
   id: "corroborate-approved-upgrade",

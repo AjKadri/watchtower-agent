@@ -47,10 +47,11 @@ const log: ChainLog = {
 
 class ApiFixtureReader implements ChainReader {
   filters: LogFilter[] = [];
+  chainId = 8453;
   failLogs = false;
   failBlock = false;
 
-  async getChainId(): Promise<number> { return 8453; }
+  async getChainId(): Promise<number> { return this.chainId; }
   async getLatestBlockNumber(): Promise<bigint> { return 50_000_000n; }
   async getLogs(filter: LogFilter) {
     this.filters.push(filter);
@@ -224,7 +225,7 @@ describe("Watchtower API", () => {
       body: "{}",
     });
     const result = await failed.json();
-    expect(failed.status).toBe(201);
+    expect(failed.status).toBe(503);
     expect(result).toMatchObject({
       status: "failed",
       alerts: [],
@@ -274,6 +275,48 @@ describe("Watchtower API", () => {
     expect(tooLarge.status).toBe(413);
     expect(await tooLarge.json()).toMatchObject({ error: { code: "request-body-too-large" } });
     expect(reader.filters).toHaveLength(0);
+  });
+
+  it("returns HTTP 200 for a structured partial scan", async () => {
+    const reader = new ApiFixtureReader();
+    reader.failBlock = true;
+    const baseUrl = await serve(reader);
+
+    const response = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const result = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(result).toMatchObject({
+      status: "partial",
+      alerts: [{ evidenceStatus: "incomplete" }],
+      evidence: [{ status: "incomplete" }],
+      failures: expect.arrayContaining([expect.objectContaining({ code: "block-evidence-unavailable" })]),
+    });
+  });
+
+  it("returns HTTP 502 with the structured result for a wrong-chain RPC", async () => {
+    const reader = new ApiFixtureReader();
+    reader.chainId = 1;
+    const baseUrl = await serve(reader);
+
+    const response = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const result = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(result).toMatchObject({
+      status: "failed",
+      alerts: [],
+      evidence: [],
+      failures: [{ code: "rpc-chain-id-mismatch", category: "wrong-chain" }],
+    });
   });
 
   it("atomically replaces a successful scan with a failed rescan", async () => {

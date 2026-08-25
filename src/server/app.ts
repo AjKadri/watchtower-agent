@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import type { ChainReader } from "../chain/types.js";
 import type { TargetConfig } from "../config/schema.js";
-import { investigationReceiptSchema } from "../domain/schemas.js";
+import { investigationReceiptSchema, type ScanResult } from "../domain/schemas.js";
 import { scanApprovedRange } from "../pipeline/scanner.js";
 import { ScanStore } from "./store.js";
 
@@ -54,6 +54,22 @@ function publicConfiguration(config: TargetConfig) {
   };
 }
 
+const invalidScanRequestCodes = new Set([
+  "invalid-range",
+  "range-outside-approved-bounds",
+  "range-too-large",
+]);
+
+export function scanHttpStatus(result: ScanResult): 200 | 201 | 400 | 502 | 503 {
+  if (result.status === "complete") return 201;
+  if (result.status === "partial") return 200;
+  if (result.failures.some(({ code }) => invalidScanRequestCodes.has(code))) return 400;
+  if (result.failures.some(({ category }) => category === "malformed-response" || category === "wrong-chain")) {
+    return 502;
+  }
+  return 503;
+}
+
 export function createApp(dependencies: AppDependencies): Express {
   const app = express();
   const store = dependencies.store ?? new ScanStore();
@@ -100,8 +116,7 @@ export function createApp(dependencies: AppDependencies): Express {
         ...(parsed.data.toBlock && { toBlock: BigInt(parsed.data.toBlock) }),
       });
       store.save(result);
-      const invalidRange = result.failures.some(({ stage }) => stage === "validation");
-      response.status(invalidRange ? 400 : 201).json(result);
+      response.status(scanHttpStatus(result)).json(result);
     } catch (error) {
       next(error);
     }
