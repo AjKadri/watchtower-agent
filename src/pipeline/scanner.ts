@@ -3,6 +3,7 @@ import type { TargetConfig } from "../config/schema.js";
 import type { Alert, Evidence, ScanFailure, ScanResult } from "../domain/schemas.js";
 import { scanResultSchema } from "../domain/schemas.js";
 import { RpcReadError, type RpcFailureCategory } from "../chain/errors.js";
+import { validateChainBlock, validateChainLogBatch, validateChainReceipt, validateChainTransaction } from "../chain/validation.js";
 import { decodeUpgradeLog, upgradedEventType } from "../events/upgrade.js";
 import { normalizeEvmAddress, sameEvmAddress } from "../evm/address.js";
 import { explainEvidence } from "../investigation/explain.js";
@@ -116,9 +117,9 @@ async function buildEvidence(
   const scanFailures: ScanFailure[] = [];
 
   const [blockResult, transactionResult, receiptResult] = await Promise.allSettled([
-    cached(caches.blocks, log.blockHash, () => reader.getBlock(log.blockHash)),
-    cached(caches.transactions, log.transactionHash, () => reader.getTransaction(log.transactionHash)),
-    cached(caches.receipts, log.transactionHash, () => reader.getTransactionReceipt(log.transactionHash)),
+    cached(caches.blocks, log.blockHash, async () => validateChainBlock(await reader.getBlock(log.blockHash))),
+    cached(caches.transactions, log.transactionHash, async () => validateChainTransaction(await reader.getTransaction(log.transactionHash))),
+    cached(caches.receipts, log.transactionHash, async () => validateChainReceipt(await reader.getTransactionReceipt(log.transactionHash))),
   ]);
 
   const addEvidenceError = (code: string, message: string, category: ScanFailure["category"] = "incomplete-evidence") => {
@@ -344,7 +345,7 @@ export async function scanApprovedRange(
   for (let chunkStart = fromBlock; chunkStart <= toBlock; chunkStart += chunkSize) {
     const chunkEnd = chunkStart + chunkSize - 1n > toBlock ? toBlock : chunkStart + chunkSize - 1n;
     try {
-      const batch = await reader.getLogs({ address, topic0: detector.topic0, fromBlock: chunkStart, toBlock: chunkEnd });
+      const batch = validateChainLogBatch(await reader.getLogs({ address, topic0: detector.topic0, fromBlock: chunkStart, toBlock: chunkEnd }));
       successfulChunks += 1;
       for (const malformed of batch.malformed) {
         failures.push({ ...malformed, stage: "rpc", category: "malformed-response" });
@@ -386,11 +387,23 @@ export async function scanApprovedRange(
     if (seenAlertIds.has(alertId)) continue;
     seenAlertIds.add(alertId);
 
-    const built = await buildEvidence(reader, config, log, implementation, caches);
-    built.alert.scanId = scanId;
-    alerts.push(built.alert);
-    evidence.push(built.evidence);
-    failures.push(...built.failures);
+    try {
+      const built = await buildEvidence(reader, config, log, implementation, caches);
+      built.alert.scanId = scanId;
+      alerts.push(built.alert);
+      evidence.push(built.evidence);
+      failures.push(...built.failures);
+    } catch {
+      failures.push({
+        ...failure(
+          "candidate-evidence-construction-failed",
+          "evidence",
+          "Evidence construction failed safely for this candidate. Independent candidates were preserved.",
+          log,
+        ),
+        category: "malformed-response",
+      });
+    }
   }
 
   if (successfulChunks > 0) {

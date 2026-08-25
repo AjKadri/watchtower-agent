@@ -166,6 +166,19 @@ Reason: HTTP status should distinguish successful creation, usable partial
 evidence, invalid requests, and upstream failure without hiding the scan record
 that explains the outcome.
 
+## 2026-08-25: Validate RPC evidence at the ChainReader boundary
+
+Block, transaction, receipt, and receipt-log objects pass strict runtime schemas
+before evidence construction. Malformed objects are categorized as
+`malformed-response`. Evidence reads and construction are isolated per candidate,
+so a malformed candidate cannot discard a valid sibling. Public failures may
+identify a safe block number, transaction hash, and log index, but they never
+include provider URLs, response bodies, credentials, or stack traces.
+
+Reason: TypeScript interfaces do not validate provider data at runtime, and one
+bad response object must not turn independent verified candidates into a silent
+gap.
+
 ## 2026-08-22: Keep alerts in memory for the MVP
 
 Status: Accepted

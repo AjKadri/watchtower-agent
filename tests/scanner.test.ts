@@ -103,7 +103,7 @@ class FixtureReader implements ChainReader {
     };
   }
 
-  async getTransaction(): Promise<ChainTransaction> {
+  async getTransaction(_transactionHash: `0x${string}`): Promise<ChainTransaction> {
     this.evidenceCalls.transaction += 1;
     return {
       hash: fixtureTransaction.hash,
@@ -112,7 +112,7 @@ class FixtureReader implements ChainReader {
     };
   }
 
-  async getTransactionReceipt(): Promise<ChainReceipt> {
+  async getTransactionReceipt(_transactionHash: `0x${string}`): Promise<ChainReceipt> {
     this.evidenceCalls.receipt += 1;
     return { transactionHash: fixtureReceipt.transactionHash, status: fixtureReceipt.status, logs: this.receiptLogs };
   }
@@ -250,7 +250,7 @@ describe("bounded evidence scan", () => {
 
   it("surfaces strict decoding failures", async () => {
     const reader = new FixtureReader();
-    reader.logs = [{ ...fixtureLog, topics: [fixtureLog.topics[0], "0x1234"] }];
+    reader.logs = [{ ...fixtureLog, topics: [fixtureLog.topics[0]] }];
     const result = await scanApprovedRange(reader, config);
 
     expect(result.status).toBe("partial");
@@ -273,6 +273,144 @@ describe("bounded evidence scan", () => {
     expect(result.failures).toContainEqual(expect.objectContaining({
       code: "malformed-rpc-log",
       category: "malformed-response",
+    }));
+  });
+
+  it("contains an invalid transaction address as incomplete candidate evidence", async () => {
+    class InvalidTransactionReader extends FixtureReader {
+      override async getTransaction(): Promise<ChainTransaction> {
+        return { hash: fixtureTransaction.hash, from: "not-an-address", to: fixtureTransaction.to } as unknown as ChainTransaction;
+      }
+    }
+
+    const result = await scanApprovedRange(new InvalidTransactionReader(), config);
+
+    expect(result.status).toBe("partial");
+    expect(result.alerts).toHaveLength(1);
+    expect(result.evidence[0]).toMatchObject({
+      status: "incomplete",
+      transaction: { sender: null, recipient: null },
+      errors: [expect.objectContaining({ code: "transaction-evidence-malformed-response" })],
+    });
+    expect(JSON.stringify(result)).not.toContain("not-an-address");
+  });
+
+  it("contains a receipt with missing fields as incomplete candidate evidence", async () => {
+    class MissingReceiptFieldReader extends FixtureReader {
+      override async getTransactionReceipt(): Promise<ChainReceipt> {
+        return { transactionHash: fixtureReceipt.transactionHash, logs: [fixtureLog] } as ChainReceipt;
+      }
+    }
+
+    const result = await scanApprovedRange(new MissingReceiptFieldReader(), config);
+
+    expect(result.status).toBe("partial");
+    expect(result.alerts).toHaveLength(1);
+    expect(result.evidence[0]).toMatchObject({
+      status: "incomplete",
+      transaction: { receiptStatus: null },
+      errors: [expect.objectContaining({ code: "receipt-evidence-malformed-response" })],
+    });
+  });
+
+  it("contains malformed block identity as incomplete candidate evidence", async () => {
+    class MalformedBlockReader extends FixtureReader {
+      override async getBlock(): Promise<ChainBlock> {
+        return { hash: "0x1234", number: BigInt(fixtureBlock.number), timestamp: 1n } as ChainBlock;
+      }
+    }
+
+    const result = await scanApprovedRange(new MalformedBlockReader(), config);
+
+    expect(result.status).toBe("partial");
+    expect(result.alerts).toHaveLength(1);
+    expect(result.evidence[0]).toMatchObject({
+      status: "incomplete",
+      block: { timestamp: null },
+      errors: [expect.objectContaining({ code: "block-evidence-malformed-response" })],
+    });
+  });
+
+  it("contains malformed receipt logs without exposing provider data", async () => {
+    class MalformedReceiptLogReader extends FixtureReader {
+      override async getTransactionReceipt(): Promise<ChainReceipt> {
+        return {
+          transactionHash: fixtureReceipt.transactionHash,
+          status: "success",
+          logs: [{ ...fixtureLog, topics: ["provider-secret"] } as unknown as ChainLog],
+        };
+      }
+    }
+
+    const result = await scanApprovedRange(new MalformedReceiptLogReader(), config);
+
+    expect(result.status).toBe("partial");
+    expect(result.alerts).toHaveLength(1);
+    expect(result.failures).toContainEqual(expect.objectContaining({
+      code: "receipt-evidence-malformed-response",
+      transactionHash: fixtureTransaction.hash,
+      logIndex: String(fixtureLog.logIndex),
+    }));
+    expect(JSON.stringify(result)).not.toContain("provider-secret");
+  });
+
+  it("contains receipt construction failure and identifies the candidate", async () => {
+    const invalidReceiptConfig = structuredClone(config);
+    (invalidReceiptConfig.network as { name: string }).name = "unexpected-network-name";
+
+    const result = await scanApprovedRange(new FixtureReader(), invalidReceiptConfig);
+
+    expect(result.status).toBe("partial");
+    expect(result.alerts).toEqual([]);
+    expect(result.evidence).toEqual([]);
+    expect(result.failures).toContainEqual(expect.objectContaining({
+      code: "candidate-evidence-construction-failed",
+      category: "malformed-response",
+      blockNumber: fixtureBlock.number,
+      transactionHash: fixtureTransaction.hash,
+      logIndex: String(fixtureLog.logIndex),
+    }));
+  });
+
+  it("continues a valid sibling candidate after one candidate has malformed evidence", async () => {
+    const malformedHash = "0x2222222222222222222222222222222222222222222222222222222222222222" as const;
+    const malformedLog: ChainLog = {
+      ...fixtureLog,
+      logIndex: fixtureLog.logIndex + 1,
+      transactionHash: malformedHash,
+      transactionIndex: fixtureLog.transactionIndex - 1,
+    };
+    class SiblingReader extends FixtureReader {
+      override logs = [malformedLog, fixtureLog];
+
+      override async getTransaction(transactionHash: `0x${string}`): Promise<ChainTransaction> {
+        if (transactionHash === malformedHash) {
+          return { hash: transactionHash, from: "invalid", to: fixtureTransaction.to } as unknown as ChainTransaction;
+        }
+        return { hash: transactionHash, from: fixtureTransaction.from, to: fixtureTransaction.to };
+      }
+
+      override async getTransactionReceipt(transactionHash: `0x${string}`): Promise<ChainReceipt> {
+        return {
+          transactionHash,
+          status: "success",
+          logs: [transactionHash === malformedHash ? malformedLog : fixtureLog],
+        };
+      }
+    }
+
+    const result = await scanApprovedRange(new SiblingReader(), config);
+
+    expect(result.status).toBe("partial");
+    expect(result.alerts).toHaveLength(2);
+    expect(result.evidence).toHaveLength(2);
+    expect(result.evidence.find(({ transaction }) => transaction.hash === fixtureTransaction.hash)).toMatchObject({
+      status: "complete",
+      transaction: { sender: normalizeEvmAddress(fixtureTransaction.from) },
+    });
+    expect(result.failures).toContainEqual(expect.objectContaining({
+      code: "transaction-evidence-malformed-response",
+      transactionHash: malformedHash,
     }));
   });
 

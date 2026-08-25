@@ -218,10 +218,18 @@ The synchronous scanner:
 6. Preserves valid logs when another item in the same RPC response is malformed,
    while recording the malformed item as a visible partial-scan failure.
 7. Strictly decodes `Upgraded(address)`.
-8. Retrieves the block, transaction, and receipt once per evidence key.
+8. Retrieves the block, transaction, and receipt once per evidence key. Strict
+   runtime schemas validate those objects and every nested receipt log at the
+   ChainReader boundary.
 9. Requires the configured known transaction to produce complete qualifying
    event evidence before reporting `complete`.
 10. Builds normalized evidence and applies the fixed severity policy.
+
+Malformed evidence becomes incomplete with safe candidate coordinates and no
+raw provider data. Evidence construction is isolated per candidate. If one
+candidate cannot be normalized or its receipt cannot be constructed, the
+scanner continues with independent valid candidates from the same bounded
+response.
 11. Uses content-derived scan and alert IDs to prevent duplicates.
 
 RPC, filter, decoding, and evidence failures remain visible in the JSON result.

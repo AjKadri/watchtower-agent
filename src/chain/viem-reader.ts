@@ -3,6 +3,7 @@ import { base } from "viem/chains";
 
 import { RpcReadError, wrapRpcError } from "./errors.js";
 import type { ChainBlock, ChainLog, ChainLogBatch, ChainReader, ChainReceipt, ChainTransaction, LogFilter, MalformedChainLog } from "./types.js";
+import { validateChainBlock, validateChainReceipt, validateChainTransaction } from "./validation.js";
 
 type RpcLog = {
   address: Address;
@@ -137,11 +138,11 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
     async getBlock(blockHash) {
       try {
         const block = await client.getBlock({ blockHash });
-        return {
-          hash: required(block.hash, "block hash"),
-          number: required(block.number, "block number"),
+        return validateChainBlock({
+          hash: block.hash,
+          number: block.number,
           timestamp: block.timestamp,
-        } satisfies ChainBlock;
+        });
       } catch (error) {
         throw wrapRpcError("block request", error);
       }
@@ -150,11 +151,11 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
     async getTransaction(transactionHash) {
       try {
         const transaction = await client.getTransaction({ hash: transactionHash });
-        return {
+        return validateChainTransaction({
           hash: transaction.hash,
           from: transaction.from,
           to: transaction.to,
-        } satisfies ChainTransaction;
+        });
       } catch (error) {
         throw wrapRpcError("transaction request", error);
       }
@@ -163,31 +164,23 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
     async getTransactionReceipt(transactionHash) {
       try {
         const receipt = await client.getTransactionReceipt({ hash: transactionHash });
-        const logs: ChainLog[] = [];
-        for (const log of receipt.logs) {
-          if (log.removed) continue;
-          try {
-            const topics = log.topics as [Hex, ...Hex[]];
-            if (topics.length === 0) continue;
-            logs.push({
+        const logs = receipt.logs
+          .filter(({ removed }) => !removed)
+          .map((log) => ({
               address: log.address,
-              blockHash: required(log.blockHash, "blockHash"),
-              blockNumber: required(log.blockNumber, "blockNumber"),
+              blockHash: log.blockHash,
+              blockNumber: log.blockNumber,
               data: log.data,
-              logIndex: required(log.logIndex, "logIndex"),
-              topics,
-              transactionHash: required(log.transactionHash, "transactionHash"),
-              transactionIndex: required(log.transactionIndex, "transactionIndex"),
-            });
-          } catch {
-            continue;
-          }
-        }
-        return {
+              logIndex: log.logIndex,
+              topics: log.topics,
+              transactionHash: log.transactionHash,
+              transactionIndex: log.transactionIndex,
+            }));
+        return validateChainReceipt({
           transactionHash: receipt.transactionHash,
           status: receipt.status,
           logs,
-        } satisfies ChainReceipt;
+        });
       } catch (error) {
         throw wrapRpcError("receipt request", error);
       }
