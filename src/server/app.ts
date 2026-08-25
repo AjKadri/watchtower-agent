@@ -5,7 +5,8 @@ import { z } from "zod";
 
 import type { ChainReader } from "../chain/types.js";
 import type { TargetConfig } from "../config/schema.js";
-import { investigationReceiptSchema, type ScanResult } from "../domain/schemas.js";
+import { investigationReceiptSchema, scanResultSchema, type ScanResult } from "../domain/schemas.js";
+import { createScanId } from "../pipeline/ids.js";
 import { scanApprovedRange } from "../pipeline/scanner.js";
 import { ScanStore } from "./store.js";
 
@@ -23,7 +24,12 @@ export type AppDependencies = {
   config: TargetConfig;
   store?: ScanStore;
   publicDirectory?: string;
+  scanDeadlineMs?: number;
 };
+
+export const DEFAULT_SCAN_DEADLINE_MS = 30_000;
+
+let processScanActive = false;
 
 function publicConfiguration(config: TargetConfig) {
   const detector = config.detectors[0];
@@ -70,10 +76,49 @@ export function scanHttpStatus(result: ScanResult): 200 | 201 | 400 | 502 | 503 
   return 503;
 }
 
+function scanDeadlineResult(config: TargetConfig, fromBlock: bigint, toBlock: bigint): ScanResult {
+  return scanResultSchema.parse({
+    scanId: createScanId(config.network.chainId, config.target.id, fromBlock, toBlock),
+    targetId: config.target.id,
+    range: { fromBlock: fromBlock.toString(), toBlock: toBlock.toString() },
+    status: "failed",
+    alerts: [],
+    evidence: [],
+    failures: [{
+      code: "scan-deadline-timeout",
+      stage: "rpc",
+      category: "timeout",
+      message: "The bounded scan exceeded its total execution deadline.",
+    }],
+  });
+}
+
+async function runWithDeadline(
+  operation: Promise<ScanResult>,
+  deadlineMs: number,
+  timeoutResult: ScanResult,
+): Promise<ScanResult> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<ScanResult>((resolveTimeout) => {
+        timer = setTimeout(() => resolveTimeout(timeoutResult), deadlineMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export function createApp(dependencies: AppDependencies): Express {
   const app = express();
   const store = dependencies.store ?? new ScanStore();
   const publicDirectory = dependencies.publicDirectory ?? resolve("public");
+  const scanDeadlineMs = dependencies.scanDeadlineMs ?? DEFAULT_SCAN_DEADLINE_MS;
+  if (!Number.isSafeInteger(scanDeadlineMs) || scanDeadlineMs <= 0) {
+    throw new Error("The scan deadline must be a positive integer number of milliseconds.");
+  }
 
   app.disable("x-powered-by");
   app.use((_request, response, next) => {
@@ -111,12 +156,34 @@ export function createApp(dependencies: AppDependencies): Express {
         return;
       }
 
-      const result = await scanApprovedRange(dependencies.reader, dependencies.config, {
-        ...(parsed.data.fromBlock && { fromBlock: BigInt(parsed.data.fromBlock) }),
-        ...(parsed.data.toBlock && { toBlock: BigInt(parsed.data.toBlock) }),
-      });
-      store.save(result);
-      response.status(scanHttpStatus(result)).json(result);
+      if (processScanActive) {
+        response.status(429).json({
+          error: {
+            code: "scan-already-running",
+            message: "Another bounded scan is already running. Retry after it finishes.",
+          },
+        });
+        return;
+      }
+
+      const fromBlock = parsed.data.fromBlock
+        ? BigInt(parsed.data.fromBlock)
+        : BigInt(dependencies.config.scan.fromBlock);
+      const toBlock = parsed.data.toBlock
+        ? BigInt(parsed.data.toBlock)
+        : BigInt(dependencies.config.scan.toBlock);
+      processScanActive = true;
+      try {
+        const result = await runWithDeadline(
+          scanApprovedRange(dependencies.reader, dependencies.config, { fromBlock, toBlock }),
+          scanDeadlineMs,
+          scanDeadlineResult(dependencies.config, fromBlock, toBlock),
+        );
+        store.save(result);
+        response.status(scanHttpStatus(result)).json(result);
+      } finally {
+        processScanActive = false;
+      }
     } catch (error) {
       next(error);
     }

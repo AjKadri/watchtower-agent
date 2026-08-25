@@ -84,8 +84,8 @@ class ApiFixtureReader implements ChainReader {
 
 const servers: Server[] = [];
 
-async function serve(reader: ChainReader): Promise<string> {
-  const server = createServer(createApp({ reader, config }));
+async function serve(reader: ChainReader, scanDeadlineMs?: number): Promise<string> {
+  const server = createServer(createApp({ reader, config, ...(scanDeadlineMs && { scanDeadlineMs }) }));
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
@@ -317,6 +317,107 @@ describe("Watchtower API", () => {
       evidence: [],
       failures: [{ code: "rpc-chain-id-mismatch", category: "wrong-chain" }],
     });
+  });
+
+  it("allows only one active scan and returns HTTP 429 to a concurrent request", async () => {
+    let releaseFirstScan = () => {};
+    let markStarted = () => {};
+    const firstScanStarted = new Promise<void>((resolve) => { markStarted = resolve; });
+    const firstScanRelease = new Promise<void>((resolve) => { releaseFirstScan = resolve; });
+    class ConcurrentReader extends ApiFixtureReader {
+      override async getChainId(): Promise<number> {
+        markStarted();
+        await firstScanRelease;
+        return 8453;
+      }
+    }
+    const baseUrl = await serve(new ConcurrentReader(), 1_000);
+    const firstRequest = fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+
+    await firstScanStarted;
+    const secondResponse = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const secondBody = await secondResponse.json();
+    releaseFirstScan();
+    const firstResponse = await firstRequest;
+
+    expect(secondResponse.status).toBe(429);
+    expect(secondBody).toEqual({
+      error: {
+        code: "scan-already-running",
+        message: "Another bounded scan is already running. Retry after it finishes.",
+      },
+    });
+    expect(firstResponse.status).toBe(201);
+  });
+
+  it("times out a slow scan, clears stale artifacts, and permits a later scan", async () => {
+    let releaseTimedOutScan = () => {};
+    const delayedChainId = new Promise<number>((resolve) => {
+      releaseTimedOutScan = () => resolve(8453);
+    });
+    class DeadlineReader extends ApiFixtureReader {
+      slowNextScan = false;
+
+      override async getChainId(): Promise<number> {
+        if (this.slowNextScan) {
+          this.slowNextScan = false;
+          return delayedChainId;
+        }
+        return 8453;
+      }
+    }
+    const reader = new DeadlineReader();
+    const baseUrl = await serve(reader, 20);
+    const successful = await (await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    })).json();
+    const previousAlertId = successful.alerts[0].id;
+    const previousReceiptId = successful.evidence[0].investigationReceipt.receiptId;
+
+    reader.slowNextScan = true;
+    const timedOutResponse = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const timedOut = await timedOutResponse.json();
+
+    expect(timedOutResponse.status).toBe(503);
+    expect(timedOut).toMatchObject({
+      scanId: successful.scanId,
+      status: "failed",
+      alerts: [],
+      evidence: [],
+      failures: [{ code: "scan-deadline-timeout", stage: "rpc", category: "timeout" }],
+    });
+    expect(await (await fetch(`${baseUrl}/api/scans/${timedOut.scanId}`)).json()).toEqual(timedOut);
+    expect(await (await fetch(`${baseUrl}/api/alerts`)).json()).toEqual({ alerts: [] });
+    expect((await fetch(`${baseUrl}/api/alerts/${previousAlertId}`)).status).toBe(404);
+    expect((await fetch(`${baseUrl}/api/receipts/${previousReceiptId}`)).status).toBe(404);
+
+    const laterResponse = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    const later = await laterResponse.json();
+    expect(laterResponse.status).toBe(201);
+    expect(later).toMatchObject({ status: "complete", failures: [] });
+    expect(later.scanId).toBe(timedOut.scanId);
+
+    releaseTimedOutScan();
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(await (await fetch(`${baseUrl}/api/scans/${later.scanId}`)).json()).toEqual(later);
   });
 
   it("atomically replaces a successful scan with a failed rescan", async () => {
