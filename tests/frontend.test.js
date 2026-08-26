@@ -358,6 +358,7 @@ describe("dashboard view model", () => {
     expect(html).toContain('id="archive-body"');
     expect(html).toContain('id="archive-empty"');
     expect(html).toContain('id="failure-panel"');
+    expect(html).toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg">');
     expect(html).toContain("Verify a protocol upgrade from event to receipt.");
     expect(html).toContain("Watchtower checks a configured Base upgrade at exact historical blocks");
     expect(html).toContain("Decide / Learn");
