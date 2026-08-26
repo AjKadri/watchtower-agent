@@ -9,6 +9,7 @@ AGENTS.md
 .agent/
 docs/notion/
 CODE_REVIEW.md
+DESIGN.md
 .local-audit/
 .local-review/
 docs/audit/
