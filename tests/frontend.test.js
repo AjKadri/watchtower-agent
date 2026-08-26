@@ -210,6 +210,119 @@ describe("dashboard view model", () => {
     }
   });
 
+  it("cross-checks every duplicated frontend evidence value against fixtures and registry policy", () => {
+    const fixtureFields = {
+      "aave-v3-base-core": {
+        "implementation-before": "implementationBeforeWord",
+        "implementation-at-upgrade": "implementationAtUpgradeWord",
+        "implementation-bytecode": "implementationByteLength",
+        "configured-pool": "getPoolResult",
+        "pool-revision-before": "poolRevisionBeforeResult",
+        "pool-revision-at-upgrade": "poolRevisionAtUpgradeResult",
+      },
+      "compound-iii-base-usdc-comet": {
+        "implementation-before": "implementationBeforeWord",
+        "implementation-at-upgrade": "implementationAtUpgradeWord",
+        "implementation-bytecode": "implementationByteLength",
+        "governor-before": "governorBeforeResult",
+        "governor-at-upgrade": "governorAtUpgradeResult",
+        "base-token-at-upgrade": "baseTokenAtUpgradeResult",
+      },
+      "etherfi-base-weeth-oft": {
+        "implementation-before": "implementationBeforeWord",
+        "implementation-at-upgrade": "implementationAtUpgradeWord",
+        "implementation-bytecode": "implementationByteLength",
+        "endpoint-at-upgrade": "endpointAtUpgradeResult",
+        "token-at-upgrade": "tokenAtUpgradeResult",
+        "shared-decimals-at-upgrade": "sharedDecimalsAtUpgradeResult",
+      },
+    };
+    const addressFromWord = (word) => `0x${word.slice(-40)}`.toLowerCase();
+    const blockTag = (block) => `0x${BigInt(block).toString(16)}`;
+
+    for (const profile of archiveProfiles) {
+      const registered = getTargetProfile(profile.id);
+      const fixtureRoot = new URL(`../${registered.expectedFixture.path}/`, import.meta.url);
+      const transaction = JSON.parse(readFileSync(new URL("transaction.json", fixtureRoot), "utf8"));
+      const receipt = JSON.parse(readFileSync(new URL("receipt.json", fixtureRoot), "utf8"));
+      const event = JSON.parse(readFileSync(new URL("expected-events.json", fixtureRoot), "utf8"))[0];
+      const investigation = JSON.parse(readFileSync(new URL("investigation.json", fixtureRoot), "utf8"));
+      const fixtureReadme = readFileSync(new URL("README.md", fixtureRoot), "utf8");
+      const normalizedReadme = fixtureReadme.replace(/\s+/g, " ");
+      const trigger = profile.receipt.trigger;
+
+      expect(trigger.transaction.sender.toLowerCase()).toBe(transaction.from.toLowerCase());
+      expect(trigger.transaction.recipient.toLowerCase()).toBe(transaction.to.toLowerCase());
+      expect(trigger.log.rawTopics).toEqual(receipt.selectedLogs[0].topics);
+      expect(trigger.log.rawTopics[1]).toBe(`0x${"0".repeat(24)}${event.decodedArguments.implementation.slice(2).toLowerCase()}`);
+
+      const registeredChecks = new Map(registered.investigation.checks.map((check) => [check.id, check]));
+      for (const check of profile.receipt.checks) {
+        const policy = registeredChecks.get(check.id);
+        const fixtureField = fixtureFields[profile.id][check.id];
+        const rawResult = investigation[fixtureField];
+        const expectedTag = blockTag(policy.block === "previous" ? registered.investigation.previousBlock : registered.investigation.upgradeBlock);
+
+        expect(check.method).toBe(policy.method);
+        expect(check.blockTag).toBe(expectedTag);
+        expect(check.required).toBe(policy.required);
+        expect(check.assertion.matches).toBe(true);
+        expect(check.status).toBe("passed");
+
+        if (policy.kind === "storage-address") {
+          expect(check.parameters.address.toLowerCase()).toBe(policy.address.toLowerCase());
+          expect(check.parameters.slot).toBe(policy.slot);
+          expect(check.result).toEqual({ kind: "address", value: check.assertion.actual });
+          expect(check.result.value.toLowerCase()).toBe(addressFromWord(rawResult));
+          expect(check.assertion.expected.toLowerCase()).toBe(policy.expectedAddress.toLowerCase());
+        } else if (policy.kind === "implementation-code") {
+          expect(check.parameters.address.toLowerCase()).toBe(event.decodedArguments.implementation.toLowerCase());
+          expect(check.result).toMatchObject({ kind: "bytecode", present: true, byteLength: rawResult });
+          expect(check.assertion.expected).toBe(`${policy.expectedByteLength} bytes`);
+          expect(check.assertion.actual).toBe(`${rawResult} bytes`);
+          if (investigation.implementationCodeHash) expect(check.result.hash).toBe(investigation.implementationCodeHash);
+          else expect(check.result.hash).toMatch(/^0x[0-9a-f]{64}$/);
+        } else if (policy.kind === "call-address") {
+          expect(check.parameters).toEqual({ to: policy.to, data: policy.data });
+          expect(check.result).toEqual({ kind: "address", value: check.assertion.actual });
+          expect(check.result.value.toLowerCase()).toBe(addressFromWord(rawResult));
+          expect(check.assertion.expected.toLowerCase()).toBe(policy.expectedAddress.toLowerCase());
+        } else {
+          expect(check.parameters).toEqual({ to: policy.to, data: policy.data });
+          expect(check.result).toEqual({ kind: "uint256", value: check.assertion.actual });
+          expect(check.result.value).toBe(BigInt(rawResult).toString());
+          expect(check.assertion.expected).toBe(policy.expectedValue);
+        }
+      }
+
+      const addresses = new Map(profile.addresses.map((entry) => [entry.key, entry]));
+      expect(addresses.get("emitter")).toMatchObject({
+        address: registered.target.primaryContract.address,
+        role: registered.target.primaryContract.role,
+      });
+      expect(addresses.get("implementation").address.toLowerCase()).toBe(registered.expectedFixture.implementationAfter.toLowerCase());
+      expect(addresses.get("sender").address.toLowerCase()).toBe(transaction.from.toLowerCase());
+      expect(addresses.get("recipient").address.toLowerCase()).toBe(transaction.to.toLowerCase());
+      for (const related of registered.target.relatedContracts) expect(addresses.get(related.key)).toMatchObject(related);
+
+      expect(profile.receipt.limitations.every((limitation) => limitation.length > 20)).toBe(true);
+      expect(fixtureReadme).toMatch(/does not (?:prove|establish)/i);
+      if (profile.id === "aave-v3-base-core") {
+        expect(registered.investigation.checks.filter(({ required }) => !required).map(({ id }) => id)).toEqual([
+          "pool-revision-before",
+          "pool-revision-at-upgrade",
+        ]);
+        expect(profile.receipt.limitations.join(" ")).toContain("POOL_REVISION() is optional");
+      } else {
+        const specificLimitation = profile.receipt.limitations.at(-1);
+        for (const term of profile.id.startsWith("compound") ? ["governance intent", "market configuration"] : ["remote peers", "DVNs", "SyncPool"]) {
+          expect(specificLimitation).toContain(term);
+          expect(normalizedReadme).toContain(term);
+        }
+      }
+    }
+  });
+
   it("keeps fixture and live source labels explicit", () => {
     const complete = { scanStatus: "complete", evidence: { status: "complete", upgradeInvestigation: { evidenceStatus: "complete", disposition: "corroborated" } } };
     expect(investigationStateLabel(complete, "verified-fixture")).toBe("Verified fixture replay");
