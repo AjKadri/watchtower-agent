@@ -243,7 +243,11 @@ describe("bounded evidence scan", () => {
     expect(first.evidence).toHaveLength(1);
     expect(first.alerts[0].id).toBe(second.alerts[0].id);
     expect(first.scanId).toBe(second.scanId);
-    expect(first.evidence[0].investigationReceipt).toEqual(second.evidence[0].investigationReceipt);
+    const withoutTimings = (receipt: InvestigationReceipt | null) => receipt && {
+      ...receipt,
+      checks: receipt.checks.map(({ elapsedMs: _elapsedMs, ...check }) => check),
+    };
+    expect(withoutTimings(first.evidence[0].investigationReceipt)).toEqual(withoutTimings(second.evidence[0].investigationReceipt));
     expect(first.evidence[0].investigationReceipt?.receiptId).toBe(second.evidence[0].investigationReceipt?.receiptId);
     expect(duplicateReader.evidenceCalls).toEqual({ block: 1, transaction: 1, receipt: 1 });
   });
