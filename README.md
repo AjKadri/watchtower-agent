@@ -80,13 +80,15 @@ Each receipt records:
 - selected and skipped checks
 - the fixed read and capability budget
 - every RPC method, safe parameter, block tag, normalized result, assertion,
-  status, and safe failure
+  status, measured check duration, and safe failure
 - the final `corroborated`, `contradicted`, or `incomplete` disposition
 - direct explorer links
 
 The receipt ID is a SHA-256 hash of a canonical payload that excludes the ID
-itself. Server validation checks consistency across the trigger, evidence,
-plan, checks, disposition, and links. The receipt view independently
+itself and measured `elapsedMs` fields. Timings remain in the receipt and API
+response, but they are not hash-bound because real execution duration varies
+between otherwise identical replays. Server validation checks consistency
+across the trigger, evidence, plan, checks, disposition, and links. The receipt view independently
 reconstructs the canonical payload, normalizes Ethereum addresses, and
 recomputes the ID with browser Web Crypto. Equivalent address casing produces
 the same receipt ID.
@@ -221,9 +223,12 @@ never included.
 
 The public API permits one active scan per process and applies a fixed 30-second
 total deadline. A deadline returns a structured `scan-deadline-timeout` failure
-with HTTP 503. That failed attempt atomically replaces artifacts with the same
-scan ID, and late completion has no path back into the store. The next request
-may start normally after the deadline. Existing bounded viem request timeouts
+with HTTP 503 and aborts outstanding scanner, evidence, investigation, and HTTP
+RPC work through one scan-owned `AbortController`. That failed attempt
+atomically replaces artifacts with the same scan ID, and late completion has no
+path back into the store. The process-wide lock remains held until the aborted
+scan settles and cleanup finishes, so requests during cleanup receive HTTP 429.
+A later request may start after cleanup. Existing bounded viem request timeouts
 and retries remain unchanged.
 
 ## Failure handling
@@ -255,6 +260,11 @@ a rescan.
   claims are outside the current evidence boundary.
 - Historical checks require an archive-capable provider. Pruned history,
   rate limits, timeouts, and provider outages can produce an incomplete result.
+- The Aave fixture records implementation bytecode presence and a verified
+  length of `22757` bytes, but no bytecode hash. The configured archive RPC
+  hostname did not resolve during final provenance verification, so an earlier
+  unsupported frontend-only hash was removed. Compound and ether.fi retain
+  their independently recorded fixture hashes.
 - Alerts and live receipts are held in memory and clear when the server restarts.
 - No hosted public demo URL is currently available.
 
@@ -273,10 +283,11 @@ compiled server through `npm start`, requests `GET /api/health`, and sends a
 graceful SIGTERM. It uses a non-routable placeholder RPC URL because the health
 route and fixture-backed tests do not require a live provider or secret.
 
-The current release-hardening suite contains 136 tests covering all three
+The current release-hardening suite contains 145 tests covering all three
 profiles, deterministic receipt integrity, API behavior, malformed RPC evidence,
-scan concurrency and deadline cleanup, frontend states, production configuration,
-runtime pinning, CI requirements, and failure handling.
+scan cancellation and deadline cleanup, measured check timing, frontend states,
+production configuration, runtime pinning, CI requirements, and failure
+handling.
 
 Fixture provenance and detailed verified values are available in:
 
