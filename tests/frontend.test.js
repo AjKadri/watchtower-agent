@@ -387,6 +387,17 @@ describe("dashboard view model", () => {
     expect(css).not.toContain("overflow-x: hidden");
   });
 
+  it("uses the shared design tokens for touched trace and archive components", () => {
+    const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+
+    expect(css).toContain(".trace-link { padding: var(--space-2) var(--space-3)");
+    expect(css).toContain(".trace-elapsed { color: var(--color-text-faint)");
+    expect(css).toContain(".archive-table td { padding: var(--space-5) var(--space-3)");
+    expect(css).toContain(".replay-action { padding: var(--space-2) var(--space-3)");
+    expect(css).not.toContain("border-color: #d8a9a3");
+    expect(css).not.toContain("border-color: #d9bf8f");
+  });
+
   it("loads the frontend health indicator from /api/health", async () => {
     const request = vi.fn().mockResolvedValue({ status: "ok" });
 
