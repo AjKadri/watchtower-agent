@@ -9,6 +9,12 @@ emitting contract, log index, topics, and decoded address were checked against
 live Base RPC and BaseScan on 2026-08-22. The contract role was checked against
 the official Aave address book.
 
+The fixture records that implementation bytecode was present with a length of
+`22757` bytes. It does not record a bytecode hash. Final provenance verification
+on 2026-08-26 could not reproduce the historical code read because the
+configured archive RPC hostname did not resolve, so the previously unsupported
+frontend-only hash was removed.
+
 Sources:
 
 - https://basescan.org/tx/0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a

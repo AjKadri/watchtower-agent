@@ -35,7 +35,7 @@ export const upgradeInvestigationCheckSchema = z.object({
   blockTag,
   result: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("address"), value: address }).strict(),
-    z.object({ kind: z.literal("bytecode"), present: z.boolean(), byteLength: decimalString, hash }).strict(),
+    z.object({ kind: z.literal("bytecode"), present: z.boolean(), byteLength: decimalString, hash: hash.nullable() }).strict(),
     z.object({ kind: z.literal("uint256"), value: decimalString }).strict(),
   ]).nullable(),
   assertion: z.object({

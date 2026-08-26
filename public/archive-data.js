@@ -152,7 +152,7 @@ export const archiveProfiles = Object.freeze([
     implementation: aaveImplementation,
     detectorId: "aave-pool-upgraded",
     logIndex: "641",
-    receiptId: "receipt_6aa4240b4705d61f1719342142541ca10d695f38e6c6df58576ce47d6c1d7e4b",
+    receiptId: "receipt_ffa12a49a766b8a1eb68072fd078b4adfda4ae0ca9e118c65c94ae350ca33b51",
     block: { number: "41105890", hash: "0x3f8b9a19d39bdf97178f6f7e7117138ec5cb7c5fe292afcac914a250568428ff", timestamp: "2026-01-21T13:12:07.000Z" },
     transaction: { hash: "0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a", sender: "0xD7E21e6DEBb75cEB4FC9D73c09EA48625984B959", recipient: "0xE226D5aCae908252CcA3F6CEFa577527650a9e1e" },
     addresses: [
@@ -165,12 +165,15 @@ export const archiveProfiles = Object.freeze([
     checks: [
       storageCheck("implementation-before", aaveProxy, "0x27339e1", "0x79ab8FC5BA13DaF37b4e978a543286bc2A16508C", "The configured proxy implementation slot at N-1 matches the verified pre-upgrade implementation."),
       storageCheck("implementation-at-upgrade", aaveProxy, "0x27339e2", aaveImplementation, "The configured proxy implementation slot at N matches both the approved and decoded implementation.", true),
-      codeCheck(aaveImplementation, "0x27339e2", "22757", "0x1c45cf4a2addf7674f53823c4a5cb2d1177c275cadf51eda88718488b81e3fe1"),
+      codeCheck(aaveImplementation, "0x27339e2", "22757", null),
       callAddressCheck({ id: "configured-pool", to: aaveProvider, data: "0x026b1d5f", blockTag: "0x27339e2", value: aaveProxy, description: "The configured PoolAddressesProvider returns the configured Pool proxy at N." }),
       callUintCheck({ id: "pool-revision-before", required: false, to: aaveProxy, data: "0x0148170e", blockTag: "0x27339e1", value: "9", description: "Optional POOL_REVISION() corroboration at N-1 matches the verified fixture." }),
       callUintCheck({ id: "pool-revision-at-upgrade", required: false, to: aaveProxy, data: "0x0148170e", blockTag: "0x27339e2", value: "10", description: "Optional POOL_REVISION() corroboration at N matches the verified fixture." }),
     ],
-    limitations: ["POOL_REVISION() is optional corroboration and does not control severity or final disposition."],
+    limitations: [
+      "POOL_REVISION() is optional corroboration and does not control severity or final disposition.",
+      "The implementation bytecode hash was not recorded because it could not be independently reproduced through the configured archive RPC during final provenance verification.",
+    ],
   }),
   buildProfile({
     id: "compound-iii-base-usdc-comet",

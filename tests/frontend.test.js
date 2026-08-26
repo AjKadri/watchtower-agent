@@ -281,7 +281,7 @@ describe("dashboard view model", () => {
           expect(check.assertion.expected).toBe(`${policy.expectedByteLength} bytes`);
           expect(check.assertion.actual).toBe(`${rawResult} bytes`);
           if (investigation.implementationCodeHash) expect(check.result.hash).toBe(investigation.implementationCodeHash);
-          else expect(check.result.hash).toMatch(/^0x[0-9a-f]{64}$/);
+          else expect(check.result.hash).toBeNull();
         } else if (policy.kind === "call-address") {
           expect(check.parameters).toEqual({ to: policy.to, data: policy.data });
           expect(check.result).toEqual({ kind: "address", value: check.assertion.actual });
@@ -586,5 +586,6 @@ describe("browser receipt verification", () => {
     expect(app).toContain('"Verify receipt"');
     expect(app).toContain('"Receipt verified"');
     expect(app).toContain('"Receipt verification failed"');
+    expect(app).toContain('check.result.hash ?? "Not recorded"');
   });
 });

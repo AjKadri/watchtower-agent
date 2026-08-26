@@ -332,6 +332,7 @@ function renderChecks(evidence) {
       ["Block tag", check.blockTag],
       ["Expected", check.assertion.expected],
       ["Actual", check.assertion.actual ?? "Unavailable"],
+      ...(check.result?.kind === "bytecode" ? [["Bytecode hash", check.result.hash ?? "Not recorded"]] : []),
     ];
     for (const [label, value] of fields) {
       const group = node("div");
