@@ -355,3 +355,11 @@ export function buildInvestigationTrace(detail) {
     },
   ];
 }
+
+export function summarizeTraceProgression(trace) {
+  if (!Array.isArray(trace) || trace.length === 0) return "Investigation incomplete";
+  if (trace.some(({ status }) => status === "failed")) return "Investigation failed";
+  const complete = trace.filter(({ status }) => status === "complete").length;
+  if (complete === trace.length) return `${complete} of ${trace.length} stages complete`;
+  return `${complete} of ${trace.length} stages complete · investigation incomplete`;
+}

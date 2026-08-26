@@ -15,6 +15,7 @@ import {
   isStructuredScanResult,
   isMobileLayout,
   reconcileAlertSelection,
+  summarizeTraceProgression,
 } from "../public/view-model.js";
 import { archiveProfiles } from "../public/archive-data.js";
 import { createReceiptId, normalizeEvmAddress, verifyReceipt } from "../public/receipt-verifier.js";
@@ -61,6 +62,7 @@ function check(id, method, blockTag) {
     assertion: { expected: "1", actual: "1", matches: true },
     status: "passed",
     failure: null,
+    elapsedMs: 5,
   };
 }
 
@@ -297,6 +299,11 @@ describe("dashboard view model", () => {
       href: `/api/receipts/${evidence.investigationReceipt.receiptId}`,
       download: `watchtower-${evidence.investigationReceipt.receiptId}.json`,
     })]);
+    expect(summarizeTraceProgression(trace)).toBe("6 of 6 stages complete");
+    expect(trace[2].details[0]).toMatchObject({
+      summary: expect.stringContaining("expected"),
+      elapsedMs: expect.any(Number),
+    });
   });
 
   it("renders the fixed Compound identity checks as a complete protocol stage", () => {
@@ -349,6 +356,7 @@ describe("dashboard view model", () => {
     expect(trace[2].status).toBe("incomplete");
     expect(trace[2].details).toEqual(expect.arrayContaining([expect.objectContaining({ status: "skipped" })]));
     expect(trace[5]).toMatchObject({ status: "incomplete", links: [] });
+    expect(summarizeTraceProgression(trace)).toContain("investigation incomplete");
   });
 
   it("keeps failed assertions visible in the trace", () => {
@@ -365,6 +373,17 @@ describe("dashboard view model", () => {
       expect.objectContaining({ id: "implementation-at-upgrade", status: "mismatch" }),
     ]));
     expect(trace[5].status).toBe("failed");
+    expect(summarizeTraceProgression(trace)).toBe("Investigation failed");
+  });
+
+  it("renders trace links, factual summaries, elapsed times, and fixture receipt downloads", () => {
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+
+    expect(app).toContain("stage.links.length");
+    expect(app).toContain("trace-detail-summary");
+    expect(app).toContain("trace-elapsed");
+    expect(app).toContain('source === "verified-fixture"');
+    expect(app).toContain("downloadReceipt(detail.evidence.investigationReceipt)");
   });
 });
 

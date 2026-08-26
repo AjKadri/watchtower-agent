@@ -10,6 +10,7 @@ import {
   formatUtcTimestamp,
   investigationStateLabel,
   isStructuredScanResult,
+  summarizeTraceProgression,
 } from "/view-model.js";
 
 const elements = {
@@ -184,7 +185,7 @@ function renderCaseSummary(detail, source) {
   elements.caseChecks.textContent = `${passed} of ${investigation.checks.length} passed`;
   elements.caseReceipt.textContent = receipt?.receiptId ?? "Not issued";
   elements.caseReceipt.title = receipt?.receiptId ?? "";
-  elements.caseJourney.textContent = `Event observed → ${investigation.disposition}`;
+  elements.caseJourney.textContent = summarizeTraceProgression(buildInvestigationTrace(detail));
   elements.activeProfileNote.textContent = profile.id === state.activeProfileId
     ? "This is the server-active profile. A live bounded scan is available."
     : `Archive view only. Live scanning remains fixed to ${getArchiveProfile(state.activeProfileId).displayName}.`;
@@ -235,7 +236,7 @@ function receiptVerificationControl(receipt) {
   return wrapper;
 }
 
-function renderTrace(detail) {
+function renderTrace(detail, source) {
   const section = node("section", "trace-section");
   const heading = node("div", "content-heading");
   heading.append(node("p", "kicker", "Investigation trace"), node("h3", "", "Six stages of verification"));
@@ -246,16 +247,44 @@ function renderTrace(detail) {
     item.append(node("span", "trace-number", String(stage.index).padStart(2, "0")));
     const body = node("div", "trace-body");
     const top = node("div", "trace-top");
-    top.append(node("h4", "", stage.title), badge(stage.status));
+    const stageMeta = node("div", "trace-stage-meta");
+    if (Number.isFinite(stage.elapsedMs)) stageMeta.append(node("span", "trace-elapsed", `${stage.elapsedMs} ms`));
+    stageMeta.append(badge(stage.status));
+    top.append(node("h4", "", stage.title), stageMeta);
     body.append(top, node("p", "", stage.summary));
     if (stage.details.length > 0) {
       const detailList = node("ul", "trace-details");
       for (const check of stage.details) {
-        const row = node("li");
-        row.append(node("span", "", check.label), badge(check.status));
+        const row = node("li", "trace-detail");
+        const detailTop = node("div", "trace-detail-top");
+        detailTop.append(node("span", "trace-detail-label", check.label), badge(check.status));
+        if (Number.isFinite(check.elapsedMs)) detailTop.append(node("span", "trace-elapsed", `${check.elapsedMs} ms`));
+        row.append(detailTop, node("p", "trace-detail-summary", check.summary));
         detailList.append(row);
       }
       body.append(detailList);
+    }
+    if (stage.links.length > 0) {
+      const links = node("div", "trace-links");
+      links.setAttribute("aria-label", `${stage.title} evidence links`);
+      for (const stageLink of stage.links) {
+        if (stageLink.download && source === "verified-fixture") {
+          const button = node("button", "trace-link", stageLink.label);
+          button.type = "button";
+          button.addEventListener("click", () => downloadReceipt(detail.evidence.investigationReceipt));
+          links.append(button);
+          continue;
+        }
+        const link = node("a", "trace-link", stageLink.label);
+        link.href = stageLink.href;
+        if (stageLink.external) {
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+        }
+        if (stageLink.download) link.download = stageLink.download;
+        links.append(link);
+      }
+      body.append(links);
     }
     item.append(body);
     list.append(item);
@@ -318,7 +347,7 @@ function renderDetail(detail, source) {
   const status = node("div", "badge-stack");
   status.append(badge(alert.severity), badge(alert.evidenceStatus));
   header.append(title, status);
-  elements.detail.append(header, renderTrace(detail), renderChecks(evidence));
+  elements.detail.append(header, renderTrace(detail, source), renderChecks(evidence));
 
   const context = node("section", "context-section");
   const facts = node("article", "context-block");
