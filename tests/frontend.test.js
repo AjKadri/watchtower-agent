@@ -128,6 +128,16 @@ describe("dashboard view model", () => {
     ]);
     expect(options.filter(({ isActive }) => isActive).map(({ id }) => id)).toEqual(["etherfi-base-weeth-oft"]);
     expect(options.every(({ id }) => !id.startsWith("0x"))).toBe(true);
+    expect(options.map(({ targetPurpose }) => targetPurpose)).toEqual([
+      "Base Pool implementation proxy",
+      "Base USDC Comet implementation proxy",
+      "Base weETH OFT implementation proxy",
+    ]);
+    expect(options.map(({ availability }) => availability)).toEqual([
+      "Verified fixture replay",
+      "Verified fixture replay",
+      "Live RPC available",
+    ]);
   });
 
   it("builds one real archive entry from each committed verified fixture", () => {
@@ -204,9 +214,17 @@ describe("dashboard view model", () => {
     expect(html).toContain('id="archive-body"');
     expect(html).toContain('id="archive-empty"');
     expect(html).toContain('id="failure-panel"');
-    expect(html).toContain('aria-label="Sixty-second Watchtower demo flow"');
-    expect(html).toContain("Verify in browser");
+    expect(html).toContain("Verify a protocol upgrade from event to receipt.");
+    expect(html).toContain("Watchtower checks a configured Base upgrade at exact historical blocks");
+    expect(html).toContain("Decide / Learn");
+    expect(html).toContain("Command / Inspect");
+    expect(html).toContain("Only these registered profiles can be selected");
+    expect(html).not.toContain('type="text"');
     expect(html).toContain('id="case-journey"');
+    expect(css).toContain("--color-accent: #245f52");
+    expect(css).toContain("--space-6: 1.5rem");
+    expect(css).toContain("--text-display: clamp(3rem, 8vw, 7rem)");
+    expect(css).toContain(".profile-option { min-width: 0; width: 100%; display: grid");
     expect(css).toContain("@media (max-width: 720px)");
     expect(css).toContain(".archive-table td::before");
     expect(css).toContain(".investigation-shell { grid-template-columns: 1fr; }");

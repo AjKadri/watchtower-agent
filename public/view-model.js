@@ -31,12 +31,15 @@ export function canRenderAlertDetail(alerts, selectedAlertId, responseAlertId) {
 }
 
 export function buildProfileOptions(profiles, activeProfileId) {
-  return profiles.map((profile) => ({
+  return profiles.map((profile, index) => ({
+    index: index + 1,
     id: profile.id,
     label: profile.displayName,
     protocol: profile.protocol,
     product: profile.product,
+    targetPurpose: profile.targetPurpose,
     isActive: profile.id === activeProfileId,
+    availability: profile.id === activeProfileId ? "Live RPC available" : "Verified fixture replay",
   }));
 }
 

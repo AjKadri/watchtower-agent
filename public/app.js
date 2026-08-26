@@ -109,12 +109,23 @@ function renderProfiles() {
     const button = node("button", `profile-option${option.id === state.selectedProfileId ? " selected" : ""}`);
     button.type = "button";
     button.dataset.profileId = option.id;
+    button.dataset.profileSource = option.isActive ? "live-available" : "verified-fixture";
     button.setAttribute("role", "listitem");
     button.setAttribute("aria-pressed", String(option.id === state.selectedProfileId));
-    const top = node("span", "profile-option-top");
-    top.append(node("span", "profile-name", option.label));
-    top.append(node("span", `profile-mode ${option.isActive ? "active" : "fixture"}`, option.isActive ? "Live scan enabled" : "Fixture replay"));
-    button.append(top, node("span", "profile-id", option.id));
+    const index = node("span", "profile-index", String(option.index).padStart(2, "0"));
+    const copy = node("span", "profile-copy");
+    copy.append(
+      node("span", "profile-name", option.protocol),
+      node("span", "profile-product", option.product),
+      node("span", "profile-purpose", option.targetPurpose),
+    );
+    const metadata = node("span", "profile-metadata");
+    metadata.append(
+      node("span", `profile-mode ${option.isActive ? "active" : "fixture"}`, option.availability),
+      node("span", "profile-id", option.id),
+    );
+    const action = node("span", "profile-select-label", option.id === state.selectedProfileId ? "Selected" : "Select");
+    button.append(index, copy, metadata, action);
     button.addEventListener("click", () => selectProfile(option.id));
     elements.profileSelector.append(button);
   }

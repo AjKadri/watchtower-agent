@@ -17,9 +17,9 @@
           <span>Watchtower</span>
         </a>
         <nav class="primary-nav" aria-label="Primary navigation">
-          <a href="#investigation">Investigation</a>
-          <a href="#archive">Archive</a>
-          <a href="#method">Method</a>
+          <a href="#top">Learn</a>
+          <a href="#profiles">Choose target</a>
+          <a href="#investigation">Inspect</a>
         </nav>
         <div class="system-state" aria-live="polite">
           <span id="health-dot" class="health-dot pending" aria-hidden="true"></span>
@@ -30,36 +30,29 @@
       <main id="top">
         <section class="intro" aria-labelledby="page-title">
           <div class="intro-copy">
-            <p class="kicker">Base protocol evidence archive</p>
-            <h1 id="page-title">Investigations that can be replayed, not merely read.</h1>
-            <p>
-              Watchtower preserves the trigger, bounded historical reads, exact
-              assertions, and deterministic receipt for three verified Base
-              upgrade profiles.
-            </p>
+            <p class="surface-label">Decide / Learn</p>
+            <p class="kicker">Deterministic Base upgrade investigations</p>
+            <h1 id="page-title">Verify a protocol upgrade from event to receipt.</h1>
+            <p class="value-statement">Watchtower checks a configured Base upgrade at exact historical blocks and issues a receipt you can independently verify.</p>
           </div>
           <div class="scope-note" aria-label="Security boundary">
             <span class="scope-index">01</span>
-            <p>Closed profiles only</p>
-            <span>No arbitrary addresses, RPC URLs, calls, or event signatures.</span>
+            <p>Three configured profiles. Read only.</p>
+            <span>Aave V3, Compound III, and ether.fi. No arbitrary addresses, RPC URLs, calls, or event signatures.</span>
           </div>
         </section>
 
-        <section class="profile-section" aria-labelledby="profiles-title">
-          <div class="section-intro">
-            <p class="kicker">Target registry</p>
-            <h2 id="profiles-title">Choose a verified profile</h2>
+        <section id="profiles" class="profile-section" aria-labelledby="profiles-title">
+          <div class="section-intro profile-heading">
+            <div>
+              <p class="surface-label">Command / Inspect</p>
+              <p class="kicker">Closed target registry</p>
+              <h2 id="profiles-title">Choose the protocol to investigate</h2>
+            </div>
+            <p class="profile-guidance">Selection changes the evidence workspace. It never changes the approved address, event, calls, or historical blocks.</p>
           </div>
-          <ol class="demo-path" aria-label="Sixty-second Watchtower demo flow">
-            <li><span>01</span>Choose protocol</li>
-            <li><span>02</span>Observe upgrade</li>
-            <li><span>03</span>Select plan</li>
-            <li><span>04</span>Run fixed checks</li>
-            <li><span>05</span>Resolve disposition</li>
-            <li><span>06</span>Open receipt</li>
-            <li><span>07</span>Verify in browser</li>
-          </ol>
           <div id="profile-selector" class="profile-selector" role="list" aria-label="Configured target profiles"></div>
+          <p class="registry-boundary">Only these registered profiles can be selected. Contract addresses and calls are fixed server-side.</p>
         </section>
 
         <section id="investigation" class="current-section" aria-labelledby="current-title">
