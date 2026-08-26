@@ -382,6 +382,8 @@ describe("dashboard view model", () => {
     expect(css).toContain(".trace-stage { min-width: 0; max-width: 100%");
     expect(css).toContain(".check-record { min-width: 0; max-width: 100%");
     expect(css).toContain(".receipt-bar { min-width: 0; max-width: 100%");
+    expect(css).toContain(".context-block ul { min-width: 0; max-width: 100%");
+    expect(css).toContain(".context-block li { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }");
     expect(css).toContain(".failure-panel { grid-template-columns: minmax(0, 1fr); gap: 18px; }");
     expect(css).toContain(".trace-details { display: grid; grid-template-columns: minmax(0, 1fr); }");
     expect(css).not.toContain("overflow-x: hidden");
