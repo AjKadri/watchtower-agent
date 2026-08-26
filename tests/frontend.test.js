@@ -230,6 +230,19 @@ describe("dashboard view model", () => {
     expect(css).toContain(".investigation-shell { grid-template-columns: 1fr; }");
   });
 
+  it("keeps machine identifiers and investigation cards within mobile viewports", () => {
+    const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+
+    expect(css).toContain(".trace-body > p { max-width: 100%");
+    expect(css).toContain("overflow-wrap: anywhere");
+    expect(css).toContain(".trace-stage { min-width: 0; max-width: 100%");
+    expect(css).toContain(".check-record { min-width: 0; max-width: 100%");
+    expect(css).toContain(".receipt-bar { min-width: 0; max-width: 100%");
+    expect(css).toContain(".failure-panel { grid-template-columns: minmax(0, 1fr); gap: 18px; }");
+    expect(css).toContain(".trace-details { display: grid; grid-template-columns: minmax(0, 1fr); }");
+    expect(css).not.toContain("overflow-x: hidden");
+  });
+
   it("loads the frontend health indicator from /api/health", async () => {
     const request = vi.fn().mockResolvedValue({ status: "ok" });
 
