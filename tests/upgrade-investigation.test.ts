@@ -72,6 +72,25 @@ class HistoricalFixtureReader implements ChainReader {
 }
 
 describe("bounded upgrade investigation", () => {
+  it("records measured elapsed milliseconds for passed and failed checks", async () => {
+    const reader = new HistoricalFixtureReader();
+    reader.failStorageAtUpgrade = new RpcReadError("historical storage request", "timeout");
+    let currentTime = 0;
+    const result = await investigateApprovedUpgrade(reader, config, decodedImplementation, undefined, {
+      now: () => {
+        currentTime += 7;
+        return currentTime;
+      },
+    });
+
+    expect(result.checks).toHaveLength(6);
+    expect(result.checks.every(({ elapsedMs }) => Number.isInteger(elapsedMs) && (elapsedMs ?? -1) >= 0)).toBe(true);
+    expect(result.checks.find(({ id }) => id === "implementation-at-upgrade")).toMatchObject({
+      status: "failed",
+      elapsedMs: expect.any(Number),
+    });
+  });
+
   it("corroborates all fixture-backed checks with exact historical block tags", async () => {
     const reader = new HistoricalFixtureReader();
     const result = await investigateApprovedUpgrade(reader, config, decodedImplementation);

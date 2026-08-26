@@ -550,6 +550,14 @@ describe("browser receipt verification", () => {
     }
   });
 
+  it("keeps browser receipt IDs stable when measured check timings differ", async () => {
+    const receipt = structuredClone(archiveProfiles[0].receipt);
+    const originalId = await createReceiptId(receipt);
+    receipt.checks = receipt.checks.map((item, index) => ({ ...item, elapsedMs: 50 + index }));
+
+    expect(await createReceiptId(receipt)).toBe(originalId);
+  });
+
   it("rejects a forged receipt ID", async () => {
     const forged = structuredClone(archiveProfiles[0].receipt);
     forged.receiptId = `receipt_${"0".repeat(64)}`;

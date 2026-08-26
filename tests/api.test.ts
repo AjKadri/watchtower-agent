@@ -141,6 +141,8 @@ describe("Watchtower API", () => {
       failures: [],
       alerts: [{ severity: "informational", classificationLabel: "Contract upgrade" }],
     });
+    expect(scan.evidence[0].upgradeInvestigation.checks.every(({ elapsedMs }: { elapsedMs?: number }) => Number.isInteger(elapsedMs))).toBe(true);
+    expect(scan.evidence[0].investigationReceipt.checks.every(({ elapsedMs }: { elapsedMs?: number }) => Number.isInteger(elapsedMs))).toBe(true);
     expect(reader.filters).toEqual([{
       address: config.target.primaryContract.address,
       topic0: config.detectors[0].topic0,

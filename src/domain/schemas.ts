@@ -50,6 +50,7 @@ export const upgradeInvestigationCheckSchema = z.object({
     category: rpcFailureCategory,
     message: z.string().min(1),
   }).strict().nullable(),
+  elapsedMs: z.number().int().nonnegative().optional(),
 }).strict();
 
 export const upgradeInvestigationSchema = z.object({

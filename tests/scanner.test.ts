@@ -598,12 +598,24 @@ describe("bounded evidence scan", () => {
     expect(second.investigationReceipt?.receiptId).toBe(receipt.receiptId);
   });
 
+  it("preserves check timings in receipts without making the canonical ID timing-dependent", async () => {
+    const evidence = await completeEvidence();
+    const receipt = evidence.investigationReceipt as InvestigationReceipt;
+    expect(receipt.checks.every(({ elapsedMs }) => Number.isInteger(elapsedMs) && (elapsedMs ?? -1) >= 0)).toBe(true);
+
+    const retimed = structuredClone(receipt);
+    retimed.checks = retimed.checks.map((check, index) => ({ ...check, elapsedMs: 100 + index }));
+    expect(createReceiptId(retimed)).toBe(receipt.receiptId);
+    expect(investigationReceiptSchema.parse(retimed).checks[0].elapsedMs).toBe(100);
+  });
+
   it("keeps the Aave receipt deterministic after adding other registry profiles", async () => {
     const first = await scanApprovedRange(new FixtureReader(), config);
     const second = await scanApprovedRange(new FixtureReader(), getTargetProfile("aave-v3-base-core"));
 
     expect(second.evidence[0].investigationReceipt?.receiptId).toBe(first.evidence[0].investigationReceipt?.receiptId);
-    expect(second.evidence[0].investigationReceipt).toEqual(first.evidence[0].investigationReceipt);
+    expect(second.evidence[0].investigationReceipt?.checks.map(({ elapsedMs: _elapsedMs, ...check }) => check))
+      .toEqual(first.evidence[0].investigationReceipt?.checks.map(({ elapsedMs: _elapsedMs, ...check }) => check));
   });
 
   it("keeps the canonical receipt ID stable across Ethereum address casing", async () => {

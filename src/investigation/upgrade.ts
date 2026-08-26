@@ -16,7 +16,10 @@ import {
 } from "./plans.js";
 
 type CheckResult = NonNullable<UpgradeInvestigationCheck["result"]>;
-type InvestigationOptions = { signal?: AbortSignal };
+type InvestigationOptions = {
+  signal?: AbortSignal;
+  now?: () => number;
+};
 
 class ReadBudget {
   readonly #maximumReads: number;
@@ -131,6 +134,9 @@ async function executeCheck(
   implementation: Address,
   options: InvestigationOptions,
 ): Promise<UpgradeInvestigationCheck> {
+  const now = options.now ?? performance.now.bind(performance);
+  const startedAt = now();
+  const elapsedMs = () => Math.max(0, Math.round(now() - startedAt));
   const blockNumber = blockNumberFor(config, definition);
   const parameters = parametersFor(definition, implementation);
   const expected = expectedFor(definition);
@@ -148,6 +154,7 @@ async function executeCheck(
       assertion: { description: definition.description, expected, actual, matches },
       status: matches ? "passed" : "mismatch",
       failure: null,
+      elapsedMs: elapsedMs(),
     };
   } catch (error) {
     const category = rpcCategory(error);
@@ -170,6 +177,7 @@ async function executeCheck(
         category,
         message: `The ${definition.id} check could not be verified at its configured historical block.`,
       },
+      elapsedMs: elapsedMs(),
     };
   }
 }

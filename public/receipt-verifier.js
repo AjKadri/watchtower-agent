@@ -102,11 +102,18 @@ export function stableSerialize(value) {
 
 export function canonicalReceiptPayload(receipt) {
   if (receipt === null || typeof receipt !== "object") throw new TypeError("Expected a receipt object.");
+  const checks = Array.isArray(receipt.checks)
+    ? receipt.checks.map((check) => {
+        if (check === null || typeof check !== "object" || Array.isArray(check)) return check;
+        const { elapsedMs: _elapsedMs, ...canonicalCheck } = check;
+        return canonicalCheck;
+      })
+    : receipt.checks;
   return normalizeEvmAddresses({
     schemaVersion: receipt.schemaVersion,
     trigger: receipt.trigger,
     plan: receipt.plan,
-    checks: receipt.checks,
+    checks,
     errors: receipt.errors,
     limitations: receipt.limitations,
     finalDisposition: receipt.finalDisposition,
