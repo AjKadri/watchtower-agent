@@ -239,9 +239,20 @@ h3, h4 { line-height: 1.25; }
 .archive-table td:first-child, .archive-table th:first-child { padding-left: 0; }
 .archive-table td:last-child, .archive-table th:last-child { padding-right: 0; text-align: right; }
 .archive-table strong { display: block; margin-bottom: 5px; color: var(--ink); font-family: var(--serif); font-size: 1rem; font-weight: 400; }
-.archive-profile-id, .archive-date { display: block; color: var(--faint); font-family: var(--mono); font-size: 0.57rem; }
+.archive-profile-id, .archive-date, .archive-source-label { display: block; color: var(--faint); font-family: var(--mono); font-size: 0.57rem; }
+.archive-source-label { margin-bottom: var(--space-1); color: var(--blue); text-transform: uppercase; }
+.archive-block-link { display: block; width: fit-content; margin-bottom: var(--space-1); color: var(--blue); font-weight: 700; text-underline-offset: var(--space-1); }
 .mono { font-family: var(--mono); font-size: 0.62rem !important; }
-.receipt-cell { max-width: 180px; overflow-wrap: anywhere; }
+.archive-check-counts { display: grid; gap: var(--space-1); }
+.archive-check-count { overflow-wrap: anywhere; }
+.archive-check-count.passed { color: var(--accent); }
+.archive-check-count.failed { color: var(--red); }
+.archive-check-count.incomplete, .archive-check-count.skipped { color: var(--amber); }
+.receipt-cell { max-width: 230px; overflow-wrap: anywhere; }
+.archive-receipt-id { display: block; max-width: 100%; color: var(--ink); font-family: var(--mono); font-size: var(--text-xs); line-height: var(--leading-normal); overflow-wrap: anywhere; }
+.copy-action { margin-top: var(--space-2); padding: var(--space-1) var(--space-2); border: 1px solid var(--line-strong); color: var(--ink); background: transparent; cursor: pointer; font-size: var(--text-xs); }
+.copy-action:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.copy-status { display: block; min-height: var(--space-4); margin-top: var(--space-1); color: var(--muted); font-family: var(--mono); font-size: var(--text-xs); }
 .replay-action { padding: 8px 10px; border: 1px solid var(--line-strong); color: var(--ink); background: transparent; cursor: pointer; font-size: 0.65rem; font-weight: 700; }
 .replay-action:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .archive-empty { padding: 52px 20px; border: 1px solid var(--line); color: var(--muted); text-align: center; }

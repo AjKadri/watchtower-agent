@@ -9,6 +9,7 @@ import {
   buildInvestigationTrace,
   buildProfileOptions,
   canRenderAlertDetail,
+  countInvestigationChecks,
   fetchHealth,
   formatUtcTimestamp,
   investigationStateLabel,
@@ -138,7 +139,7 @@ describe("dashboard view model", () => {
     expect(options.map(({ availability }) => availability)).toEqual([
       "Verified fixture replay",
       "Verified fixture replay",
-      "Live RPC available",
+      "Live scan eligible",
     ]);
   });
 
@@ -151,13 +152,41 @@ describe("dashboard view model", () => {
       "compound-iii-base-usdc-comet",
       "etherfi-base-weeth-oft",
     ]);
-    expect(entries.every(({ event, disposition, checkCount, receiptId }) => (
+    expect(entries.every(({ event, disposition, checkCounts, receiptId, blockLink, sourceLabel }) => (
       event === "Upgraded(address)"
       && disposition === "corroborated"
-      && checkCount === 6
+      && checkCounts.passed === 6
+      && checkCounts.failed === 0
+      && checkCounts.incomplete === 0
+      && checkCounts.skipped === 0
+      && checkCounts.total === 6
       && /^receipt_[0-9a-f]{64}$/.test(receiptId)
+      && blockLink.startsWith("https://basescan.org/block/")
+      && sourceLabel === "Verified fixture replay"
     ))).toBe(true);
     expect(buildArchiveEntries([])).toEqual([]);
+  });
+
+  it("derives archive check outcomes from recorded and skipped checks", () => {
+    const receipt = {
+      checks: [
+        { id: "one", status: "passed" },
+        { id: "two", status: "mismatch" },
+        { id: "three", status: "unsupported" },
+      ],
+      plan: { skippedChecks: ["four"] },
+    };
+
+    expect(countInvestigationChecks(receipt)).toEqual({ passed: 1, failed: 1, incomplete: 1, skipped: 1, total: 4 });
+  });
+
+  it("renders archive block, complete receipt, copy, and fixture replay actions", () => {
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+
+    expect(app).toContain("archive-block-link");
+    expect(app).toContain("archive-receipt-id");
+    expect(app).toContain('"Copy receipt ID"');
+    expect(app).toContain('"Replay fixture"');
   });
 
   it("keeps archive triggers and checks tied to the committed fixture and registry", () => {

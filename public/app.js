@@ -141,20 +141,43 @@ function renderArchive() {
     const row = node("tr");
     const protocol = node("td");
     protocol.dataset.label = "Protocol";
-    protocol.append(node("strong", "", entry.protocol), node("span", "archive-profile-id", entry.profileId));
+    protocol.append(
+      node("strong", "", entry.protocol),
+      node("span", "archive-source-label", entry.sourceLabel),
+      node("span", "archive-profile-id", entry.profileId),
+    );
     const event = node("td", "mono", entry.event);
     event.dataset.label = "Event";
     const block = node("td");
     block.dataset.label = "Block and date";
-    block.append(node("strong", "mono", entry.block), node("span", "archive-date", formatUtcTimestamp(entry.timestamp)));
+    block.append(sourceLink(entry.block, entry.blockLink, "archive-block-link mono"), node("span", "archive-date", formatUtcTimestamp(entry.timestamp)));
     const disposition = node("td");
     disposition.dataset.label = "Disposition";
     disposition.append(badge(entry.disposition));
-    const checks = node("td", "mono", `${entry.checkCount} / ${entry.checkCount}`);
+    const checks = node("td", "mono");
     checks.dataset.label = "Checks";
-    const receipt = node("td", "mono receipt-cell", shortHash(entry.receiptId));
+    const checkCounts = node("span", "archive-check-counts");
+    for (const status of ["passed", "failed", "incomplete", "skipped"]) {
+      checkCounts.append(node("span", `archive-check-count ${status}`, `${entry.checkCounts[status]} ${status}`));
+    }
+    checks.append(checkCounts);
+    const receipt = node("td", "receipt-cell");
     receipt.dataset.label = "Receipt";
-    receipt.title = entry.receiptId;
+    const receiptId = node("code", "archive-receipt-id", entry.receiptId);
+    const copyStatus = node("span", "copy-status", "");
+    copyStatus.setAttribute("role", "status");
+    const copy = node("button", "copy-action", "Copy receipt ID");
+    copy.type = "button";
+    copy.addEventListener("click", async () => {
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+        await navigator.clipboard.writeText(entry.receiptId);
+        copyStatus.textContent = "Copied";
+      } catch {
+        copyStatus.textContent = "Copy unavailable";
+      }
+    });
+    receipt.append(receiptId, copy, copyStatus);
     const action = node("td");
     action.dataset.label = "Action";
     const replay = node("button", "replay-action", "Replay fixture");

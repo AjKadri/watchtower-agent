@@ -39,8 +39,24 @@ export function buildProfileOptions(profiles, activeProfileId) {
     product: profile.product,
     targetPurpose: profile.targetPurpose,
     isActive: profile.id === activeProfileId,
-    availability: profile.id === activeProfileId ? "Live RPC available" : "Verified fixture replay",
+    availability: profile.id === activeProfileId ? "Live scan eligible" : "Verified fixture replay",
   }));
+}
+
+export function countInvestigationChecks(receipt) {
+  const counts = { passed: 0, failed: 0, incomplete: 0, skipped: 0 };
+  const recordedIds = new Set();
+  for (const check of receipt?.checks ?? []) {
+    recordedIds.add(check.id);
+    if (check.status === "passed") counts.passed += 1;
+    else if (check.status === "failed" || check.status === "mismatch") counts.failed += 1;
+    else if (check.status === "skipped") counts.skipped += 1;
+    else counts.incomplete += 1;
+  }
+  for (const checkId of receipt?.plan?.skippedChecks ?? []) {
+    if (!recordedIds.has(checkId)) counts.skipped += 1;
+  }
+  return { ...counts, total: counts.passed + counts.failed + counts.incomplete + counts.skipped };
 }
 
 export function buildArchiveEntries(profiles) {
@@ -52,10 +68,12 @@ export function buildArchiveEntries(profiles) {
       protocol: profile.displayName,
       event: profile.event,
       block: profile.block.number,
+      blockLink: profile.links.block,
       timestamp: profile.block.timestamp,
       disposition: profile.disposition,
-      checkCount: profile.receipt.checks.length,
+      checkCounts: countInvestigationChecks(profile.receipt),
       receiptId: profile.receipt.receiptId,
+      sourceLabel: "Verified fixture replay",
     }));
 }
 
