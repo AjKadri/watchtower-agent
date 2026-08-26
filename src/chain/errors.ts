@@ -47,6 +47,9 @@ export function classifyRpcError(error: unknown): RpcFailureCategory {
   if (statuses.includes(429) || codes.includes("429") || codes.includes("-32005") || /rate.?limit|too many requests/.test(text)) {
     return "rate-limit";
   }
+  if (codes.includes("ABORT_ERR") || /aborterror|operation was aborted|request was aborted/.test(text)) {
+    return "timeout";
+  }
   if (codes.some((code) => ["ENOTFOUND", "EAI_AGAIN", "EAI_FAIL"].includes(code)) || /could not resolve|dns lookup|getaddrinfo/.test(text)) {
     return "dns";
   }

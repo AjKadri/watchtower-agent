@@ -14,6 +14,7 @@ import { createAlertId, createScanId } from "./ids.js";
 import { classifyUpgrade } from "./severity.js";
 
 export type ScanBounds = { fromBlock?: bigint; toBlock?: bigint };
+export type ScanOptions = { signal?: AbortSignal };
 
 const BASE_MAINNET_CHAIN_ID = 8453;
 
@@ -106,6 +107,7 @@ async function buildEvidence(
   log: ChainLog,
   implementation: Address,
   caches: EvidenceCaches,
+  signal?: AbortSignal,
 ): Promise<{ alert: Alert; evidence: Evidence; failures: ScanFailure[] }> {
   const emitter = normalizeEvmAddress(log.address);
   const normalizedImplementation = normalizeEvmAddress(implementation);
@@ -117,9 +119,9 @@ async function buildEvidence(
   const scanFailures: ScanFailure[] = [];
 
   const [blockResult, transactionResult, receiptResult] = await Promise.allSettled([
-    cached(caches.blocks, log.blockHash, async () => validateChainBlock(await reader.getBlock(log.blockHash))),
-    cached(caches.transactions, log.transactionHash, async () => validateChainTransaction(await reader.getTransaction(log.transactionHash))),
-    cached(caches.receipts, log.transactionHash, async () => validateChainReceipt(await reader.getTransactionReceipt(log.transactionHash))),
+    cached(caches.blocks, log.blockHash, async () => validateChainBlock(await reader.getBlock(log.blockHash, signal))),
+    cached(caches.transactions, log.transactionHash, async () => validateChainTransaction(await reader.getTransaction(log.transactionHash, signal))),
+    cached(caches.receipts, log.transactionHash, async () => validateChainReceipt(await reader.getTransactionReceipt(log.transactionHash, signal))),
   ]);
 
   const addEvidenceError = (code: string, message: string, category: ScanFailure["category"] = "incomplete-evidence") => {
@@ -179,7 +181,7 @@ async function buildEvidence(
     triggerEvidenceStatus: triggerEvidenceComplete ? "complete" : "incomplete",
     severityRuleId: severity.ruleId,
   });
-  const upgradeInvestigation = await investigateApprovedUpgrade(reader, config, normalizedImplementation, plan);
+  const upgradeInvestigation = await investigateApprovedUpgrade(reader, config, normalizedImplementation, plan, { signal });
   for (const check of upgradeInvestigation.checks) {
     if (check.failure) {
       addEvidenceError(check.failure.code, check.failure.message, check.failure.category);
@@ -303,6 +305,7 @@ export async function scanApprovedRange(
   reader: ChainReader,
   config: TargetConfig,
   bounds: ScanBounds = {},
+  options: ScanOptions = {},
 ): Promise<ScanResult> {
   const fromBlock = bounds.fromBlock ?? BigInt(config.scan.fromBlock);
   const toBlock = bounds.toBlock ?? BigInt(config.scan.toBlock);
@@ -312,7 +315,7 @@ export async function scanApprovedRange(
 
   let chainId: number;
   try {
-    chainId = await reader.getChainId();
+    chainId = await reader.getChainId(options.signal);
   } catch (error) {
     return failedResult(config, fromBlock, toBlock, rpcFailure("chain-id-rpc", "The RPC chain ID could not be retrieved.", error));
   }
@@ -325,7 +328,7 @@ export async function scanApprovedRange(
 
   let latestBlock: bigint;
   try {
-    latestBlock = await reader.getLatestBlockNumber();
+    latestBlock = await reader.getLatestBlockNumber(options.signal);
   } catch (error) {
     return failedResult(config, fromBlock, toBlock, rpcFailure("latest-block-rpc", "The latest Base block could not be retrieved.", error));
   }
@@ -345,7 +348,7 @@ export async function scanApprovedRange(
   for (let chunkStart = fromBlock; chunkStart <= toBlock; chunkStart += chunkSize) {
     const chunkEnd = chunkStart + chunkSize - 1n > toBlock ? toBlock : chunkStart + chunkSize - 1n;
     try {
-      const batch = validateChainLogBatch(await reader.getLogs({ address, topic0: detector.topic0, fromBlock: chunkStart, toBlock: chunkEnd }));
+      const batch = validateChainLogBatch(await reader.getLogs({ address, topic0: detector.topic0, fromBlock: chunkStart, toBlock: chunkEnd }, options.signal));
       successfulChunks += 1;
       for (const malformed of batch.malformed) {
         failures.push({ ...malformed, stage: "rpc", category: "malformed-response" });
@@ -388,7 +391,7 @@ export async function scanApprovedRange(
     seenAlertIds.add(alertId);
 
     try {
-      const built = await buildEvidence(reader, config, log, implementation, caches);
+      const built = await buildEvidence(reader, config, log, implementation, caches, options.signal);
       built.alert.scanId = scanId;
       alerts.push(built.alert);
       evidence.push(built.evidence);

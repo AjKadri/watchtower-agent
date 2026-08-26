@@ -52,13 +52,13 @@ export type ChainLogBatch = {
 };
 
 export interface ChainReader {
-  getChainId(): Promise<number>;
-  getLatestBlockNumber(): Promise<bigint>;
-  getLogs(filter: LogFilter): Promise<ChainLogBatch>;
-  getBlock(blockHash: Hash): Promise<ChainBlock>;
-  getTransaction(transactionHash: Hash): Promise<ChainTransaction>;
-  getTransactionReceipt(transactionHash: Hash): Promise<ChainReceipt>;
-  getStorageAt(address: Address, slot: Hex, blockNumber: bigint): Promise<Hex>;
-  getCode(address: Address, blockNumber: bigint): Promise<Hex>;
-  call(address: Address, data: Hex, blockNumber: bigint): Promise<Hex>;
+  getChainId(signal?: AbortSignal): Promise<number>;
+  getLatestBlockNumber(signal?: AbortSignal): Promise<bigint>;
+  getLogs(filter: LogFilter, signal?: AbortSignal): Promise<ChainLogBatch>;
+  getBlock(blockHash: Hash, signal?: AbortSignal): Promise<ChainBlock>;
+  getTransaction(transactionHash: Hash, signal?: AbortSignal): Promise<ChainTransaction>;
+  getTransactionReceipt(transactionHash: Hash, signal?: AbortSignal): Promise<ChainReceipt>;
+  getStorageAt(address: Address, slot: Hex, blockNumber: bigint, signal?: AbortSignal): Promise<Hex>;
+  getCode(address: Address, blockNumber: bigint, signal?: AbortSignal): Promise<Hex>;
+  call(address: Address, data: Hex, blockNumber: bigint, signal?: AbortSignal): Promise<Hex>;
 }

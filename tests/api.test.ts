@@ -358,18 +358,27 @@ describe("Watchtower API", () => {
     expect(firstResponse.status).toBe(201);
   });
 
-  it("times out a slow scan, clears stale artifacts, and permits a later scan", async () => {
-    let releaseTimedOutScan = () => {};
-    const delayedChainId = new Promise<number>((resolve) => {
-      releaseTimedOutScan = () => resolve(8453);
-    });
+  it("aborts at the deadline, keeps the lock through cleanup, clears stale artifacts, and later recovers", async () => {
+    let releaseTimedOutCleanup = () => {};
+    let markCleanupComplete = () => {};
+    const cleanupRelease = new Promise<void>((resolve) => { releaseTimedOutCleanup = resolve; });
+    const cleanupComplete = new Promise<void>((resolve) => { markCleanupComplete = resolve; });
     class DeadlineReader extends ApiFixtureReader {
       slowNextScan = false;
+      receivedSignal: AbortSignal | undefined;
 
-      override async getChainId(): Promise<number> {
+      override async getChainId(signal?: AbortSignal): Promise<number> {
         if (this.slowNextScan) {
           this.slowNextScan = false;
-          return delayedChainId;
+          this.receivedSignal = signal;
+          return new Promise<number>((_resolve, reject) => {
+            signal?.addEventListener("abort", () => {
+              void cleanupRelease.then(() => {
+                markCleanupComplete();
+                reject(signal.reason);
+              });
+            }, { once: true });
+          });
         }
         return 8453;
       }
@@ -404,6 +413,19 @@ describe("Watchtower API", () => {
     expect(await (await fetch(`${baseUrl}/api/alerts`)).json()).toEqual({ alerts: [] });
     expect((await fetch(`${baseUrl}/api/alerts/${previousAlertId}`)).status).toBe(404);
     expect((await fetch(`${baseUrl}/api/receipts/${previousReceiptId}`)).status).toBe(404);
+    expect(reader.receivedSignal).toBeInstanceOf(AbortSignal);
+    expect(reader.receivedSignal?.aborted).toBe(true);
+
+    const duringCleanupResponse = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    expect(duringCleanupResponse.status).toBe(429);
+
+    releaseTimedOutCleanup();
+    await cleanupComplete;
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const laterResponse = await fetch(`${baseUrl}/api/scans`, {
       method: "POST",
@@ -414,9 +436,6 @@ describe("Watchtower API", () => {
     expect(laterResponse.status).toBe(201);
     expect(later).toMatchObject({ status: "complete", failures: [] });
     expect(later.scanId).toBe(timedOut.scanId);
-
-    releaseTimedOutScan();
-    await new Promise((resolve) => setTimeout(resolve, 25));
     expect(await (await fetch(`${baseUrl}/api/scans/${later.scanId}`)).json()).toEqual(later);
   });
 

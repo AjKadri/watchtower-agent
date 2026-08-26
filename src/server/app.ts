@@ -93,19 +93,33 @@ function scanDeadlineResult(config: TargetConfig, fromBlock: bigint, toBlock: bi
   });
 }
 
+type DeadlineExecution = {
+  result: ScanResult;
+  cleanup: Promise<void>;
+  timedOut: boolean;
+};
+
 async function runWithDeadline(
   operation: Promise<ScanResult>,
+  controller: AbortController,
   deadlineMs: number,
   timeoutResult: ScanResult,
-): Promise<ScanResult> {
+): Promise<DeadlineExecution> {
   let timer: NodeJS.Timeout | undefined;
+  let timedOut = false;
+  const cleanup = operation.then(() => undefined, () => undefined);
   try {
-    return await Promise.race([
+    const result = await Promise.race([
       operation,
       new Promise<ScanResult>((resolveTimeout) => {
-        timer = setTimeout(() => resolveTimeout(timeoutResult), deadlineMs);
+        timer = setTimeout(() => {
+          timedOut = true;
+          controller.abort(new DOMException("The total scan deadline elapsed.", "AbortError"));
+          resolveTimeout(timeoutResult);
+        }, deadlineMs);
       }),
     ]);
+    return { result, cleanup, timedOut };
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -173,16 +187,25 @@ export function createApp(dependencies: AppDependencies): Express {
         ? BigInt(parsed.data.toBlock)
         : BigInt(dependencies.config.scan.toBlock);
       processScanActive = true;
+      let releaseLockOnReturn = true;
       try {
-        const result = await runWithDeadline(
-          scanApprovedRange(dependencies.reader, dependencies.config, { fromBlock, toBlock }),
+        const controller = new AbortController();
+        const execution = await runWithDeadline(
+          scanApprovedRange(dependencies.reader, dependencies.config, { fromBlock, toBlock }, { signal: controller.signal }),
+          controller,
           scanDeadlineMs,
           scanDeadlineResult(dependencies.config, fromBlock, toBlock),
         );
-        store.save(result);
-        response.status(scanHttpStatus(result)).json(result);
+        store.save(execution.result);
+        response.status(scanHttpStatus(execution.result)).json(execution.result);
+        if (execution.timedOut) {
+          releaseLockOnReturn = false;
+          void execution.cleanup.finally(() => {
+            processScanActive = false;
+          });
+        }
       } finally {
-        processScanActive = false;
+        if (releaseLockOnReturn) processScanActive = false;
       }
     } catch (error) {
       next(error);

@@ -16,6 +16,7 @@ import {
 } from "./plans.js";
 
 type CheckResult = NonNullable<UpgradeInvestigationCheck["result"]>;
+type InvestigationOptions = { signal?: AbortSignal };
 
 class ReadBudget {
   readonly #maximumReads: number;
@@ -78,12 +79,13 @@ async function readCheck(
   check: ProfileInvestigationCheck,
   implementation: Address,
   blockNumber: bigint,
+  signal?: AbortSignal,
 ): Promise<CheckResult> {
   if (check.kind === "storage-address") {
-    return { kind: "address", value: normalizeAddressWord(await reader.getStorageAt(check.address as Address, check.slot as Hex, blockNumber)) };
+    return { kind: "address", value: normalizeAddressWord(await reader.getStorageAt(check.address as Address, check.slot as Hex, blockNumber, signal)) };
   }
   if (check.kind === "implementation-code") {
-    const code = await reader.getCode(implementation, blockNumber);
+    const code = await reader.getCode(implementation, blockNumber, signal);
     if (!/^0x(?:[0-9a-f]{2})*$/i.test(code)) {
       throw new RpcReadError("historical code result", "malformed-response");
     }
@@ -94,7 +96,7 @@ async function readCheck(
       hash: keccak256(code),
     };
   }
-  const result = await reader.call(check.to, check.data as Hex, blockNumber);
+  const result = await reader.call(check.to, check.data as Hex, blockNumber, signal);
   if (check.kind === "call-address") return { kind: "address", value: normalizeAddressWord(result) };
   return { kind: "uint256", value: normalizeUint256(result) };
 }
@@ -127,12 +129,13 @@ async function executeCheck(
   config: TargetConfig,
   definition: ProfileInvestigationCheck,
   implementation: Address,
+  options: InvestigationOptions,
 ): Promise<UpgradeInvestigationCheck> {
   const blockNumber = blockNumberFor(config, definition);
   const parameters = parametersFor(definition, implementation);
   const expected = expectedFor(definition);
   try {
-    const result = await readCheck(reader, definition, implementation, blockNumber);
+    const result = await readCheck(reader, definition, implementation, blockNumber, options.signal);
     const actual = actualFor(result);
     const matches = matchesCheck(definition, result, implementation);
     return {
@@ -181,6 +184,7 @@ export async function investigateApprovedUpgrade(
     triggerEvidenceStatus: "complete",
     severityRuleId: "target-is-approved",
   }),
+  options: InvestigationOptions = {},
 ): Promise<UpgradeInvestigation> {
   const plan = investigationPlanSchema.parse(selectedPlan);
   const expectedPlan = planForProfile(config, plan.id);
@@ -196,7 +200,7 @@ export async function investigateApprovedUpgrade(
     budget.consume(definition.capability);
     return definition;
   });
-  const checks = await Promise.all(selectedDefinitions.map((definition) => executeCheck(reader, config, definition, implementation)));
+  const checks = await Promise.all(selectedDefinitions.map((definition) => executeCheck(reader, config, definition, implementation, options)));
 
   const requiredChecks = checks.filter(({ required }) => required);
   const disposition = plan.id === "stop-incomplete"

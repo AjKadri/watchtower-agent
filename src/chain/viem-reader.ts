@@ -96,31 +96,36 @@ export function normalizeRpcLogs(value: unknown): ChainLogBatch {
 }
 
 export function createViemChainReader(rpcUrl: string): ChainReader {
-  const client = createPublicClient({
+  const createClient = (signal?: AbortSignal) => createPublicClient({
     chain: base,
-    transport: http(rpcUrl, { retryCount: 2, retryDelay: 250, timeout: 10_000 }),
+    transport: http(rpcUrl, {
+      retryCount: 2,
+      retryDelay: 250,
+      timeout: 10_000,
+      ...(signal && { fetchOptions: { signal } }),
+    }),
   });
 
   return {
-    async getChainId() {
+    async getChainId(signal) {
       try {
-        return await client.getChainId();
+        return await createClient(signal).getChainId();
       } catch (error) {
         throw wrapRpcError("chain-ID request", error);
       }
     },
 
-    async getLatestBlockNumber() {
+    async getLatestBlockNumber(signal) {
       try {
-        return await client.getBlockNumber();
+        return await createClient(signal).getBlockNumber();
       } catch (error) {
         throw wrapRpcError("latest-block request", error);
       }
     },
 
-    async getLogs(filter: LogFilter) {
+    async getLogs(filter: LogFilter, signal) {
       try {
-        const logs = await client.request({
+        const logs = await createClient(signal).request({
           method: "eth_getLogs",
           params: [{
             address: filter.address,
@@ -128,16 +133,16 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
             fromBlock: toHex(filter.fromBlock),
             toBlock: toHex(filter.toBlock),
           }],
-        });
+        }, { signal });
         return normalizeRpcLogs(logs);
       } catch (error) {
         throw wrapRpcError("log request", error);
       }
     },
 
-    async getBlock(blockHash) {
+    async getBlock(blockHash, signal) {
       try {
-        const block = await client.getBlock({ blockHash });
+        const block = await createClient(signal).getBlock({ blockHash });
         return validateChainBlock({
           hash: block.hash,
           number: block.number,
@@ -148,9 +153,9 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
       }
     },
 
-    async getTransaction(transactionHash) {
+    async getTransaction(transactionHash, signal) {
       try {
-        const transaction = await client.getTransaction({ hash: transactionHash });
+        const transaction = await createClient(signal).getTransaction({ hash: transactionHash });
         return validateChainTransaction({
           hash: transaction.hash,
           from: transaction.from,
@@ -161,9 +166,9 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
       }
     },
 
-    async getTransactionReceipt(transactionHash) {
+    async getTransactionReceipt(transactionHash, signal) {
       try {
-        const receipt = await client.getTransactionReceipt({ hash: transactionHash });
+        const receipt = await createClient(signal).getTransactionReceipt({ hash: transactionHash });
         const logs = receipt.logs
           .filter(({ removed }) => !removed)
           .map((log) => ({
@@ -186,9 +191,9 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
       }
     },
 
-    async getStorageAt(address, slot, blockNumber) {
+    async getStorageAt(address, slot, blockNumber, signal) {
       try {
-        const value = await client.getStorageAt({ address, slot, blockNumber });
+        const value = await createClient(signal).getStorageAt({ address, slot, blockNumber });
         if (value === undefined || !/^0x[0-9a-f]{64}$/i.test(value)) {
           throw new RpcReadError("historical storage request", "malformed-response");
         }
@@ -198,9 +203,9 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
       }
     },
 
-    async getCode(address, blockNumber) {
+    async getCode(address, blockNumber, signal) {
       try {
-        const value = await client.getCode({ address, blockNumber });
+        const value = await createClient(signal).getCode({ address, blockNumber });
         if (value === undefined || !/^0x(?:[0-9a-f]{2})*$/i.test(value)) {
           throw new RpcReadError("historical code request", "malformed-response");
         }
@@ -210,9 +215,9 @@ export function createViemChainReader(rpcUrl: string): ChainReader {
       }
     },
 
-    async call(address, data, blockNumber) {
+    async call(address, data, blockNumber, signal) {
       try {
-        const result = await client.call({ to: address, data, blockNumber });
+        const result = await createClient(signal).call({ to: address, data, blockNumber });
         if (result.data === undefined || !/^0x(?:[0-9a-f]{2})*$/i.test(result.data)) {
           throw new RpcReadError("historical contract call", "malformed-response");
         }

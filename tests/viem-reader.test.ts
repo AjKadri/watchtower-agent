@@ -39,6 +39,7 @@ describe("viem reader normalization", () => {
   it("classifies safe RPC categories without exposing raw errors", () => {
     expect(classifyRpcError(Object.assign(new Error("getaddrinfo ENOTFOUND private.example"), { code: "ENOTFOUND" }))).toBe("dns");
     expect(classifyRpcError(Object.assign(new Error("request timed out"), { code: "ETIMEDOUT" }))).toBe("timeout");
+    expect(classifyRpcError(new DOMException("The operation was aborted.", "AbortError"))).toBe("timeout");
     expect(classifyRpcError({ status: 429, message: "provider detail" })).toBe("rate-limit");
     expect(classifyRpcError(new SyntaxError("Unexpected token in JSON"))).toBe("malformed-response");
     expect(new RpcReadError("log request", "dns").message).toBe("Base RPC log request failed.");
