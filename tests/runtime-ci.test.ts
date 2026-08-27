@@ -42,26 +42,33 @@ describe("release runtime and CI configuration", () => {
       "npm run build",
       "npm audit --audit-level=moderate",
       "npm ci --omit=dev",
-      "npm start",
+      "node --env-file-if-exists=.env dist/server/main.js",
       "http://127.0.0.1:3000/api/health",
       "kill -TERM",
-      'npm_status" -ne 0 && "$npm_status" -ne 143',
+      'wait "$node_pid"',
+      '"$node_status" -ne 0',
       'probe.listen(3000, "127.0.0.1"',
-      'ps -o stat= -p "$node_pid"',
       '"$node_state" != Z*',
+      'cat "$log_file"',
+      "Health check passed with HTTP",
+      "Compiled Node PID:",
+      "Sending SIGTERM",
+      "Compiled Node wait status:",
+      "Port 3000 is free.",
+      "Final compiled Node process state:",
     ]) {
       expect(workflow).toContain(required);
     }
     expect(workflow).toContain("BASE_RPC_URL: https://example.invalid");
     expect(workflow).not.toContain("actions/checkout@v4");
     expect(workflow).not.toContain("actions/setup-node@v4");
-    expect(workflow).not.toContain("for _ in {1..40}");
+    expect(workflow).not.toContain("npm start >");
     expect(workflow).not.toContain("secrets.");
 
     const signalIndex = workflow.indexOf('kill -TERM "$node_pid"');
-    const waitIndex = workflow.indexOf('wait "$npm_pid"');
+    const waitIndex = workflow.indexOf('wait "$node_pid"');
     const portProbeIndex = workflow.indexOf('probe.listen(3000, "127.0.0.1"');
-    const processStateIndex = workflow.indexOf('ps -o stat= -p "$node_pid"');
+    const processStateIndex = workflow.indexOf('Final compiled Node process state:');
     expect(signalIndex).toBeGreaterThan(-1);
     expect(waitIndex).toBeGreaterThan(signalIndex);
     expect(portProbeIndex).toBeGreaterThan(waitIndex);

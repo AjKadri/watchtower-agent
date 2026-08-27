@@ -43,57 +43,98 @@ jobs:
           PORT: "3000"
         run: |
           set -euo pipefail
-          npm start > /tmp/watchtower-start.log 2>&1 &
-          npm_pid=$!
+          log_file=/tmp/watchtower-start.log
           node_pid=""
+          node_reaped=false
+
+          process_state() {
+            ps -o stat= -p "$1" 2>/dev/null | awk 'NR == 1 { print $1 }' || true
+          }
+
+          fail_smoke() {
+            echo "::error::$1"
+            echo "--- $log_file ---"
+            cat "$log_file" 2>/dev/null || true
+            exit 1
+          }
+
           cleanup() {
-            if [[ -n "$node_pid" ]] && kill -0 "$node_pid" 2>/dev/null; then
-              kill -TERM "$node_pid" 2>/dev/null || true
-            fi
-            if kill -0 "$npm_pid" 2>/dev/null; then
-              kill -TERM "$npm_pid" 2>/dev/null || true
+            if [[ -n "$node_pid" && "$node_reaped" != "true" ]]; then
+              node_state="$(process_state "$node_pid")"
+              if [[ -n "$node_state" && "$node_state" != Z* ]]; then
+                kill -TERM "$node_pid" 2>/dev/null || true
+              fi
+              set +e
+              wait "$node_pid" 2>/dev/null
+              set -e
+              node_reaped=true
             fi
           }
           trap cleanup EXIT
 
+          echo "Starting compiled Watchtower directly."
+          node --env-file-if-exists=.env dist/server/main.js > "$log_file" 2>&1 &
+          node_pid=$!
+          echo "Compiled Node PID: $node_pid"
+
+          node_command="$(ps -o args= -p "$node_pid" 2>/dev/null || true)"
+          echo "Compiled Node command: ${node_command:-unavailable}"
+          if [[ "$node_command" != *"dist/server/main.js"* ]]; then
+            fail_smoke "The production process is not the compiled Watchtower entrypoint."
+          fi
+
+          echo "Checking GET /api/health for HTTP 200."
           healthy=false
           for _ in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:3000/api/health > /tmp/watchtower-health.json; then
-              healthy=true
-              break
+            if health_code="$(curl --fail --silent --show-error --output /tmp/watchtower-health.json --write-out '%{http_code}' http://127.0.0.1:3000/api/health)"; then
+              if [[ "$health_code" == "200" ]]; then
+                healthy=true
+                break
+              fi
+            fi
+            node_state="$(process_state "$node_pid")"
+            if [[ -z "$node_state" || "$node_state" == Z* ]]; then
+              fail_smoke "Compiled Watchtower exited before the health check passed."
             fi
             sleep 1
           done
           if [[ "$healthy" != "true" ]]; then
-            cat /tmp/watchtower-start.log
-            exit 1
+            fail_smoke "GET /api/health did not return HTTP 200."
           fi
-          grep -q '"status":"ok"' /tmp/watchtower-health.json
+          if ! grep -q '"status":"ok"' /tmp/watchtower-health.json; then
+            fail_smoke "GET /api/health returned an unexpected response."
+          fi
+          echo "Health check passed with HTTP $health_code."
 
-          node_pid="$(ps -eo pid=,args= | awk '/[n]ode .*dist\/server\/main\.js/ { print $1; exit }')"
-          test -n "$node_pid"
-          kill -TERM "$node_pid"
+          echo "Sending SIGTERM to compiled Node PID $node_pid."
+          if ! kill -TERM "$node_pid"; then
+            fail_smoke "Could not send SIGTERM to compiled Watchtower."
+          fi
 
           set +e
-          wait "$npm_pid"
-          npm_status=$?
+          wait "$node_pid"
+          node_status=$?
           set -e
-          if [[ "$npm_status" -ne 0 && "$npm_status" -ne 143 ]]; then
-            echo "npm start exited unexpectedly with status $npm_status."
-            cat /tmp/watchtower-start.log
-            exit 1
+          node_reaped=true
+          echo "Compiled Node wait status: $node_status"
+          if [[ "$node_status" -ne 0 ]]; then
+            fail_smoke "Compiled Watchtower did not exit cleanly after SIGTERM."
           fi
 
-          node --input-type=module -e '
+          echo "Probing port 3000 for release."
+          if ! node --input-type=module -e '
             import net from "node:net";
             const probe = net.createServer();
             probe.once("error", () => process.exit(1));
             probe.listen(3000, "127.0.0.1", () => probe.close((error) => process.exit(error ? 1 : 0)));
-          '
+          '; then
+            fail_smoke "Port 3000 remains in use after shutdown."
+          fi
+          echo "Port 3000 is free."
 
-          node_state="$(ps -o stat= -p "$node_pid" 2>/dev/null | awk 'NR == 1 { print $1 }' || true)"
+          node_state="$(process_state "$node_pid")"
+          echo "Final compiled Node process state: ${node_state:-absent}"
           if [[ -n "$node_state" && "$node_state" != Z* ]]; then
-            echo "Compiled Watchtower process is still running with state $node_state."
-            exit 1
+            fail_smoke "Compiled Watchtower is still running after shutdown."
           fi
           trap - EXIT
