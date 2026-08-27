@@ -540,6 +540,16 @@ describe("dashboard view model", () => {
     expect(app).toContain("trace-elapsed");
     expect(app).toContain('source === "verified-fixture"');
     expect(app).toContain("downloadReceipt(detail.evidence.investigationReceipt)");
+    expect(app).toContain("Timing not recorded for fixture replay");
+  });
+
+  it("keeps profile selector controls as native buttons without conflicting list roles", () => {
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+    const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+
+    expect(app).not.toContain('button.setAttribute("role", "listitem")');
+    expect(html).not.toMatch(/id="profile-selector"[^>]*role="list"/);
+    expect(html).toMatch(/id="profile-selector"[^>]*aria-label="Configured target profiles"/);
   });
 });
 

@@ -111,7 +111,6 @@ function renderProfiles() {
     button.type = "button";
     button.dataset.profileId = option.id;
     button.dataset.profileSource = option.isActive ? "live-available" : "verified-fixture";
-    button.setAttribute("role", "listitem");
     button.setAttribute("aria-pressed", String(option.id === state.selectedProfileId));
     const index = node("span", "profile-index", String(option.index).padStart(2, "0"));
     const copy = node("span", "profile-copy");
@@ -281,7 +280,11 @@ function renderTrace(detail, source) {
         const row = node("li", "trace-detail");
         const detailTop = node("div", "trace-detail-top");
         detailTop.append(node("span", "trace-detail-label", check.label), badge(check.status));
-        if (Number.isFinite(check.elapsedMs)) detailTop.append(node("span", "trace-elapsed", `${check.elapsedMs} ms`));
+        if (Number.isFinite(check.elapsedMs)) {
+          detailTop.append(node("span", "trace-elapsed", `${check.elapsedMs} ms`));
+        } else if (source === "verified-fixture") {
+          detailTop.append(node("span", "trace-elapsed fixture-timing", "Timing not recorded for fixture replay"));
+        }
         row.append(detailTop, node("p", "trace-detail-summary", check.summary));
         detailList.append(row);
       }
