@@ -301,10 +301,7 @@ production configuration, runtime pinning, CI requirements, and failure
 handling.
 
 The current public revision is
-[`47d5c8bd196f0d9c2aa511f5b25d2d273e4c2991`](https://github.com/AjKadri/watchtower-agent/commit/47d5c8bd196f0d9c2aa511f5b25d2d273e4c2991).
-Its [Release checks run](https://github.com/AjKadri/watchtower-agent/actions/runs/33047526500)
-completed successfully. The four final-audit commits described above remain
-local until reviewed and pushed.
+[`6b1975ed1be297d76991f0ef300b980db32b20a4`](https://github.com/AjKadri/watchtower-agent/commit/6b1975ed1be297d76991f0ef300b980db32b20a4).
 
 Fixture provenance and detailed verified values are available in:
 
