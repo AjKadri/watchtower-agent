@@ -38,14 +38,18 @@ jobs:
           npm ci --omit=dev
           npm run build
       - name: Smoke test compiled scan CLI without a live RPC secret
-        env:
-          BASE_RPC_URL: https://example.invalid
         run: |
           set -euo pipefail
+          trap 'rm -f .env' EXIT
+          printf '%s\n' 'BASE_RPC_URL=https://example.invalid' > .env
           set +e
           npm run --silent scan > /tmp/watchtower-scan.json 2> /tmp/watchtower-scan.err
           scan_status=$?
           set -e
+          if grep -E -q '(BASE_RPC_URL|https://example\.invalid|g\.alchemy\.com/v2/|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|BEGIN ([A-Z ]+ )?PRIVATE KEY)' /tmp/watchtower-scan.json /tmp/watchtower-scan.err; then
+            echo "::error::Compiled scan CLI output exposed configuration or credential material."
+            exit 1
+          fi
           if [[ "$scan_status" -ne 1 ]]; then
             cat /tmp/watchtower-scan.err
             cat /tmp/watchtower-scan.json
