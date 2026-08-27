@@ -33,6 +33,8 @@ describe("release runtime and CI configuration", () => {
     const workflow = readFileSync(new URL("../.github/workflows/release-checks.yml", import.meta.url), "utf8");
 
     for (const required of [
+      "actions/checkout@v5",
+      "actions/setup-node@v5",
       "node-version-file: .nvmrc",
       "npm ci",
       "npm test",
@@ -43,10 +45,14 @@ describe("release runtime and CI configuration", () => {
       "npm start",
       "http://127.0.0.1:3000/api/health",
       "kill -TERM",
+      'npm_status" -ne 0 && "$npm_status" -ne 143',
+      'probe.listen(3000, "127.0.0.1"',
     ]) {
       expect(workflow).toContain(required);
     }
     expect(workflow).toContain("BASE_RPC_URL: https://example.invalid");
+    expect(workflow).not.toContain("actions/checkout@v4");
+    expect(workflow).not.toContain("actions/setup-node@v4");
     expect(workflow).not.toContain("secrets.");
   });
 });
