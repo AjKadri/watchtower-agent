@@ -13,6 +13,12 @@ and `sharedDecimals()` at `23487559` on 2026-08-24. No current-state reads,
 proxy discovery, arbitrary calls, or explorer APIs were used as fixture
 evidence.
 
+The canonical complete receipt reproduces as
+`receipt_af9ac18199f550c4d6ccf64a16334dd03afbbe3a3bf06c705347e16684bd64b5`.
+Its hash-bound limitations match the runtime receipt creator exactly. The
+broader Base-side scope caveat below remains display context outside the
+canonical receipt so fixture replay and live output have the same receipt ID.
+
 Sources:
 
 - https://basescan.org/tx/0x8e5e5ea61db41bc1f403552c7303324c37d50406d40ef02e10a1b634f535dfe2

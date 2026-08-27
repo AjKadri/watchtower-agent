@@ -120,7 +120,7 @@ function buildProfile(input) {
     plan,
     checks: input.checks,
     errors: [],
-    limitations: [LIMITATION, ...input.limitations],
+    limitations: input.receiptLimitations ?? [LIMITATION, ...input.limitations],
     finalDisposition: "corroborated",
     explorerLinks: links,
   };
@@ -222,7 +222,7 @@ export const archiveProfiles = Object.freeze([
     implementation: etherfiImplementation,
     detectorId: "etherfi-weeth-oft-upgraded",
     logIndex: "190",
-    receiptId: "receipt_51d74bfc3199c526b3963fe53faaadabc7f6ff35168e56c2ee1972c7a5913487",
+    receiptId: "receipt_af9ac18199f550c4d6ccf64a16334dd03afbbe3a3bf06c705347e16684bd64b5",
     block: { number: "23487559", hash: "0xeab850b0bf771ea85a8c36a41e61d731656f0dba0695f18f70542068976f0a8d", timestamp: "2024-12-09T17:14:25.000Z" },
     transaction: { hash: "0x8e5e5ea61db41bc1f403552c7303324c37d50406d40ef02e10a1b634f535dfe2", sender: "0x620d7E459cfFcdC56a874536dC19147De801a4A1", recipient: "0xF9D64d54D32EE2BDceAAbFA60C4C438E224427d0" },
     addresses: [
@@ -242,6 +242,7 @@ export const archiveProfiles = Object.freeze([
       callAddressCheck({ id: "token-at-upgrade", to: etherfiProxy, data: "0xfc0c546a", blockTag: "0x1666447", value: etherfiProxy, description: "The configured weETH OFT token() at N resolves to the approved proxy." }),
       callUintCheck({ id: "shared-decimals-at-upgrade", to: etherfiProxy, data: "0x857749b0", blockTag: "0x1666447", value: "6", description: "The configured weETH OFT sharedDecimals() at N matches the verified value." }),
     ],
+    receiptLimitations: [LIMITATION],
     limitations: ["Base-side checks do not establish the safety of remote peers, DVNs, executors, SyncPool operations, or Layer 1 backing paths."],
   }),
 ]);

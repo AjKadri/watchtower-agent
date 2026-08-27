@@ -144,7 +144,7 @@ export function buildFixtureDetail(profile) {
         severityRuleId: trigger.detector.severityRuleId,
         text: "The decoded implementation matches the profile's approved implementation. The deterministic rule classifies that exact comparison as informational.",
       },
-      limitations: receipt.limitations,
+      limitations: [...new Set([...receipt.limitations, ...(profile.limitations ?? [])])],
     },
     sources: receipt.explorerLinks,
   };

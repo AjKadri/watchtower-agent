@@ -314,7 +314,7 @@ describe("dashboard view model", () => {
         ]);
         expect(profile.receipt.limitations.join(" ")).toContain("POOL_REVISION() is optional");
       } else {
-        const specificLimitation = profile.receipt.limitations.at(-1);
+        const specificLimitation = profile.limitations.at(-1);
         for (const term of profile.id.startsWith("compound") ? ["governance intent", "market configuration"] : ["remote peers", "DVNs", "SyncPool"]) {
           expect(specificLimitation).toContain(term);
           expect(normalizedReadme).toContain(term);
@@ -548,6 +548,26 @@ describe("browser receipt verification", () => {
     for (const profile of archiveProfiles) {
       await expect(verifyReceipt(profile.receipt)).resolves.toMatchObject({ verified: true });
     }
+  });
+
+  it("keeps the ether.fi fixture receipt identical to the approved live canonical result", async () => {
+    const fixture = archiveProfiles.find(({ id }) => id === "etherfi-base-weeth-oft");
+    const manifest = JSON.parse(readFileSync(
+      new URL("../fixtures/base/etherfi-weeth-oft-upgrade-23487559/manifest.json", import.meta.url),
+      "utf8",
+    ));
+    const approvedLiveResult = structuredClone(fixture.receipt);
+    approvedLiveResult.checks = approvedLiveResult.checks.map((item, index) => ({ ...item, elapsedMs: index + 1 }));
+
+    expect(investigationReceiptSchema.parse(fixture.receipt)).toEqual(fixture.receipt);
+    expect(manifest.canonicalReceiptId).toBe(fixture.receipt.receiptId);
+    expect(await createReceiptId(approvedLiveResult)).toBe(fixture.receipt.receiptId);
+    expect(approvedLiveResult.trigger).toEqual(fixture.receipt.trigger);
+    expect(approvedLiveResult.plan).toEqual(fixture.receipt.plan);
+    expect(approvedLiveResult.checks.map(({ elapsedMs: _elapsedMs, ...item }) => item)).toEqual(fixture.receipt.checks);
+    expect(approvedLiveResult.errors).toEqual(fixture.receipt.errors);
+    expect(approvedLiveResult.limitations).toEqual(fixture.receipt.limitations);
+    expect(approvedLiveResult.explorerLinks).toEqual(fixture.receipt.explorerLinks);
   });
 
   it("keeps browser receipt IDs stable when measured check timings differ", async () => {
