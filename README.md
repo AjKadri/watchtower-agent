@@ -300,8 +300,12 @@ scan cancellation and deadline cleanup, measured check timing, frontend states,
 production configuration, runtime pinning, CI requirements, and failure
 handling.
 
-The current public revision is
-[`6b1975ed1be297d76991f0ef300b980db32b20a4`](https://github.com/AjKadri/watchtower-agent/commit/6b1975ed1be297d76991f0ef300b980db32b20a4).
+Verify the current public revision directly from the tracked remote:
+
+```sh
+git fetch origin
+git rev-parse origin/main
+```
 
 Fixture provenance and detailed verified values are available in:
 
