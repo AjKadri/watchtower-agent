@@ -93,6 +93,11 @@ reconstructs the canonical payload, normalizes Ethereum addresses, and
 recomputes the ID with browser Web Crypto. Equivalent address casing produces
 the same receipt ID.
 
+Committed fixture replays do not invent runtime duration. Their trace states
+`Timing not recorded for fixture replay` when a check has no measured fixture
+timing. The ether.fi fixture and approved live canonical payload both recompute
+to `receipt_af9ac18199f550c4d6ccf64a16334dd03afbbe3a3bf06c705347e16684bd64b5`.
+
 These receipts prove the recorded observations and deterministic assertions.
 They do not prove upgrade intent, governance legitimacy, implementation safety,
 remote cross-chain safety, or the security of related contracts.
@@ -166,12 +171,17 @@ The live ether.fi investigation needs an archive-capable Base mainnet endpoint.
 Set `BASE_RPC_URL` only in the ignored `.env` file, then run:
 
 ```sh
+npm run build
 npm run scan
 ```
 
 The scan is fixed to block `23487559` and the configured qualifying transaction.
 A verified complete run produces one informational `contract_upgrade` alert,
 complete evidence, a corroborated investigation, and no failures.
+`npm run scan` executes the compiled `dist/cli/scan.js` entrypoint and therefore
+requires `npm run build` after a fresh checkout. It does not load the
+development-only `tsx` package. Use `npm run scan:dev` only for source-level
+development.
 
 Build and run the compiled production artifact:
 
@@ -278,16 +288,23 @@ npm audit --audit-level=moderate
 ```
 
 GitHub Actions runs the same checks on Node 24 for pushes and pull requests. A
-separate production job runs `npm ci --omit=dev`, rebuilds `dist/`, starts the
-compiled server through `npm start`, requests `GET /api/health`, and sends a
-graceful SIGTERM. It uses a non-routable placeholder RPC URL because the health
-route and fixture-backed tests do not require a live provider or secret.
+separate production job runs `npm ci --omit=dev`, rebuilds `dist/`, invokes the
+compiled scan CLI against a non-routable placeholder and validates its safe
+structured failure, starts the compiled server directly, requests
+`GET /api/health`, and sends a graceful SIGTERM. CI does not require a live RPC
+provider or secret.
 
-The current release-hardening suite contains 145 tests covering all three
+The current release-hardening suite contains 147 tests covering all three
 profiles, deterministic receipt integrity, API behavior, malformed RPC evidence,
 scan cancellation and deadline cleanup, measured check timing, frontend states,
 production configuration, runtime pinning, CI requirements, and failure
 handling.
+
+The current public revision is
+[`47d5c8bd196f0d9c2aa511f5b25d2d273e4c2991`](https://github.com/AjKadri/watchtower-agent/commit/47d5c8bd196f0d9c2aa511f5b25d2d273e4c2991).
+Its [Release checks run](https://github.com/AjKadri/watchtower-agent/actions/runs/33047526500)
+completed successfully. The four final-audit commits described above remain
+local until reviewed and pushed.
 
 Fixture provenance and detailed verified values are available in:
 
