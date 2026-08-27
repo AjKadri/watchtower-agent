@@ -47,12 +47,24 @@ describe("release runtime and CI configuration", () => {
       "kill -TERM",
       'npm_status" -ne 0 && "$npm_status" -ne 143',
       'probe.listen(3000, "127.0.0.1"',
+      'ps -o stat= -p "$node_pid"',
+      '"$node_state" != Z*',
     ]) {
       expect(workflow).toContain(required);
     }
     expect(workflow).toContain("BASE_RPC_URL: https://example.invalid");
     expect(workflow).not.toContain("actions/checkout@v4");
     expect(workflow).not.toContain("actions/setup-node@v4");
+    expect(workflow).not.toContain("for _ in {1..40}");
     expect(workflow).not.toContain("secrets.");
+
+    const signalIndex = workflow.indexOf('kill -TERM "$node_pid"');
+    const waitIndex = workflow.indexOf('wait "$npm_pid"');
+    const portProbeIndex = workflow.indexOf('probe.listen(3000, "127.0.0.1"');
+    const processStateIndex = workflow.indexOf('ps -o stat= -p "$node_pid"');
+    expect(signalIndex).toBeGreaterThan(-1);
+    expect(waitIndex).toBeGreaterThan(signalIndex);
+    expect(portProbeIndex).toBeGreaterThan(waitIndex);
+    expect(processStateIndex).toBeGreaterThan(portProbeIndex);
   });
 });

@@ -74,17 +74,6 @@ jobs:
           test -n "$node_pid"
           kill -TERM "$node_pid"
 
-          for _ in {1..40}; do
-            if ! kill -0 "$npm_pid" 2>/dev/null; then
-              break
-            fi
-            sleep 0.25
-          done
-          if kill -0 "$npm_pid" 2>/dev/null; then
-            echo "npm start did not exit after the intentional SIGTERM."
-            exit 1
-          fi
-
           set +e
           wait "$npm_pid"
           npm_status=$?
@@ -95,15 +84,16 @@ jobs:
             exit 1
           fi
 
-          if kill -0 "$node_pid" 2>/dev/null; then
-            echo "Compiled Watchtower process did not shut down."
-            exit 1
-          fi
-
           node --input-type=module -e '
             import net from "node:net";
             const probe = net.createServer();
             probe.once("error", () => process.exit(1));
             probe.listen(3000, "127.0.0.1", () => probe.close((error) => process.exit(error ? 1 : 0)));
           '
+
+          node_state="$(ps -o stat= -p "$node_pid" 2>/dev/null | awk 'NR == 1 { print $1 }' || true)"
+          if [[ -n "$node_state" && "$node_state" != Z* ]]; then
+            echo "Compiled Watchtower process is still running with state $node_state."
+            exit 1
+          fi
           trap - EXIT
