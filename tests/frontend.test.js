@@ -19,8 +19,9 @@ import {
   summarizeTraceProgression,
 } from "../public/view-model.js";
 import { archiveProfiles } from "../public/archive-data.js";
-import { createReceiptId, normalizeEvmAddress, verifyReceipt } from "../public/receipt-verifier.js";
+import { canonicalReceiptPayload, createReceiptId, normalizeEvmAddress, verifyReceipt } from "../public/receipt-verifier.js";
 import { investigationReceiptSchema } from "../src/domain/schemas.js";
+import { createInvestigationReceipt } from "../src/investigation/receipt.js";
 import { getTargetProfile } from "../src/profiles/registry.js";
 
 describe("structured scan response handling", () => {
@@ -561,24 +562,106 @@ describe("browser receipt verification", () => {
     }
   });
 
-  it("keeps the ether.fi fixture receipt identical to the approved live canonical result", async () => {
+  it("matches the ether.fi public fixture to an independently generated runtime receipt", () => {
     const fixture = archiveProfiles.find(({ id }) => id === "etherfi-base-weeth-oft");
-    const manifest = JSON.parse(readFileSync(
-      new URL("../fixtures/base/etherfi-weeth-oft-upgrade-23487559/manifest.json", import.meta.url),
-      "utf8",
-    ));
-    const approvedLiveResult = structuredClone(fixture.receipt);
-    approvedLiveResult.checks = approvedLiveResult.checks.map((item, index) => ({ ...item, elapsedMs: index + 1 }));
+    const registered = getTargetProfile("etherfi-base-weeth-oft");
+    const fixtureRoot = new URL(`../${registered.expectedFixture.path}/`, import.meta.url);
+    const block = JSON.parse(readFileSync(new URL("block.json", fixtureRoot), "utf8"));
+    const transaction = JSON.parse(readFileSync(new URL("transaction.json", fixtureRoot), "utf8"));
+    const rawReceipt = JSON.parse(readFileSync(new URL("receipt.json", fixtureRoot), "utf8"));
+    const event = JSON.parse(readFileSync(new URL("expected-events.json", fixtureRoot), "utf8"))[0];
+    const investigation = JSON.parse(readFileSync(new URL("investigation.json", fixtureRoot), "utf8"));
+    const manifest = JSON.parse(readFileSync(new URL("manifest.json", fixtureRoot), "utf8"));
+    const implementation = normalizeEvmAddress(event.decodedArguments.implementation);
+    const addressFromWord = (word) => normalizeEvmAddress(`0x${word.slice(-40)}`);
+    const resultByCheck = {
+      "implementation-before": { kind: "address", value: addressFromWord(investigation.implementationBeforeWord) },
+      "implementation-at-upgrade": { kind: "address", value: addressFromWord(investigation.implementationAtUpgradeWord) },
+      "implementation-bytecode": {
+        kind: "bytecode",
+        present: true,
+        byteLength: investigation.implementationByteLength,
+        hash: investigation.implementationCodeHash,
+      },
+      "endpoint-at-upgrade": { kind: "address", value: addressFromWord(investigation.endpointAtUpgradeResult) },
+      "token-at-upgrade": { kind: "address", value: addressFromWord(investigation.tokenAtUpgradeResult) },
+      "shared-decimals-at-upgrade": { kind: "uint256", value: BigInt(investigation.sharedDecimalsAtUpgradeResult).toString() },
+    };
+    const runtimeChecks = registered.investigation.checks.map((definition, index) => {
+      const result = resultByCheck[definition.id];
+      const expected = definition.kind === "implementation-code"
+        ? `${definition.expectedByteLength} bytes`
+        : definition.kind === "call-uint256"
+          ? definition.expectedValue
+          : definition.expectedAddress;
+      const actual = result.kind === "bytecode" ? `${result.byteLength} bytes` : result.value;
+      const parameters = definition.kind === "storage-address"
+        ? { address: definition.address, slot: definition.slot }
+        : definition.kind === "implementation-code"
+          ? { address: implementation }
+          : { to: definition.to, data: definition.data };
+      const blockNumber = definition.block === "previous"
+        ? registered.investigation.previousBlock
+        : registered.investigation.upgradeBlock;
+      return {
+        id: definition.id,
+        required: definition.required,
+        method: definition.method,
+        parameters,
+        blockTag: `0x${BigInt(blockNumber).toString(16)}`,
+        result,
+        assertion: { description: definition.description, expected, actual, matches: true },
+        status: "passed",
+        failure: null,
+        elapsedMs: index + 1,
+      };
+    });
+    const explorer = registered.network.explorerBaseUrl;
+    const sender = normalizeEvmAddress(transaction.from);
+    const recipient = normalizeEvmAddress(transaction.to);
+    const explorerLinks = {
+      transaction: `${explorer}/tx/${transaction.hash}`,
+      block: `${explorer}/block/${block.number}`,
+      addresses: {
+        emitter: `${explorer}/address/${registered.target.primaryContract.address}`,
+        implementation: `${explorer}/address/${implementation}`,
+        ...Object.fromEntries(registered.target.relatedContracts.map(({ key, address }) => [key, `${explorer}/address/${address}`])),
+        sender: `${explorer}/address/${sender}`,
+        recipient: `${explorer}/address/${recipient}`,
+      },
+    };
+    const runtimeReceipt = createInvestigationReceipt({
+      network: { name: registered.network.name, chainId: registered.network.chainId },
+      targetId: registered.target.id,
+      incidentClass: registered.detectors[0].incidentClass,
+      eventType: "proxy_upgraded",
+      eventSignature: registered.detectors[0].eventSignature,
+      decodedArguments: { implementation },
+      block,
+      transaction: { hash: transaction.hash, sender, recipient, receiptStatus: rawReceipt.status },
+      log: {
+        index: rawReceipt.selectedLogs[0].logIndex,
+        emitter: rawReceipt.selectedLogs[0].address,
+        topic0: rawReceipt.selectedLogs[0].topics[0],
+        rawTopics: rawReceipt.selectedLogs[0].topics,
+      },
+      detector: {
+        id: event.detectorId,
+        severityRuleId: event.expectedSeverityRuleId,
+        severity: event.expectedSeverity,
+      },
+    }, {
+      plan: registered.plans.approved,
+      disposition: "corroborated",
+      evidenceStatus: "complete",
+      checks: runtimeChecks,
+    }, explorerLinks);
 
     expect(investigationReceiptSchema.parse(fixture.receipt)).toEqual(fixture.receipt);
     expect(manifest.canonicalReceiptId).toBe(fixture.receipt.receiptId);
-    expect(await createReceiptId(approvedLiveResult)).toBe(fixture.receipt.receiptId);
-    expect(approvedLiveResult.trigger).toEqual(fixture.receipt.trigger);
-    expect(approvedLiveResult.plan).toEqual(fixture.receipt.plan);
-    expect(approvedLiveResult.checks.map(({ elapsedMs: _elapsedMs, ...item }) => item)).toEqual(fixture.receipt.checks);
-    expect(approvedLiveResult.errors).toEqual(fixture.receipt.errors);
-    expect(approvedLiveResult.limitations).toEqual(fixture.receipt.limitations);
-    expect(approvedLiveResult.explorerLinks).toEqual(fixture.receipt.explorerLinks);
+    expect(investigationReceiptSchema.parse(runtimeReceipt)).toEqual(runtimeReceipt);
+    expect(canonicalReceiptPayload(runtimeReceipt)).toEqual(canonicalReceiptPayload(fixture.receipt));
+    expect(runtimeReceipt.receiptId).toBe(fixture.receipt.receiptId);
   });
 
   it("keeps browser receipt IDs stable when measured check timings differ", async () => {
