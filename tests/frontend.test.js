@@ -394,7 +394,8 @@ describe("dashboard view model", () => {
     const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
     expect(css).toContain(".trace-link { padding: var(--space-2) var(--space-3)");
-    expect(css).toContain(".trace-elapsed { color: var(--color-text-faint)");
+    expect(css).toContain(".trace-elapsed { min-width: 0; max-width: 100%; color: var(--color-text-faint)");
+    expect(css).toContain(".trace-elapsed.fixture-timing { line-height: var(--leading-normal); white-space: normal; }");
     expect(css).toContain(".archive-table td { padding: var(--space-5) var(--space-3)");
     expect(css).toContain(".replay-action { padding: var(--space-2) var(--space-3)");
     expect(css).not.toContain("border-color: #d8a9a3");
