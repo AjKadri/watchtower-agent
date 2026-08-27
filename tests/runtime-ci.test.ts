@@ -42,6 +42,8 @@ describe("release runtime and CI configuration", () => {
       "npm run build",
       "npm audit --audit-level=moderate",
       "npm ci --omit=dev",
+      "npm run --silent scan",
+      "/tmp/watchtower-scan.json",
       "node --env-file-if-exists=.env dist/server/main.js",
       "http://127.0.0.1:3000/api/health",
       "kill -TERM",

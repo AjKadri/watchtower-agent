@@ -37,6 +37,31 @@ jobs:
         run: |
           npm ci --omit=dev
           npm run build
+      - name: Smoke test compiled scan CLI without a live RPC secret
+        env:
+          BASE_RPC_URL: https://example.invalid
+        run: |
+          set -euo pipefail
+          set +e
+          npm run --silent scan > /tmp/watchtower-scan.json 2> /tmp/watchtower-scan.err
+          scan_status=$?
+          set -e
+          if [[ "$scan_status" -ne 1 ]]; then
+            cat /tmp/watchtower-scan.err
+            cat /tmp/watchtower-scan.json
+            echo "::error::Compiled scan CLI returned unexpected status $scan_status."
+            exit 1
+          fi
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const result = JSON.parse(readFileSync("/tmp/watchtower-scan.json", "utf8"));
+            if (result.status !== "failed" || !Array.isArray(result.failures) || result.failures.length === 0) process.exit(1);
+          '
+          if [[ -s /tmp/watchtower-scan.err ]]; then
+            cat /tmp/watchtower-scan.err
+            echo "::error::Compiled scan CLI exposed an unexpected stderr failure."
+            exit 1
+          fi
       - name: Start compiled server, check health, and shut down
         env:
           BASE_RPC_URL: https://example.invalid

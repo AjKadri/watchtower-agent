@@ -24,7 +24,10 @@ describe("closed target profile registry", () => {
 
     expect(manifest.scripts.build).toBe("tsc -p tsconfig.build.json");
     expect(manifest.scripts.start).toBe("node --env-file-if-exists=.env dist/server/main.js");
+    expect(manifest.scripts.scan).toBe("node --env-file-if-exists=.env dist/cli/scan.js");
     expect(manifest.scripts.start).not.toContain("tsx");
+    expect(manifest.scripts.scan).not.toContain("tsx");
+    expect(manifest.scripts["scan:dev"]).toContain("tsx");
     expect(manifest.dependencies.typescript).toBeDefined();
     expect(manifest.devDependencies.tsx).toBeDefined();
   });
