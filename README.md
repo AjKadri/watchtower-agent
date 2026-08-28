@@ -312,3 +312,7 @@ Fixture provenance and detailed verified values are available in:
 - [`fixtures/base/aave-v3-upgrade-41105890/`](fixtures/base/aave-v3-upgrade-41105890/)
 - [`fixtures/base/compound-iii-usdc-upgrade-40235590/`](fixtures/base/compound-iii-usdc-upgrade-40235590/)
 - [`fixtures/base/etherfi-weeth-oft-upgrade-23487559/`](fixtures/base/etherfi-weeth-oft-upgrade-23487559/)
+
+## License
+
+MIT. See LICENSE.
