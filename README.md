@@ -33,6 +33,19 @@ The hosted demo supports the three committed, verified investigation fixtures
 and live historical ether.fi investigation when its configured archive RPC is
 available. The same bounded demo can also be reproduced locally.
 
+## Follow one investigation
+
+Watchtower is designed to be inspected as one evidence path, from the observed
+upgrade event to a replayable receipt:
+
+1. Choose one supported protocol profile.
+2. Inspect the configured historical upgrade event and decoded implementation.
+3. Follow the fixed plan through its exact-block historical checks.
+4. Open the receipt and recompute its SHA-256 ID in the browser.
+
+The output records what Watchtower observed and checked. It does not make an
+unsupported claim that an upgrade is safe, legitimate, or intentional.
+
 ## Supported profiles
 
 Watchtower has a closed registry of three profiles. Clients cannot submit an
@@ -107,15 +120,18 @@ remote cross-chain safety, or the security of related contracts.
 The final disposition, severity, assertions, and receipt hash are deterministic.
 No LLM participates in the verdict path.
 
-## Orion judging criteria
+## Investigation outcomes
 
-| Criterion | Watchtower evidence |
+| Outcome | Meaning |
 | --- | --- |
-| Usefulness | Gives security teams a bounded way to verify what changed during a supported Base upgrade. |
-| Execution | Combines archive RPC reads, runtime validation, deterministic planning, visible failures, and a focused investigation interface. |
-| Originality | Produces an evidence-bounded replay receipt instead of relying on a generated incident narrative. |
-| Verifiability | Ships real fixtures, exact block tags, BaseScan links, normalized assertions, and independent browser receipt hashing. |
-| Ecosystem fit | Demonstrates a read-only investigation agent for three verified Base protocol profiles with closed capabilities and deterministic outputs. |
+| `corroborated` | The configured trigger and required historical checks agree with the approved profile assertions. |
+| `contradicted` | One or more required historical checks disagree with an approved assertion. |
+| `incomplete` | Watchtower could not collect enough verified evidence to issue a complete disposition. |
+| `failed` | The investigation could not begin or complete because of a safe structured upstream failure. |
+
+A `corroborated` outcome records agreement between this bounded evidence set and
+its configured assertions. It does not prove implementation safety, intent,
+identity, governance legitimacy, or broader protocol security.
 
 ## Architecture
 
@@ -278,7 +294,6 @@ a rescan.
   unsupported frontend-only hash was removed. Compound and ether.fi retain
   their independently recorded fixture hashes.
 - Alerts and live receipts are held in memory and clear when the server restarts.
-- No hosted public demo URL is currently available.
 
 ## Verification
 
