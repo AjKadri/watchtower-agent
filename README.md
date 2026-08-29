@@ -21,15 +21,17 @@ fixed deterministic plan, runs exact-block checks, derives a deterministic
 disposition, and issues a replayable receipt that the browser can verify
 independently.
 
-- [Public demo: reproducible local walkthrough](#run-the-demo)
+- [Live public demo](https://watchtower.ajkadri.dev)
+- [Run the demo locally](#run-the-demo)
 - [GitHub repository](https://github.com/AjKadri/watchtower-agent)
 - [Aave fixture transaction](https://basescan.org/tx/0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a)
 - [Compound fixture transaction](https://basescan.org/tx/0x5de36ea4daf596890b2f0f3696547bda11090d16c9eaf8f2d35bb4b4ca13f1f4)
 - [ether.fi fixture transaction](https://basescan.org/tx/0x8e5e5ea61db41bc1f403552c7303324c37d50406d40ef02e10a1b634f535dfe2)
 
-A hosted URL is not published yet. The linked walkthrough runs the complete
-public demo locally and includes three committed, verified investigation
-fixtures.
+Watchtower is live at [watchtower.ajkadri.dev](https://watchtower.ajkadri.dev).
+The hosted demo supports the three committed, verified investigation fixtures
+and live historical ether.fi investigation when its configured archive RPC is
+available. The same bounded demo can also be reproduced locally.
 
 ## Supported profiles
 
