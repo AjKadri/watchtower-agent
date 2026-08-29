@@ -361,6 +361,9 @@ describe("dashboard view model", () => {
     expect(html).toContain('id="failure-panel"');
     expect(html).toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg">');
     expect(html).toContain('<img class="wordmark-mark" src="/watchtower-mark.svg" alt="" aria-hidden="true">');
+    expect(html).toContain('href="https://github.com/AjKadri/watchtower-agent"');
+    expect(html).toContain('href="https://x.com/watchtowerbase_"');
+    expect(html).toContain('href="https://t.me/watchtowerbase"');
     expect(html).toContain("Verify a protocol upgrade from event to receipt.");
     expect(html).toContain("Watchtower checks a configured Base upgrade at exact historical blocks");
     expect(html).toContain("Decide / Learn");

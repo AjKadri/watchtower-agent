@@ -24,8 +24,10 @@ disposition, and issues a replayable receipt that the browser can verify
 independently.
 
 - [Live public demo](https://watchtower.ajkadri.dev)
-- [Run the demo locally](#run-the-demo)
 - [GitHub repository](https://github.com/AjKadri/watchtower-agent)
+- [Follow Watchtower on X](https://x.com/watchtowerbase_)
+- [Join the Watchtower Telegram](https://t.me/watchtowerbase)
+- [Run the demo locally](#run-the-demo)
 - [Aave fixture transaction](https://basescan.org/tx/0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a)
 - [Compound fixture transaction](https://basescan.org/tx/0x5de36ea4daf596890b2f0f3696547bda11090d16c9eaf8f2d35bb4b4ca13f1f4)
 - [ether.fi fixture transaction](https://basescan.org/tx/0x8e5e5ea61db41bc1f403552c7303324c37d50406d40ef02e10a1b634f535dfe2)
