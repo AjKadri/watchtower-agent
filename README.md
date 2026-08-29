@@ -2,10 +2,12 @@
 
 ## The problem
 
-An upgrade event says that a proxy changed implementation. It does not establish
-what state existed before the transaction, whether code existed at the decoded
-implementation, or whether the contract still matched protocol-specific
-identity values at that historical block.
+When a protocol upgrades, the on-chain event tells you that its implementation changed.
+
+It does not tell you what was running before, whether the new code exists, or whether the protocol still matched its expected setup at that exact moment.
+
+Watchtower investigates that gap using the proxy’s historical state, deployed
+bytecode, and protocol-specific checks at the upgrade block.
 
 ## Who Watchtower is for
 
