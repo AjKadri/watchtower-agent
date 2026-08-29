@@ -1,6 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="favicon-title">
-  <title id="favicon-title">Watchtower</title>
-  <rect width="64" height="64" fill="#f3f1eb"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="watchtower-mark-title">
+  <title id="watchtower-mark-title">Watchtower mark</title>
   <g fill="none" stroke="#245f52" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter">
     <path d="M32 5v10"/>
     <path d="M32 5h14L32 12z" fill="#245f52" stroke="none"/>
