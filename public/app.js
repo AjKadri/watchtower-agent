@@ -208,9 +208,11 @@ function renderCaseSummary(detail, source) {
   elements.caseReceipt.textContent = receipt?.receiptId ?? "Not issued";
   elements.caseReceipt.title = receipt?.receiptId ?? "";
   elements.caseJourney.textContent = summarizeTraceProgression(buildInvestigationTrace(detail));
-  elements.activeProfileNote.textContent = profile.id === state.activeProfileId
-    ? "This is the server-active profile. A live bounded scan is available."
-    : `Archive view only. Live scanning remains fixed to ${getArchiveProfile(state.activeProfileId).displayName}.`;
+  const activeProfile = getArchiveProfile(state.activeProfileId);
+  const isLiveProfile = profile.id === state.activeProfileId;
+  elements.activeProfileNote.textContent = isLiveProfile
+    ? `Live scanning is limited to ${profile.displayName}. A bounded historical scan is available.`
+    : `Verified fixture replay only. Live scanning is currently limited to ${activeProfile.displayName}.`;
   setSourceBadge(detail, source);
 }
 
@@ -446,8 +448,15 @@ function selectProfile(profileId, requestedSource) {
   const detail = source === "live" ? liveDetail : buildFixtureDetail(profile);
   renderFailures(detail.scanFailures);
   renderDetail(detail, source);
-  elements.scanButton.disabled = profile.id !== state.activeProfileId;
-  elements.scanButton.title = elements.scanButton.disabled ? "Live scanning is fixed to the server-active profile." : "Run the approved bounded historical scan.";
+  const activeProfile = getArchiveProfile(state.activeProfileId);
+  const isLiveProfile = profile.id === state.activeProfileId;
+  elements.scanButton.disabled = !isLiveProfile;
+  elements.scanButton.textContent = isLiveProfile
+    ? `Run configured ${profile.displayName} live scan`
+    : `Live scan limited to ${activeProfile.displayName}`;
+  elements.scanButton.title = isLiveProfile
+    ? `Run the approved bounded historical scan for ${profile.displayName}.`
+    : `This is a verified fixture replay. Live scanning is currently limited to ${activeProfile.displayName}.`;
   elements.scanStatus.textContent = source === "live"
     ? "Showing the latest in-memory live RPC result."
     : "Showing the committed verified fixture. Replay does not call the RPC.";

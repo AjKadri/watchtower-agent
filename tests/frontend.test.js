@@ -354,6 +354,7 @@ describe("dashboard view model", () => {
   it("keeps the profile, archive, empty, failure, and mobile states in the rendered assets", () => {
     const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
     const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 
     expect(html).toContain('id="profile-selector"');
     expect(html).toContain('id="archive-body"');
@@ -364,6 +365,10 @@ describe("dashboard view model", () => {
     expect(html).toContain('href="https://github.com/AjKadri/watchtower-agent"');
     expect(html).toContain('href="https://x.com/watchtowerbase_"');
     expect(html).toContain('href="https://t.me/watchtowerbase"');
+    expect(html).toContain('Run configured live scan');
+    expect(app).toContain('Run configured ${profile.displayName} live scan');
+    expect(app).toContain('Live scan limited to ${activeProfile.displayName}');
+    expect(app).toContain('Verified fixture replay only. Live scanning is currently limited to ${activeProfile.displayName}.');
     expect(html).toContain("Verify a protocol upgrade from event to receipt.");
     expect(html).toContain("Watchtower checks a configured Base upgrade at exact historical blocks");
     expect(html).toContain("Decide / Learn");
