@@ -50,6 +50,8 @@ upgrade event to a replayable receipt:
 The output records what Watchtower observed and checked. It does not make an
 unsupported claim that an upgrade is safe, legitimate, or intentional.
 
+![Watchtower live ether.fi investigation showing a corroborated six-stage trace](./public/screenshots/watchtower-live-investigation.jpg)
+
 ## Supported profiles
 
 Watchtower has a closed registry of three profiles. Clients cannot submit an
