@@ -190,6 +190,13 @@ describe("dashboard view model", () => {
     expect(app).toContain('"Replay fixture"');
     expect(app).toContain('"Download review packet"');
     expect(app).toContain('format: "watchtower-review-packet"');
+    expect(app).toContain("createSourceBadge");
+    expect(app).toContain("detail-empty-facts");
+    expect(app).toContain("status: \"skipped\"");
+    expect(app).toContain('overviewItem("Profile"');
+    expect(app).toContain('overviewItem("Stages completed"');
+    expect(app).toContain('["Failure category"');
+    expect(app).toContain('elements.caseJourney.textContent = "Investigation failed"');
   });
 
   it("keeps the investigation proof hierarchy and full receipt identifiers in the renderer", () => {
@@ -387,6 +394,8 @@ describe("dashboard view model", () => {
     expect(app).toContain('Verified fixture replay only. Live scanning is currently limited to ${activeProfile.displayName}.');
     expect(html).toContain("Verify a protocol upgrade from event to receipt.");
     expect(html).toContain("Watchtower checks a configured Base upgrade at exact historical blocks");
+    expect(html).toContain("Choose a configured profile");
+    expect(html).toContain("Phase 01 · Event observed");
     expect(html).toContain("Decide / Learn");
     expect(html).toContain("Command / Inspect");
     expect(html).toContain("Only these registered profiles can be selected");
@@ -399,6 +408,9 @@ describe("dashboard view model", () => {
     expect(css).toContain("@media (max-width: 720px)");
     expect(css).toContain(".archive-table td::before");
     expect(css).toContain(".investigation-shell { grid-template-columns: 1fr; }");
+    expect(css).toContain(".intro-actions");
+    expect(css).toContain(".profile-network");
+    expect(css).toContain(".detail-title-kicker");
   });
 
   it("keeps machine identifiers and investigation cards within mobile viewports", () => {

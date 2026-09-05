@@ -35,6 +35,10 @@
             <p class="kicker">Deterministic Base upgrade investigations</p>
             <h1 id="page-title">Verify a protocol upgrade from event to receipt.</h1>
             <p class="value-statement">Watchtower checks a configured Base upgrade at exact historical blocks and issues a receipt you can independently verify.</p>
+            <div class="intro-actions">
+              <a class="primary-action intro-action" href="#profiles">Choose a configured profile</a>
+              <span class="intro-action-note">Start with a verified fixture or the configured live-scan target.</span>
+            </div>
           </div>
           <div class="scope-note" aria-label="Security boundary">
             <span class="scope-index">01</span>
@@ -97,8 +101,11 @@
 
             <article id="detail-panel" class="detail-panel" aria-live="polite" aria-busy="true">
               <div class="detail-placeholder">
-                <p class="kicker">Preparing evidence</p>
-                <h3>Loading the selected investigation</h3>
+                <span class="loading-mark" aria-hidden="true"></span>
+                <p class="kicker">Phase 01 · Event observed</p>
+                <h3>Preparing historical evidence</h3>
+                <p class="detail-placeholder-copy">Loading the selected profile and checking its recorded upgrade event before building the evidence trace.</p>
+                <p class="loading-note">Read-only · configured Base profile</p>
               </div>
             </article>
           </div>

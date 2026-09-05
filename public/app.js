@@ -91,6 +91,24 @@ function sourceLink(label, href, className = "source-link") {
   return link;
 }
 
+function sourceStateVariant(label) {
+  return label === "Live RPC investigation"
+    ? "live"
+    : label === "Verified fixture replay"
+      ? "fixture"
+      : label === "Failed investigation"
+        ? "failed"
+        : "incomplete";
+}
+
+function createSourceBadge(label, className = "source-badge") {
+  const element = node("span", `${className} ${sourceStateVariant(label)}`);
+  const marker = node("span", "source-marker");
+  marker.setAttribute("aria-hidden", "true");
+  element.append(marker, document.createTextNode(label));
+  return element;
+}
+
 async function request(path, options) {
   const response = await fetch(path, options);
   const payload = await response.json();
@@ -115,17 +133,9 @@ function renderFailures(failures = []) {
 
 function setSourceBadge(detail, source) {
   const label = investigationStateLabel(detail, source);
-  const variant = label === "Live RPC investigation"
-    ? "live"
-    : label === "Verified fixture replay"
-      ? "fixture"
-      : label === "Failed investigation"
-        ? "failed"
-        : "incomplete";
-  elements.sourceBadge.className = `source-badge ${variant}`;
-  const marker = node("span", "source-marker");
-  marker.setAttribute("aria-hidden", "true");
-  elements.sourceBadge.replaceChildren(marker, document.createTextNode(label));
+  const sourceBadge = createSourceBadge(label);
+  elements.sourceBadge.className = sourceBadge.className;
+  elements.sourceBadge.replaceChildren(...sourceBadge.childNodes);
 }
 
 function renderProfiles() {
@@ -141,6 +151,7 @@ function renderProfiles() {
     copy.append(
       node("span", "profile-name", option.protocol),
       node("span", "profile-product", option.product),
+      node("span", "profile-network", "Base mainnet · read-only"),
       node("span", "profile-purpose", option.targetPurpose),
     );
     const metadata = node("span", "profile-metadata");
@@ -260,25 +271,25 @@ function overviewItem(label, value, href) {
 }
 
 function renderInvestigationOverview(detail, source) {
-  const { evidence } = detail;
+  const { alert, evidence } = detail;
   const investigation = evidence.upgradeInvestigation;
-  const checks = investigation.checks ?? [];
-  const passed = checks.filter(({ status }) => status === "passed").length;
+  const profile = detail.profile ?? getArchiveProfile(alert.targetId);
+  const trace = buildInvestigationTrace(detail);
   const receipt = evidence.investigationReceipt;
+  const limitations = alert.investigation?.limitations ?? receipt?.limitations ?? [];
   const section = node("section", "investigation-overview");
   const heading = node("div", "content-heading");
   heading.append(node("p", "kicker", "Investigation summary"), node("h3", "", "At a glance"));
   const grid = node("dl", "overview-grid");
   grid.append(
-    overviewItem("Source", investigationStateLabel(detail, source)),
-    overviewItem("Historical block", evidence.block?.number, evidence.sources?.block),
+    overviewItem("Profile", profile?.displayName ?? alert.targetId ?? "Unavailable"),
+    overviewItem("Chain", evidence.network ? `${evidence.network.name} · chain ${evidence.network.chainId}` : "Unavailable"),
+    overviewItem("Trigger block", evidence.block?.number, evidence.sources?.block),
+    overviewItem("Transaction", evidence.transaction?.hash, evidence.sources?.transaction),
     overviewItem("Block timestamp", formatUtcTimestamp(evidence.block?.timestamp)),
-    overviewItem(
-      "Trigger",
-      `${evidence.event?.signature ?? "Unavailable"} · log ${evidence.log?.index ?? "Unavailable"}`,
-      evidence.sources?.transaction,
-    ),
-    overviewItem("Checks", `${passed} of ${checks.length} passed`),
+    overviewItem("Stages completed", summarizeTraceProgression(trace)),
+    overviewItem("Disposition", investigation.disposition ?? "Not issued"),
+    overviewItem("Limitations", limitations.length > 0 ? `${limitations.length} recorded below` : "None recorded"),
     overviewItem("Receipt", receipt?.receiptId ?? "Not issued"),
   );
   section.append(heading, grid);
@@ -480,7 +491,26 @@ function renderChecks(evidence) {
   heading.append(node("p", "kicker", "Assertion ledger"), node("h3", "", "Expected against observed"));
   section.append(heading);
   const ledger = node("div", "check-ledger");
-  for (const check of evidence.upgradeInvestigation.checks) {
+  const investigation = evidence.upgradeInvestigation;
+  const checks = [...(investigation.checks ?? [])];
+  const recordedIds = new Set(checks.map(({ id }) => id));
+  for (const id of investigation.plan?.skippedChecks ?? []) {
+    if (recordedIds.has(id)) continue;
+    checks.push({
+      id,
+      status: "skipped",
+      method: "Not run",
+      blockTag: "Not queried",
+      assertion: {
+        description: "The optional check was not authorized by the selected versioned plan.",
+        expected: "Not required",
+        actual: "Not run",
+      },
+      result: null,
+      failure: null,
+    });
+  }
+  for (const check of checks) {
     const article = node("article", `check-record ${check.status}`);
     const top = node("div", "check-record-top");
     top.append(node("h4", "", check.id), badge(check.status));
@@ -497,7 +527,7 @@ function renderChecks(evidence) {
       group.append(node("dt", "", label), node("dd", "", value));
       metadata.append(group);
     }
-    article.append(top, node("p", "check-description", check.assertion.description), metadata);
+    article.append(top, node("p", "check-description", check.assertion?.description ?? "No assertion description was recorded."), metadata);
     if (check.failure) article.append(node("p", "check-failure", `${check.failure.code}: ${check.failure.message}`));
     ledger.append(article);
   }
@@ -537,6 +567,12 @@ function renderDecision(detail) {
   disposition.append(dispositionHeading);
   const interpretation = alert.investigation?.interpretation?.text;
   if (interpretation) disposition.append(node("p", "decision-explanation", interpretation));
+  const incomplete = evidence.status === "incomplete"
+    || investigation.evidenceStatus === "incomplete"
+    || investigation.disposition === "incomplete";
+  if (incomplete) {
+    disposition.append(node("p", "decision-state-note", "No stronger conclusion is issued because required evidence is missing or incomplete."));
+  }
 
   const facts = node("article", "context-block");
   facts.append(node("p", "kicker", "Observed facts"));
@@ -562,7 +598,9 @@ function renderDetail(detail, source) {
   elements.detail.setAttribute("aria-busy", "false");
   const header = node("header", "detail-header");
   const title = node("div");
-  title.append(node("p", "kicker", alert.classificationLabel), node("h3", "", alert.title), node("p", "detail-summary", alert.summary));
+  const titleKicker = node("div", "detail-title-kicker");
+  titleKicker.append(node("p", "kicker", alert.classificationLabel), createSourceBadge(investigationStateLabel(detail, source), "detail-source"));
+  title.append(titleKicker, node("h3", "", alert.title), node("p", "detail-summary", alert.summary));
   const status = node("div", "badge-stack");
   status.append(
     node("p", "status-caption", "Deterministic disposition"),
@@ -586,7 +624,7 @@ function renderDetail(detail, source) {
   if (receipt) {
     const receiptBar = node("section", "receipt-bar");
     const copy = node("div");
-    copy.append(node("p", "kicker", "Browser-verifiable receipt"), node("h3", "receipt-id", receipt.receiptId), node("p", "", "Validated JSON binds the trigger, plan, checks, limitations, and final disposition."));
+    copy.append(node("p", "kicker", "Browser-verifiable receipt"), node("h3", "receipt-id", receipt.receiptId), node("p", "", "The review packet includes the alert, evidence, limitations, and canonical receipt. It documents what was checked and does not claim the upgrade is safe."));
     const actions = receiptVerificationControl(receipt, detail, source);
     const actionRow = actions.querySelector(".receipt-action-row");
     if (source === "live") {
@@ -615,15 +653,37 @@ function renderDetail(detail, source) {
   renderCaseSummary(detail, source);
 }
 
-function showEmptyInvestigation(message, status = "incomplete") {
+function showEmptyInvestigation(message, status = "incomplete", context = {}) {
   elements.detail.replaceChildren();
   elements.detail.setAttribute("aria-busy", "false");
   const state = status === "failed" ? "failed" : "incomplete";
   const empty = node("div", `detail-empty ${state}`);
+  const summary = state === "failed"
+    ? "The configured read-only investigation stopped before a complete evidence trace was available."
+    : "No stronger disposition is issued until the required historical evidence is available.";
+  const fields = state === "failed"
+    ? [
+        ["Failure category", context.category ?? "Configured scan failure"],
+        ["Affected stage", context.stage ?? "Bounded historical scan"],
+        ["Safe next action", context.nextAction ?? "Review the visible failure records and retry the configured scan."],
+      ]
+    : [
+        ["Missing evidence", context.missing ?? "A complete alert, evidence record, or receipt was not returned."],
+        ["Affected stage", context.stage ?? "Event and evidence collection"],
+        ["Safe next action", context.nextAction ?? "Select a registered profile or rerun the bounded read-only scan."],
+      ];
+  const facts = node("dl", "detail-empty-facts");
+  for (const [label, value] of fields) {
+    const group = node("div");
+    group.append(node("dt", "", label), node("dd", "", value));
+    facts.append(group);
+  }
   empty.append(
     node("p", "kicker", state === "failed" ? "Failed investigation" : "Incomplete investigation"),
     badge(state),
     node("h3", "", message),
+    node("p", "detail-empty-copy", summary),
+    facts,
   );
   elements.detail.append(empty);
 }
@@ -679,10 +739,15 @@ async function runScan() {
     }
     const failures = error.payload?.failures ?? [{ code: "request-failed", message: error.message }];
     renderFailures(failures);
-    showEmptyInvestigation(error.message, "failed");
+    showEmptyInvestigation(error.message, "failed", {
+      category: failures[0]?.code ?? "request-failed",
+      stage: "Bounded live scan",
+      nextAction: "Review the visible failure records and retry the configured scan.",
+    });
     elements.scanStatus.textContent = error.message;
     elements.caseStatus.textContent = "failed";
     elements.caseDisposition.textContent = "not issued";
+    elements.caseJourney.textContent = "Investigation failed";
     setSourceBadge({ scanStatus: "failed" }, "live");
   } finally {
     elements.scanButton.disabled = state.selectedProfileId !== state.activeProfileId;
@@ -693,9 +758,20 @@ function renderScanResult(result) {
   renderFailures(result.failures);
   if (result.alerts.length === 0 || result.evidence.length === 0) {
     elements.scanStatus.textContent = `Scan ${result.status}. No complete alert is available. ${result.failures.length} failure records.`;
-    showEmptyInvestigation("The live scan returned no investigation evidence.", result.status === "failed" ? "failed" : "incomplete");
+    const firstFailure = result.failures[0];
+    showEmptyInvestigation("The live scan returned no investigation evidence.", result.status === "failed" ? "failed" : "incomplete", {
+      category: firstFailure?.code ?? (result.status === "failed" ? "scan-failed" : "no-complete-evidence"),
+      missing: "No complete alert and evidence record was returned.",
+      stage: result.status === "failed" ? "Historical evidence retrieval" : "Event and evidence collection",
+      nextAction: result.status === "failed"
+        ? "Review the visible failure records and retry the configured scan."
+        : "Review the missing evidence, then rerun the bounded read-only scan.",
+    });
     elements.caseStatus.textContent = result.status;
     elements.caseDisposition.textContent = "not issued";
+    elements.caseJourney.textContent = result.status === "failed"
+      ? "Investigation failed"
+      : "0 of 6 stages complete · investigation incomplete";
     elements.caseChecks.textContent = "0 passed";
     elements.caseReceipt.textContent = "Not issued";
     setSourceBadge({ scanStatus: result.status }, "live");
@@ -736,7 +812,11 @@ async function initialize() {
     selectProfile(state.activeProfileId);
   } catch (error) {
     renderProfiles();
-    showEmptyInvestigation(`Dashboard initialization failed: ${error.message}`, "failed");
+    showEmptyInvestigation(`Dashboard initialization failed: ${error.message}`, "failed", {
+      category: "dashboard-initialization",
+      stage: "Profile loading",
+      nextAction: "Refresh the configured dashboard after the local server is available.",
+    });
     elements.scanStatus.textContent = `Dashboard initialization failed: ${error.message}`;
     setSourceBadge({ scanStatus: "failed" }, "live");
   }
