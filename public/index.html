@@ -3,169 +3,118 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Watchtower verified Base upgrade investigation archive">
-    <title>Watchtower · Investigation archive</title>
+    <meta name="description" content="Watchtower investigates configured Base contract upgrades and issues independently verifiable receipts.">
+    <title>Watchtower · Autonomous onchain investigation</title>
     <!-- Delivery markers: MULTI-PROFILE INVESTIGATION ARCHIVE / VERIFIED FIXTURES -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="/styles.css">
     <script src="/app.js" type="module"></script>
   </head>
   <body>
-    <div class="site-frame">
-      <header class="masthead">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="masthead">
+      <div class="nav-frame">
         <a class="wordmark" href="#top" aria-label="Watchtower home">
           <img class="wordmark-mark" src="/watchtower-mark.svg" alt="" aria-hidden="true">
           <span>Watchtower</span>
         </a>
         <nav class="primary-nav" aria-label="Primary navigation">
-          <a href="#top">Learn</a>
-          <a href="#profiles">Choose target</a>
-          <a href="#investigation">Inspect</a>
+          <a href="#profiles">Monitor</a><a href="#investigation">Investigations</a><a href="#method">How it works</a><a href="#receipts">Receipts</a>
+          <a href="https://github.com/AjKadri/watchtower-agent#readme" target="_blank" rel="noreferrer">Docs</a>
         </nav>
-        <div class="system-state" aria-live="polite">
-          <span id="health-dot" class="health-dot pending" aria-hidden="true"></span>
-          <span id="health-label">Checking system</span>
+        <div class="nav-actions">
+          <div class="system-state" aria-live="polite"><span id="health-dot" class="health-dot pending" aria-hidden="true"></span><span id="health-label">Checking system</span></div>
+          <a class="nav-cta" href="#profiles">Launch Watchtower</a>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <main id="top">
-        <section class="intro" aria-labelledby="page-title">
-          <div class="intro-copy">
-            <p class="surface-label">Decide / Learn</p>
-            <p class="kicker">Deterministic Base upgrade investigations</p>
-            <h1 id="page-title">Verify a protocol upgrade from event to receipt.</h1>
-            <p class="value-statement">Watchtower checks a configured Base upgrade at exact historical blocks and issues a receipt you can independently verify.</p>
-            <div class="intro-actions">
-              <a class="primary-action intro-action" href="#profiles">Choose a configured profile</a>
-              <span class="intro-action-note">Start with a verified fixture or the configured live-scan target.</span>
-            </div>
+    <main id="main-content">
+      <section id="top" class="hero">
+        <div class="site-frame hero-grid">
+          <div class="hero-copy">
+            <div class="hero-eyebrow"><span class="base-dot" aria-hidden="true"></span> Base mainnet · read only</div>
+            <h1>Watch the contract.<br><span>Verify the change.</span></h1>
+            <p class="hero-lede">Watchtower detects a configured Base upgrade, investigates it at exact historical blocks, and produces evidence you can independently verify.</p>
+            <div class="hero-actions"><a class="primary-action" href="#profiles">Choose a monitored profile <span aria-hidden="true">↘</span></a><a class="text-action" href="#investigation">View investigations <span aria-hidden="true">→</span></a></div>
+            <ul class="trust-list" aria-label="Watchtower safeguards"><li>No wallet required</li><li>Exact historical checks</li><li>Replayable receipts</li></ul>
           </div>
-          <div class="scope-note" aria-label="Security boundary">
-            <span class="scope-index">01</span>
-            <p>Three configured profiles. Read only.</p>
-            <span>Aave V3, Compound III, and ether.fi. No arbitrary addresses, RPC URLs, calls, or event signatures.</span>
-          </div>
-        </section>
-
-        <section id="profiles" class="profile-section" aria-labelledby="profiles-title">
-          <div class="section-intro profile-heading">
-            <div>
-              <p class="surface-label">Command / Inspect</p>
-              <p class="kicker">Closed target registry</p>
-              <h2 id="profiles-title">Choose the protocol to investigate</h2>
+          <div class="watch-field" aria-label="Animated visualization of a configured contract upgrade becoming a verified investigation">
+            <div class="field-meta field-meta-top"><span>WATCHING</span><strong>Base / 8453</strong></div>
+            <div class="radar" aria-hidden="true">
+              <span class="radar-ring ring-one"></span><span class="radar-ring ring-two"></span><span class="radar-ring ring-three"></span><span class="radar-sweep"></span>
+              <span class="event-node node-admin"><i></i>PROXY</span><span class="event-node node-upgrade alert"><i></i>UPGRADE</span><span class="event-node node-block"><i></i>BLOCK</span>
+              <div class="tower-core"><img src="/watchtower-mark.svg" alt=""><span>WATCHTOWER</span></div>
             </div>
-            <p class="profile-guidance">Selection changes the evidence workspace. It never changes the approved address, event, calls, or historical blocks.</p>
-          </div>
-          <div id="profile-selector" class="profile-selector" aria-label="Configured target profiles"></div>
-          <p class="registry-boundary">Only these registered profiles can be selected. Contract addresses and calls are fixed server-side.</p>
-        </section>
-
-        <section id="investigation" class="current-section" aria-labelledby="current-title">
-          <div class="section-bar">
-            <div>
-              <p class="kicker">Current investigation</p>
-              <h2 id="current-title">Evidence workspace</h2>
-            </div>
-            <div class="source-controls">
-              <span id="source-badge" class="source-badge fixture">Verified fixture replay</span>
-              <button id="scan-button" class="primary-action" type="button">Run configured live scan</button>
-            </div>
-          </div>
-
-          <p id="scan-status" class="scan-status" role="status">Loading the verified fixture archive.</p>
-
-          <section id="failure-panel" class="failure-panel" aria-labelledby="failure-title" hidden>
-            <div>
-              <p class="kicker danger">Visible failure</p>
-              <h3 id="failure-title">Investigation requires review</h3>
-            </div>
-            <ul id="failure-list"></ul>
-          </section>
-
-          <div class="investigation-shell">
-            <aside class="case-summary" aria-label="Investigation summary">
-              <p class="case-number">Case <span id="case-profile-id">Loading</span></p>
-              <h3 id="case-protocol">Loading profile</h3>
-              <p id="case-target" class="case-target">Loading target</p>
-              <dl class="case-facts">
-                <div><dt>Trigger</dt><dd id="case-event">Upgraded(address)</dd></div>
-                <div><dt>Plan</dt><dd id="case-plan">Loading</dd></div>
-                <div><dt>Status</dt><dd id="case-status">Loading</dd></div>
-                <div><dt>Disposition</dt><dd id="case-disposition">Loading</dd></div>
-                <div><dt>Progression</dt><dd id="case-journey">Event observed → loading</dd></div>
-                <div><dt>Checks</dt><dd id="case-checks">Loading</dd></div>
-                <div><dt>Receipt</dt><dd id="case-receipt">Loading</dd></div>
-              </dl>
-              <p id="active-profile-note" class="active-profile-note"></p>
-            </aside>
-
-            <article id="detail-panel" class="detail-panel" aria-live="polite" aria-busy="true">
-              <div class="detail-placeholder">
-                <span class="loading-mark" aria-hidden="true"></span>
-                <p class="kicker">Phase 01 · Event observed</p>
-                <h3>Preparing historical evidence</h3>
-                <p class="detail-placeholder-copy">Loading the selected profile and checking its recorded upgrade event before building the evidence trace.</p>
-                <p class="loading-note">Read-only · configured Base profile</p>
-              </div>
+            <article class="signal-card">
+              <div class="signal-card-top"><span class="signal-risk">OBSERVED</span><span class="mono">18s ago</span></div>
+              <h2>Proxy implementation changed</h2><p class="mono">Upgraded(address) · Base</p><div class="signal-progress"><span></span></div>
+              <div class="signal-footer"><span>Investigating evidence</span><strong>04 / 06</strong></div>
             </article>
+            <div class="field-meta field-meta-bottom"><span>DETERMINISTIC TRACE</span><strong>01 signal</strong></div>
           </div>
-        </section>
-
-        <section id="archive" class="archive-section" aria-labelledby="archive-title">
-          <div class="section-intro archive-heading">
-            <div>
-              <p class="kicker">Committed evidence</p>
-              <h2 id="archive-title">Investigation archive</h2>
-            </div>
-            <p>One verified upgrade fixture per configured profile. No synthetic activity.</p>
-          </div>
-          <div class="archive-table-wrap">
-            <table class="archive-table">
-              <thead>
-                <tr>
-                  <th scope="col">Protocol</th>
-                  <th scope="col">Event</th>
-                  <th scope="col">Block and date</th>
-                  <th scope="col">Disposition</th>
-                  <th scope="col">Checks</th>
-                  <th scope="col">Receipt</th>
-                  <th scope="col"><span class="sr-only">Action</span></th>
-                </tr>
-              </thead>
-              <tbody id="archive-body"></tbody>
-            </table>
-          </div>
-          <div id="archive-empty" class="archive-empty" hidden>No committed fixture investigations are available.</div>
-        </section>
-
-        <section id="method" class="method-section" aria-labelledby="method-title">
-          <div class="section-intro method-heading">
-            <p class="kicker">Investigation method</p>
-            <h2 id="method-title">Six bounded stages, one receipt</h2>
-            <p>Each stage preserves what was requested, what was observed, and what could not be verified.</p>
-          </div>
-          <ol class="method-list">
-            <li><span>01</span><div><h3>Event observed</h3><p>Verify the configured proxy, transaction, log, topic, and decoded implementation.</p></div></li>
-            <li><span>02</span><div><h3>Plan selected</h3><p>Choose one versioned deterministic plan with a fixed read budget.</p></div></li>
-            <li><span>03</span><div><h3>Historical state checked</h3><p>Read the EIP-1967 implementation slot at N-1 and N.</p></div></li>
-            <li><span>04</span><div><h3>Implementation checked</h3><p>Verify deployed implementation bytecode at the upgrade block.</p></div></li>
-            <li><span>05</span><div><h3>Protocol identity checked</h3><p>Run only the profile's three approved historical calls.</p></div></li>
-            <li><span>06</span><div><h3>Receipt issued</h3><p>Bind the trigger, plan, checks, limitations, and disposition into deterministic JSON.</p></div></li>
-          </ol>
-        </section>
-      </main>
-
-      <footer>
-        <div class="footer-notes">
-          <span>Read-only Base mainnet research</span>
-          <span>No wallets, transactions, or open-ended calls</span>
         </div>
-        <nav class="project-links" aria-label="Watchtower public links">
-          <a href="https://github.com/AjKadri/watchtower-agent" target="_blank" rel="noreferrer">GitHub</a>
-          <a href="https://x.com/watchtowerbase_" target="_blank" rel="noreferrer">X</a>
-          <a href="https://t.me/watchtowerbase" target="_blank" rel="noreferrer">Telegram</a>
-        </nav>
-      </footer>
-    </div>
+      </section>
+
+      <section class="launcher-wrap" aria-labelledby="launcher-title"><div class="site-frame"><div class="launcher">
+        <div class="launcher-copy"><p class="kicker">Start an investigation</p><h2 id="launcher-title">Choose a configured Base profile</h2><p>Watchtower’s public MVP accepts only server-approved contracts and fixed historical checks.</p></div>
+        <a class="launcher-control" href="#profiles"><span class="launcher-icon" aria-hidden="true">⌖</span><span><small>MONITOR TARGET</small><strong>Aave, Compound or ether.fi</strong></span><b>Choose profile <span aria-hidden="true">→</span></b></a>
+      </div></div></section>
+
+      <section class="monitor-strip" aria-label="Current Watchtower coverage"><div class="site-frame monitor-track">
+        <span class="monitor-label"><i></i> WATCHING</span><span><b>01</b> Approved proxy</span><span><b>02</b> Upgrade event</span><span><b>03</b> Historical state</span><span><b>04</b> Implementation</span><span><b>05</b> Protocol identity</span><span><b>06</b> Receipt integrity</span>
+      </div></section>
+
+      <section class="product-story"><div class="site-frame story-grid">
+        <div class="story-copy"><p class="section-index">01 / INVESTIGATE</p><h2>Watchtower doesn’t stop at the event.</h2><p>When a configured proxy emits an upgrade, Watchtower reconstructs the trigger, checks historical state, and binds the result into a deterministic receipt.</p><a class="text-action" href="#investigation">Open the evidence workspace <span aria-hidden="true">→</span></a></div>
+        <article class="incident-preview" aria-label="Example of a verified Watchtower upgrade investigation">
+          <header><div><span class="status-mark"></span><small>CONTRACT UPGRADE</small></div><span class="verified-pill">CORROBORATED</span></header>
+          <div class="incident-title"><span>01</span><div><h3>Proxy implementation changed</h3><p>The emitted implementation agrees with historical proxy state at the upgrade block.</p></div></div>
+          <dl class="incident-facts"><div><dt>Network</dt><dd>Base mainnet</dd></div><div><dt>Trigger</dt><dd>Upgraded(address)</dd></div><div><dt>Evidence</dt><dd>Complete</dd></div><div><dt>Checks</dt><dd>6 / 6 passed</dd></div></dl>
+          <ol class="mini-trace"><li class="done"><span></span><b>Trigger observed</b><small>transaction + log</small></li><li class="done"><span></span><b>Historical state checked</b><small>block N−1 / N</small></li><li class="done"><span></span><b>Receipt issued</b><small>canonical payload</small></li></ol>
+          <footer><span class="mono">EVIDENCE-BOUND RESULT</span><a href="#receipts">View receipt →</a></footer>
+        </article>
+      </div></section>
+
+      <section id="profiles" class="profile-section"><div class="site-frame">
+        <div class="section-intro profile-heading"><div><p class="section-index">02 / MONITOR</p><p class="kicker">Closed target registry</p><h2>Choose the protocol to investigate.</h2></div><p class="profile-guidance">Selection changes the evidence workspace. It never changes the approved address, event, calls, or historical blocks.</p></div>
+        <div id="profile-selector" class="profile-selector" aria-label="Configured target profiles"></div>
+        <p class="registry-boundary">Only these registered profiles can be selected. Contract addresses and calls remain fixed server-side.</p>
+      </div></section>
+
+      <section id="investigation" class="current-section" aria-labelledby="current-title"><div class="dashboard-frame">
+        <aside class="dashboard-sidebar" aria-label="Watchtower workspace navigation">
+          <a class="sidebar-brand" href="#top"><img src="/watchtower-mark.svg" alt=""><span>Watchtower</span></a>
+          <nav><a class="active" href="#investigation"><span>⌁</span> Overview</a><a href="#profiles"><span>◎</span> Monitors</a><a href="#investigation"><span>◇</span> Investigations</a><a href="#receipts"><span>▤</span> Receipts</a></nav>
+          <div class="sidebar-network"><span>NETWORK</span><strong><i></i> Base mainnet</strong><small>Chain 8453</small></div>
+        </aside>
+        <div class="dashboard-main">
+          <div class="dashboard-topline"><div><p class="kicker">Operational workspace</p><h2 id="current-title">Investigation overview</h2><p>Three configured profiles. One live-scan target. Every result stays tied to evidence.</p></div><div class="source-controls"><span id="source-badge" class="source-badge fixture">Verified fixture replay</span><button id="scan-button" class="primary-action" type="button">Run configured live scan</button></div></div>
+          <div class="ops-summary" aria-label="Watchtower status summary"><div><span>Configured profiles</span><strong>03</strong><small>Base mainnet</small></div><div><span>Verified fixtures</span><strong>03</strong><small>Replayable</small></div><div><span>Live-scan targets</span><strong>01</strong><small>Server selected</small></div><div class="ops-state"><span>System state</span><strong>Read only</strong><small>No wallet or writes</small></div></div>
+          <p id="scan-status" class="scan-status" role="status">Loading the verified fixture archive.</p>
+          <section id="failure-panel" class="failure-panel" aria-labelledby="failure-title" hidden><div><p class="kicker danger">Visible failure</p><h3 id="failure-title">Investigation requires review</h3></div><ul id="failure-list"></ul></section>
+          <div class="investigation-shell">
+            <aside class="case-summary" aria-label="Investigation context"><p class="case-number">CASE / <span id="case-profile-id">Loading</span></p><h3 id="case-protocol">Loading profile</h3><p id="case-target" class="case-target">Loading target</p><dl class="case-facts"><div><dt>Trigger</dt><dd id="case-event">Upgraded(address)</dd></div><div><dt>Plan</dt><dd id="case-plan">Loading</dd></div><div><dt>Status</dt><dd id="case-status">Loading</dd></div><div><dt>Disposition</dt><dd id="case-disposition">Loading</dd></div><div><dt>Progression</dt><dd id="case-journey">Event observed → loading</dd></div><div><dt>Checks</dt><dd id="case-checks">Loading</dd></div><div><dt>Receipt</dt><dd id="case-receipt">Loading</dd></div></dl><p id="active-profile-note" class="active-profile-note"></p></aside>
+            <article id="detail-panel" class="detail-panel" aria-live="polite" aria-busy="true"><div class="detail-placeholder"><span class="loading-mark" aria-hidden="true"></span><p class="kicker">Phase 01 · Event observed</p><h3>Preparing historical evidence</h3><p class="detail-placeholder-copy">Loading the selected profile and checking its recorded upgrade event before building the evidence trace.</p><p class="loading-note">Read-only · configured Base profile</p></div></article>
+          </div>
+        </div>
+      </div></section>
+
+      <section id="method" class="method-section" aria-labelledby="method-title"><div class="site-frame method-grid">
+        <div class="method-heading"><p class="section-index">03 / METHOD</p><p class="kicker">How Watchtower thinks</p><h2 id="method-title">One signal.<br>Six bounded stages.</h2><p>Each stage records what was requested, what was observed, and what could not be verified.</p></div>
+        <ol class="method-list"><li><span>01</span><div><h3>Watch</h3><p>Listen only for the approved proxy and upgrade signature.</p></div><b>EVENT</b></li><li><span>02</span><div><h3>Detect</h3><p>Bind the exact transaction, block, log, emitter, and decoded implementation.</p></div><b>TRIGGER</b></li><li><span>03</span><div><h3>Investigate</h3><p>Read historical state at N−1 and N using the fixed, versioned plan.</p></div><b>STATE</b></li><li><span>04</span><div><h3>Check</h3><p>Verify deployed code and only the protocol calls authorized for this profile.</p></div><b>EVIDENCE</b></li><li><span>05</span><div><h3>Decide</h3><p>Issue a deterministic corroborated, contradicted, or incomplete disposition.</p></div><b>RESULT</b></li><li><span>06</span><div><h3>Verify</h3><p>Recompute the canonical receipt ID and open the underlying Base evidence.</p></div><b>RECEIPT</b></li></ol>
+      </div></section>
+
+      <section id="receipts" class="archive-section" aria-labelledby="archive-title"><div class="site-frame">
+        <div class="receipt-intro"><div><p class="section-index">04 / RECEIPTS</p><p class="kicker">Committed evidence</p><h2 id="archive-title">Every result comes with receipts.</h2></div><div class="receipt-object" aria-hidden="true"><span>WATCHTOWER RECEIPT</span><strong>SHA-256</strong><i></i><small>TRIGGER / PLAN / CHECKS / RESULT</small></div></div>
+        <p class="archive-lede">Replay one verified upgrade fixture per configured profile. No synthetic activity.</p>
+        <div class="archive-table-wrap"><table class="archive-table"><thead><tr><th scope="col">Protocol</th><th scope="col">Event</th><th scope="col">Block and date</th><th scope="col">Disposition</th><th scope="col">Checks</th><th scope="col">Receipt</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead><tbody id="archive-body"></tbody></table></div><div id="archive-empty" class="archive-empty" hidden>No committed fixture investigations are available.</div>
+      </div></section>
+
+      <section class="dark-breakout"><div class="site-frame breakout-grid"><div><p class="section-index">05 / EVIDENCE</p><h2>The chain records the change.<br><span>Watchtower explains the proof.</span></h2></div><div class="event-stream"><div><span class="stream-dot"></span><p><small>12:41:08 · BASE</small><strong>Upgraded(address)</strong></p><b>OBSERVED</b></div><div><span class="stream-line"></span><p><small>EXACT BLOCK TAGS</small><strong>Historical checks</strong></p><b>6 PASSED</b></div><div><span class="stream-dot complete"></span><p><small>CANONICAL PAYLOAD</small><strong>Receipt issued</strong></p><b>VERIFIED</b></div></div></div></section>
+      <section class="final-cta"><div class="site-frame final-cta-inner"><p class="kicker">Start with real evidence</p><h2>Watch your first configured contract.</h2><p>Select one of three approved Base profiles and replay its verified investigation.</p><div><a class="primary-action" href="#profiles">Choose a profile</a><a class="text-action" href="#investigation">Explore the workspace →</a></div></div></section>
+    </main>
+
+    <footer class="site-footer"><div class="site-frame footer-inner"><a class="wordmark" href="#top"><img class="wordmark-mark" src="/watchtower-mark.svg" alt=""><span>Watchtower</span></a><div class="footer-notes"><span>Read-only Base mainnet research</span><span>No wallets, transactions, or open-ended calls</span></div><nav class="project-links" aria-label="Watchtower public links"><a href="https://github.com/AjKadri/watchtower-agent" target="_blank" rel="noreferrer">GitHub</a><a href="https://x.com/watchtowerbase_" target="_blank" rel="noreferrer">X</a><a href="https://t.me/watchtowerbase" target="_blank" rel="noreferrer">Telegram</a></nav></div></footer>
   </body>
 </html>
