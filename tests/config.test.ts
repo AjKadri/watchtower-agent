@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { loadTargetConfig } from "../src/config/load.js";
+import { loadRuntimeConfig, loadTargetConfig } from "../src/config/load.js";
 import { targetConfigSchema, targetProfileSelectionSchema } from "../src/config/schema.js";
 import { validateUpgradeEventAbi } from "../src/events/upgrade.js";
 import {
@@ -51,6 +51,16 @@ describe("closed target profile registry", () => {
       path: "fixtures/base/etherfi-weeth-oft-upgrade-23487559",
       logIndex: "190",
     });
+  });
+
+  it("keeps optional agent credentials server-side and unavailable when incomplete", async () => {
+    const runtime = await loadRuntimeConfig({
+      BASE_RPC_URL: "https://example.com",
+      WATCHTOWER_CONFIG_PATH: "config/target.json",
+      WATCHTOWER_AGENT_MODEL: "example/model",
+    });
+
+    expect(runtime.agent).toEqual({ providerName: "openrouter", model: "example/model", provider: null });
   });
 
   it("registers exactly the three approved Base profiles", () => {

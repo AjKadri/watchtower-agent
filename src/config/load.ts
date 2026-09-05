@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import { z } from "zod";
 
 import { targetProfileSelectionSchema, type TargetConfig } from "./schema.js";
+import { createOpenRouterRuntime } from "../agent/openrouter.js";
+import type { AgentRuntime } from "../agent/provider.js";
 import { validateUpgradeEventAbi } from "../events/upgrade.js";
 import { resolveTargetProfile } from "../profiles/registry.js";
 
@@ -11,12 +13,15 @@ const runtimeEnvironmentSchema = z.object({
   BASE_RPC_URL: z.url().refine((url) => url.startsWith("https://") || url.startsWith("http://"), "must be an HTTP URL"),
   WATCHTOWER_CONFIG_PATH: z.string().min(1).default("config/target.json"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+  OPENROUTER_API_KEY: z.string().optional(),
+  WATCHTOWER_AGENT_MODEL: z.string().optional(),
 });
 
 export type RuntimeConfig = {
   rpcUrl: string;
   port: number;
   target: TargetConfig;
+  agent: AgentRuntime;
 };
 
 export async function loadTargetConfig(path = "config/target.json"): Promise<TargetConfig> {
@@ -35,5 +40,9 @@ export async function loadRuntimeConfig(environment: NodeJS.ProcessEnv = process
     rpcUrl: parsed.BASE_RPC_URL,
     port: parsed.PORT,
     target: await loadTargetConfig(parsed.WATCHTOWER_CONFIG_PATH),
+    agent: createOpenRouterRuntime({
+      apiKey: parsed.OPENROUTER_API_KEY,
+      model: parsed.WATCHTOWER_AGENT_MODEL,
+    }),
   };
 }
