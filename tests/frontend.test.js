@@ -399,6 +399,7 @@ describe("dashboard view model", () => {
     expect(html).toContain('class="watch-field"');
     expect(html).toContain('class="dashboard-frame"');
     expect(html).toContain("Every result comes with receipts.");
+    expect(html).toContain('id="theme-toggle"');
     expect(html).toContain("Only these registered profiles can be selected");
     expect(html).not.toContain('type="text"');
     expect(html).toContain('id="case-journey"');
@@ -411,8 +412,20 @@ describe("dashboard view model", () => {
     expect(css).toContain(".investigation-shell { grid-template-columns: 1fr; }");
     expect(css).toContain(".hero-actions");
     expect(css).toContain("@keyframes radar-sweep");
+    expect(css).toContain('html[data-theme="dark"]');
     expect(css).toContain(".profile-network");
     expect(css).toContain(".detail-title-kicker");
+  });
+
+  it("ships an accessible persistent color-theme control", () => {
+    const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+
+    expect(html).toContain('aria-label="Switch to dark mode"');
+    expect(html).toContain('aria-pressed="false"');
+    expect(app).toContain('const themePreferenceKey = "watchtower-theme"');
+    expect(app).toContain('localStorage.setItem(themePreferenceKey, nextTheme)');
+    expect(app).toContain('window.matchMedia?.("(prefers-color-scheme: dark)").matches');
   });
 
   it("keeps machine identifiers and investigation cards within mobile viewports", () => {

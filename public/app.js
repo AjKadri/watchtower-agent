@@ -45,6 +45,45 @@ const state = {
   liveDetails: new Map(),
 };
 
+const themePreferenceKey = "watchtower-theme";
+
+function applyTheme(theme) {
+  const selectedTheme = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = selectedTheme;
+  const toggle = document.querySelector("#theme-toggle");
+  if (!toggle) return;
+  const dark = selectedTheme === "dark";
+  toggle.setAttribute("aria-pressed", String(dark));
+  toggle.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  toggle.title = dark ? "Switch to light mode" : "Switch to dark mode";
+}
+
+function initializeTheme() {
+  const toggle = document.querySelector("#theme-toggle");
+  if (!toggle) return;
+  let savedTheme;
+  try {
+    savedTheme = localStorage.getItem(themePreferenceKey);
+  } catch {
+    savedTheme = null;
+  }
+  const initialTheme = savedTheme === "dark" || savedTheme === "light"
+    ? savedTheme
+    : window.matchMedia?.("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  applyTheme(initialTheme);
+  toggle.addEventListener("click", () => {
+    const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    applyTheme(nextTheme);
+    try {
+      localStorage.setItem(themePreferenceKey, nextTheme);
+    } catch {
+      // The selected theme remains active when storage is unavailable.
+    }
+  });
+}
+
 function node(tag, className, text) {
   const element = document.createElement(tag);
   if (className) element.className = className;
@@ -822,4 +861,5 @@ async function initialize() {
   }
 }
 
+initializeTheme();
 initialize();
