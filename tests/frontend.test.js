@@ -188,6 +188,22 @@ describe("dashboard view model", () => {
     expect(app).toContain("archive-receipt-id");
     expect(app).toContain('"Copy receipt ID"');
     expect(app).toContain('"Replay fixture"');
+    expect(app).toContain('"Download review packet"');
+    expect(app).toContain('format: "watchtower-review-packet"');
+  });
+
+  it("keeps the investigation proof hierarchy and full receipt identifiers in the renderer", () => {
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+    const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+
+    expect(app).toContain("renderInvestigationOverview");
+    expect(app).toContain("renderStageDetails");
+    expect(app).toContain("dominant-status-badge");
+    expect(app).toContain('node("h3", "receipt-id", receipt.receiptId)');
+    expect(styles).toContain(".trace-disclosure");
+    expect(styles).toContain(".decision-grid");
+    expect(styles).toContain(".receipt-action-row");
+    expect(styles).toContain("overflow-wrap: anywhere");
   });
 
   it("keeps archive triggers and checks tied to the committed fixture and registry", () => {

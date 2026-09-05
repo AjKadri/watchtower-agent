@@ -52,13 +52,35 @@ function node(tag, className, text) {
   return element;
 }
 
-function shortHash(value) {
-  if (!value || value.length < 22) return value ?? "Unavailable";
-  return `${value.slice(0, 11)}…${value.slice(-8)}`;
+const statusIcons = {
+  complete: "✓",
+  passed: "✓",
+  corroborated: "✓",
+  informational: "i",
+  pending: "~",
+  incomplete: "?",
+  skipped: "–",
+  failed: "×",
+  mismatch: "×",
+  contradicted: "×",
+  unsupported: "?",
+  suspicious: "!",
+  high: "!",
+};
+
+function statusToken(label, variant) {
+  const candidates = `${variant} ${label}`.toLowerCase().split(/\s+/);
+  return candidates.find((candidate) => Object.hasOwn(statusIcons, candidate)) ?? "pending";
 }
 
 function badge(label, variant = label) {
-  return node("span", `badge ${variant}`, label);
+  const token = statusToken(label, variant);
+  const element = node("span", `badge ${variant}`);
+  element.dataset.status = token;
+  const icon = node("span", "badge-icon", statusIcons[token]);
+  icon.setAttribute("aria-hidden", "true");
+  element.append(icon, document.createTextNode(label));
+  return element;
 }
 
 function sourceLink(label, href, className = "source-link") {
@@ -100,8 +122,10 @@ function setSourceBadge(detail, source) {
       : label === "Failed investigation"
         ? "failed"
         : "incomplete";
-  elements.sourceBadge.textContent = label;
   elements.sourceBadge.className = `source-badge ${variant}`;
+  const marker = node("span", "source-marker");
+  marker.setAttribute("aria-hidden", "true");
+  elements.sourceBadge.replaceChildren(marker, document.createTextNode(label));
 }
 
 function renderProfiles() {
@@ -225,20 +249,76 @@ function evidenceItem(row) {
   return wrapper;
 }
 
-function downloadReceipt(receipt) {
-  const blob = new Blob([`${JSON.stringify(receipt, null, 2)}\n`], { type: "application/json" });
+function overviewItem(label, value, href) {
+  const item = node("div", "overview-item");
+  item.append(node("dt", "", label));
+  const content = node("dd");
+  const displayValue = value ?? "Unavailable";
+  content.append(href ? sourceLink(String(displayValue), href) : document.createTextNode(String(displayValue)));
+  item.append(content);
+  return item;
+}
+
+function renderInvestigationOverview(detail, source) {
+  const { evidence } = detail;
+  const investigation = evidence.upgradeInvestigation;
+  const checks = investigation.checks ?? [];
+  const passed = checks.filter(({ status }) => status === "passed").length;
+  const receipt = evidence.investigationReceipt;
+  const section = node("section", "investigation-overview");
+  const heading = node("div", "content-heading");
+  heading.append(node("p", "kicker", "Investigation summary"), node("h3", "", "At a glance"));
+  const grid = node("dl", "overview-grid");
+  grid.append(
+    overviewItem("Source", investigationStateLabel(detail, source)),
+    overviewItem("Historical block", evidence.block?.number, evidence.sources?.block),
+    overviewItem("Block timestamp", formatUtcTimestamp(evidence.block?.timestamp)),
+    overviewItem(
+      "Trigger",
+      `${evidence.event?.signature ?? "Unavailable"} · log ${evidence.log?.index ?? "Unavailable"}`,
+      evidence.sources?.transaction,
+    ),
+    overviewItem("Checks", `${passed} of ${checks.length} passed`),
+    overviewItem("Receipt", receipt?.receiptId ?? "Not issued"),
+  );
+  section.append(heading, grid);
+  return section;
+}
+
+function downloadJson(filename, payload) {
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: "application/json" });
   const href = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = href;
-  link.download = `watchtower-${receipt.receiptId}.json`;
+  link.download = filename;
   link.click();
   setTimeout(() => URL.revokeObjectURL(href), 0);
 }
 
-function receiptVerificationControl(receipt) {
+function downloadReceipt(receipt) {
+  downloadJson(`watchtower-${receipt.receiptId}.json`, receipt);
+}
+
+function downloadReviewPacket(detail, source) {
+  const receipt = detail.evidence.investigationReceipt;
+  if (!receipt) return;
+  downloadJson(`watchtower-${receipt.receiptId}-review-packet.json`, {
+    format: "watchtower-review-packet",
+    source: source === "live" ? "live-rpc" : "verified-fixture",
+    alert: detail.alert,
+    evidence: detail.evidence,
+    receipt,
+  });
+}
+
+function receiptVerificationControl(receipt, detail, source) {
   const wrapper = node("div", "receipt-actions");
+  const actionRow = node("div", "receipt-action-row");
   const result = node("p", "receipt-verification", "Verification has not been run in this browser.");
   result.setAttribute("role", "status");
+  const packet = node("button", "secondary-action", "Download review packet");
+  packet.type = "button";
+  packet.addEventListener("click", () => downloadReviewPacket(detail, source));
   const button = node("button", "secondary-action", "Verify receipt");
   button.type = "button";
   button.addEventListener("click", async () => {
@@ -256,8 +336,90 @@ function receiptVerificationControl(receipt) {
       button.disabled = false;
     }
   });
-  wrapper.append(button, result);
+  actionRow.append(packet, button);
+  wrapper.append(actionRow, result);
   return wrapper;
+}
+
+function traceResultLabel(status) {
+  return {
+    complete: "Verified",
+    pending: "Pending",
+    incomplete: "Incomplete",
+    failed: "Failed",
+  }[status] ?? status;
+}
+
+function appendTraceFact(container, label, value, href) {
+  const group = node("div", "trace-fact");
+  group.append(node("dt", "", label));
+  const content = node("dd");
+  const displayValue = value ?? "Unavailable";
+  content.append(href ? sourceLink(String(displayValue), href) : document.createTextNode(String(displayValue)));
+  group.append(content);
+  container.append(group);
+}
+
+function stageEvidenceFields(stage, detail) {
+  const { evidence } = detail;
+  if (stage.id === "event-observed") {
+    return [
+      ["Event", evidence.event?.signature],
+      ["Transaction", evidence.transaction?.hash, evidence.sources?.transaction],
+      ["Block", evidence.block?.number, evidence.sources?.block],
+      ["Log index", evidence.log?.index],
+      ["Emitter", evidence.log?.emitter, evidence.sources?.addresses?.emitter],
+      ["Implementation", evidence.event?.decodedArguments?.implementation, evidence.sources?.addresses?.implementation],
+    ];
+  }
+  const receipt = evidence.investigationReceipt;
+  if (stage.id === "receipt-issued" && receipt) {
+    return [
+      ["Receipt ID", receipt.receiptId],
+      ["Disposition", receipt.finalDisposition],
+      ["Limitations", `${receipt.limitations?.length ?? 0} recorded`],
+    ];
+  }
+  return [];
+}
+
+function renderStageDetails(stage, detail, source) {
+  const details = stage.details ?? [];
+  const disclosure = node("details", "trace-disclosure");
+  disclosure.open = stage.status !== "complete" || stage.index === 1;
+  const summary = node("summary", "trace-disclosure-summary");
+  const countLabel = details.length > 0
+    ? `${details.length} recorded assertion${details.length === 1 ? "" : "s"}`
+    : "Recorded evidence fields";
+  summary.append(node("span", "trace-disclosure-label", "Stage details"), node("span", "trace-disclosure-count", countLabel));
+  const content = node("div", "trace-disclosure-content");
+  if (details.length > 0) {
+    const detailList = node("ul", "trace-details");
+    for (const check of details) {
+      const row = node("li", "trace-detail");
+      const detailTop = node("div", "trace-detail-top");
+      detailTop.append(node("span", "trace-detail-label", check.label), badge(check.status));
+      if (Number.isFinite(check.elapsedMs)) {
+        detailTop.append(node("span", "trace-elapsed", `${check.elapsedMs} ms`));
+      } else if (source === "verified-fixture") {
+        detailTop.append(node("span", "trace-elapsed fixture-timing", "Timing not recorded for fixture replay"));
+      }
+      row.append(detailTop, node("p", "trace-detail-summary", check.summary));
+      detailList.append(row);
+    }
+    content.append(detailList);
+  } else {
+    const fields = stageEvidenceFields(stage, detail);
+    if (fields.length > 0) {
+      const fieldList = node("dl", "trace-evidence-grid");
+      for (const [label, value, href] of fields) appendTraceFact(fieldList, label, value, href);
+      content.append(fieldList);
+    } else {
+      content.append(node("p", "trace-no-details", "No additional evidence was recorded for this stage."));
+    }
+  }
+  disclosure.append(summary, content);
+  return disclosure;
 }
 
 function renderTrace(detail, source) {
@@ -268,6 +430,8 @@ function renderTrace(detail, source) {
   const list = node("ol", "trace-list");
   for (const stage of buildInvestigationTrace(detail)) {
     const item = node("li", `trace-stage ${stage.status}`);
+    item.dataset.stage = stage.id;
+    item.dataset.status = stage.status;
     item.append(node("span", "trace-number", String(stage.index).padStart(2, "0")));
     const body = node("div", "trace-body");
     const top = node("div", "trace-top");
@@ -275,23 +439,12 @@ function renderTrace(detail, source) {
     if (Number.isFinite(stage.elapsedMs)) stageMeta.append(node("span", "trace-elapsed", `${stage.elapsedMs} ms`));
     stageMeta.append(badge(stage.status));
     top.append(node("h4", "", stage.title), stageMeta);
-    body.append(top, node("p", "", stage.summary));
-    if (stage.details.length > 0) {
-      const detailList = node("ul", "trace-details");
-      for (const check of stage.details) {
-        const row = node("li", "trace-detail");
-        const detailTop = node("div", "trace-detail-top");
-        detailTop.append(node("span", "trace-detail-label", check.label), badge(check.status));
-        if (Number.isFinite(check.elapsedMs)) {
-          detailTop.append(node("span", "trace-elapsed", `${check.elapsedMs} ms`));
-        } else if (source === "verified-fixture") {
-          detailTop.append(node("span", "trace-elapsed fixture-timing", "Timing not recorded for fixture replay"));
-        }
-        row.append(detailTop, node("p", "trace-detail-summary", check.summary));
-        detailList.append(row);
-      }
-      body.append(detailList);
-    }
+    const stageFacts = node("dl", "trace-facts");
+    appendTraceFact(stageFacts, "Source", source === "live" ? "Live RPC result" : "Verified fixture replay");
+    appendTraceFact(stageFacts, "Timestamp", formatUtcTimestamp(detail.evidence.block?.timestamp));
+    appendTraceFact(stageFacts, "Result", traceResultLabel(stage.status));
+    appendTraceFact(stageFacts, "Block", detail.evidence.block?.number, detail.evidence.sources?.block);
+    body.append(top, node("p", "trace-summary", stage.summary), stageFacts, renderStageDetails(stage, detail, source));
     if (stage.links.length > 0) {
       const links = node("div", "trace-links");
       links.setAttribute("aria-label", `${stage.title} evidence links`);
@@ -367,30 +520,89 @@ function renderSources(evidence) {
   return section;
 }
 
+function renderDecision(detail) {
+  const { alert, evidence } = detail;
+  const investigation = evidence.upgradeInvestigation;
+  const section = node("section", "decision-section");
+  const heading = node("div", "content-heading");
+  heading.append(node("p", "kicker", "Decision and limits"), node("h3", "", "What the evidence establishes"));
+  const grid = node("div", "decision-grid");
+
+  const disposition = node("article", "decision-block");
+  const dispositionHeading = node("div", "decision-block-heading");
+  dispositionHeading.append(node("p", "kicker", "Deterministic disposition"));
+  const dispositionBadge = badge(investigation.disposition, `decision-badge ${investigation.disposition}`);
+  dispositionBadge.setAttribute("role", "status");
+  dispositionHeading.append(dispositionBadge);
+  disposition.append(dispositionHeading);
+  const interpretation = alert.investigation?.interpretation?.text;
+  if (interpretation) disposition.append(node("p", "decision-explanation", interpretation));
+
+  const facts = node("article", "context-block");
+  facts.append(node("p", "kicker", "Observed facts"));
+  const factList = node("ul");
+  for (const fact of alert.investigation?.observedFacts ?? []) factList.append(node("li", "", fact));
+  facts.append(factList);
+
+  const limits = node("article", "context-block limitations");
+  limits.append(node("p", "kicker", "Limitations"));
+  const limitList = node("ul");
+  for (const limitation of alert.investigation?.limitations ?? []) limitList.append(node("li", "", limitation));
+  limits.append(limitList);
+
+  grid.append(disposition, facts, limits);
+  section.append(heading, grid);
+  return section;
+}
+
 function renderDetail(detail, source) {
   const { alert, evidence } = detail;
+  const investigation = evidence.upgradeInvestigation;
   elements.detail.replaceChildren();
+  elements.detail.setAttribute("aria-busy", "false");
   const header = node("header", "detail-header");
   const title = node("div");
   title.append(node("p", "kicker", alert.classificationLabel), node("h3", "", alert.title), node("p", "detail-summary", alert.summary));
   const status = node("div", "badge-stack");
-  status.append(badge(alert.severity), badge(alert.evidenceStatus));
+  status.append(
+    node("p", "status-caption", "Deterministic disposition"),
+    badge(investigation.disposition, `dominant-status-badge ${investigation.disposition}`),
+    badge(alert.severity),
+    badge(alert.evidenceStatus),
+  );
   header.append(title, status);
-  elements.detail.append(header, renderTrace(detail, source), renderChecks(evidence));
+  elements.detail.append(header, renderInvestigationOverview(detail, source), renderTrace(detail, source), renderChecks(evidence));
 
-  const context = node("section", "context-section");
-  const facts = node("article", "context-block");
-  facts.append(node("p", "kicker", "Observed facts"));
-  const factList = node("ul");
-  for (const fact of alert.investigation.observedFacts) factList.append(node("li", "", fact));
-  facts.append(factList);
-  const limits = node("article", "context-block limitations");
-  limits.append(node("p", "kicker", "Limits"));
-  const limitList = node("ul");
-  for (const limitation of alert.investigation.limitations) limitList.append(node("li", "", limitation));
-  limits.append(limitList);
-  context.append(facts, limits);
-  elements.detail.append(context);
+  if (evidence.errors.length > 0) {
+    const errors = node("section", "evidence-errors");
+    errors.append(node("p", "kicker danger", "Incomplete evidence"), node("h3", "", "Some required evidence could not be verified"));
+    for (const error of evidence.errors) errors.append(node("p", "", `${error.code}: ${error.message}`));
+    elements.detail.append(errors);
+  }
+
+  elements.detail.append(renderDecision(detail));
+
+  const receipt = evidence.investigationReceipt;
+  if (receipt) {
+    const receiptBar = node("section", "receipt-bar");
+    const copy = node("div");
+    copy.append(node("p", "kicker", "Browser-verifiable receipt"), node("h3", "receipt-id", receipt.receiptId), node("p", "", "Validated JSON binds the trigger, plan, checks, limitations, and final disposition."));
+    const actions = receiptVerificationControl(receipt, detail, source);
+    const actionRow = actions.querySelector(".receipt-action-row");
+    if (source === "live") {
+      const link = node("a", "primary-action", "Download receipt JSON");
+      link.href = `/api/receipts/${encodeURIComponent(receipt.receiptId)}`;
+      link.download = `watchtower-${receipt.receiptId}.json`;
+      actionRow.prepend(link);
+    } else {
+      const button = node("button", "primary-action", "Download receipt JSON");
+      button.type = "button";
+      button.addEventListener("click", () => downloadReceipt(receipt));
+      actionRow.prepend(button);
+    }
+    receiptBar.append(copy, actions);
+    elements.detail.append(receiptBar);
+  }
 
   const evidenceSection = node("section", "evidence-section");
   const evidenceHeading = node("div", "content-heading");
@@ -400,41 +612,19 @@ function renderDetail(detail, source) {
   for (const row of buildEvidenceRows(evidence, alert.classificationLabel)) grid.append(evidenceItem(row));
   evidenceSection.append(evidenceHeading, grid);
   elements.detail.append(evidenceSection, renderSources(evidence));
-
-  if (evidence.errors.length > 0) {
-    const errors = node("section", "evidence-errors");
-    errors.append(node("h3", "", "Incomplete evidence"));
-    for (const error of evidence.errors) errors.append(node("p", "", `${error.code}: ${error.message}`));
-    elements.detail.append(errors);
-  }
-
-  const receipt = evidence.investigationReceipt;
-  if (receipt) {
-    const receiptBar = node("section", "receipt-bar");
-    const copy = node("div");
-    copy.append(node("p", "kicker", "Replay receipt"), node("h3", "", shortHash(receipt.receiptId)), node("p", "", "Validated JSON binds the trigger, plan, checks, limitations, and final disposition."));
-    const actions = receiptVerificationControl(receipt);
-    if (source === "live") {
-      const link = node("a", "primary-action", "Download receipt JSON");
-      link.href = `/api/receipts/${encodeURIComponent(receipt.receiptId)}`;
-      link.download = `watchtower-${receipt.receiptId}.json`;
-      actions.prepend(link);
-    } else {
-      const button = node("button", "primary-action", "Download receipt JSON");
-      button.type = "button";
-      button.addEventListener("click", () => downloadReceipt(receipt));
-      actions.prepend(button);
-    }
-    receiptBar.append(copy, actions);
-    elements.detail.append(receiptBar);
-  }
   renderCaseSummary(detail, source);
 }
 
 function showEmptyInvestigation(message, status = "incomplete") {
   elements.detail.replaceChildren();
-  const empty = node("div", `detail-empty ${status}`);
-  empty.append(node("p", "kicker", status === "failed" ? "Failed investigation" : "No evidence selected"), node("h3", "", message));
+  elements.detail.setAttribute("aria-busy", "false");
+  const state = status === "failed" ? "failed" : "incomplete";
+  const empty = node("div", `detail-empty ${state}`);
+  empty.append(
+    node("p", "kicker", state === "failed" ? "Failed investigation" : "Incomplete investigation"),
+    badge(state),
+    node("h3", "", message),
+  );
   elements.detail.append(empty);
 }
 
