@@ -1,0 +1,51 @@
+export const watchtowerFaq = Object.freeze([
+  {
+    id: "what-is-watchtower",
+    question: "What is Watchtower?",
+    category: "overview",
+    shortAnswer: "Watchtower is a read-only Base investigation system for three configured contract profiles. It turns an approved proxy upgrade event into a bounded evidence path, then returns a deterministic disposition and receipt. A flagged change is not proof that an upgrade is unsafe or intentional.",
+    longAnswer: "Watchtower is a read-only historical investigation system for three configured Base contract profiles. It verifies one approved proxy upgrade event, runs each profile's fixed checks at exact historical blocks, and records the result in a canonical receipt. The result describes observed evidence and deterministic assertions; it does not establish that an upgrade is safe, legitimate, or intentional.",
+  },
+  {
+    id: "what-does-watchtower-monitor",
+    question: "What does Watchtower monitor?",
+    category: "core-concepts",
+    shortAnswer: "The current MVP watches one configured proxy-upgrade event for each of its three registered Base profiles. It then checks historical implementation state, deployed bytecode, and fixed protocol identity calls. Ownership, pause, treasury, liquidity, and wallet-movement monitoring are outside this release.",
+    longAnswer: "The detector is limited to one configured proxy and the approved Upgraded(address) event for each registered profile. After a trigger, the investigation reads the EIP-1967 implementation at the block before and at the upgrade block, checks the decoded implementation's bytecode, and runs only that profile's fixed protocol identity calls. Ownership or admin changes, pause or unpause events, transfers, treasury or liquidity activity, wallet movements, and open-ended project discovery are outside this MVP.",
+  },
+  {
+    id: "is-watchtower-an-auditor",
+    question: "Is Watchtower a smart-contract auditor?",
+    category: "core-concepts",
+    shortAnswer: "Watchtower focuses on monitoring deployed systems after an observed upgrade. It verifies configured event evidence and fixed historical checks, but it is not a smart-contract audit and does not guarantee that a contract is safe.",
+    longAnswer: "Watchtower's scope is post-deployment monitoring of the configured profiles and their upgrade evidence. It can surface observed onchain changes and run the profile's fixed historical checks, but it does not replace a smart-contract audit or establish that a contract, upgrade, or implementation is safe.",
+  },
+  {
+    id: "how-watchtower-decides",
+    question: "How does Watchtower decide something deserves attention?",
+    category: "core-concepts",
+    shortAnswer: "The scanner uses deterministic checks to validate the configured event, select the registered plan, compare the decoded implementation with the profile's approved target, and run fixed historical checks. No LLM participates in the verdict path. A flagged result describes a rule outcome, not proof of malicious intent.",
+    longAnswer: "Watchtower first validates the configured event and applies the registered profile's deterministic severity rule. It compares the decoded implementation with the approved target, then runs only the checks named by the selected plan. The verdict path does not use an LLM, and a high or suspicious result should be read as a rule-based signal for review, not proof of malicious intent.",
+  },
+  {
+    id: "verify-watchtower-alert",
+    question: "Can I verify a Watchtower alert myself?",
+    category: "evidence",
+    shortAnswer: "Yes. A complete alert includes block, transaction, receipt, log, contract addresses, fixed-check assertions, explorer links, and a canonical receipt ID. The browser can recompute the receipt ID so you can inspect the recorded evidence on Base.",
+    longAnswer: "Yes. A complete alert links its block, transaction, receipt, log, emitting and implementation addresses, fixed-check assertions, and BaseScan sources. Its canonical receipt binds the trigger, plan, checks, limitations, disposition, and explorer links; the browser can recompute the SHA-256 ID and you can inspect the underlying Base activity yourself.",
+  },
+  {
+    id: "watchtower-wallet-access",
+    question: "Does Watchtower need access to my wallet?",
+    category: "scope",
+    shortAnswer: "No. The live scan uses a server-selected profile, while the browser can replay committed fixture profiles. The app is read-only, never requests a wallet or private key, and never submits transactions.",
+    longAnswer: "No wallet connection or private key is required. The live scan uses a server-selected profile, while the browser can replay committed fixture profiles. The app is read-only and never submits transactions or manages funds.",
+  },
+  {
+    id: "watchtower-networks",
+    question: "Which networks does Watchtower support?",
+    category: "scope",
+    shortAnswer: "Watchtower currently supports Base mainnet, chain ID 8453, and its three registered profiles. It does not provide multichain coverage.",
+    longAnswer: "The current registry is limited to Base mainnet, chain ID 8453. It contains three predefined profiles, and the scanner does not accept arbitrary contracts or claim support for other networks.",
+  },
+]);

@@ -1,4 +1,5 @@
 import { archiveProfiles, getArchiveProfile } from "/archive-data.js";
+import { watchtowerFaq } from "/faq-data.js";
 import { verifyReceipt } from "/receipt-verifier.js";
 import {
   buildArchiveEntries,
@@ -84,8 +85,42 @@ function initializeTheme() {
   });
 }
 
+function createHomepageFaqItem(entry, index) {
+  const item = node("article", `faq-item${index === 0 ? " is-open" : ""}`);
+  item.dataset.faqItem = "";
+
+  const questionId = `faq-question-${entry.id}`;
+  const answerId = `faq-answer-${entry.id}`;
+  const heading = node("h3");
+  const trigger = node("button", "faq-trigger");
+  trigger.id = questionId;
+  trigger.type = "button";
+  trigger.dataset.faqTrigger = "";
+  trigger.setAttribute("aria-expanded", String(index === 0));
+  trigger.setAttribute("aria-controls", answerId);
+  trigger.append(node("span", "", entry.question));
+  const icon = node("span", "faq-icon");
+  icon.setAttribute("aria-hidden", "true");
+  trigger.append(icon);
+  heading.append(trigger);
+
+  const answer = node("div", "faq-answer");
+  answer.id = answerId;
+  answer.setAttribute("role", "region");
+  answer.setAttribute("aria-labelledby", questionId);
+  answer.setAttribute("aria-hidden", String(index !== 0));
+  const answerInner = node("div");
+  answerInner.append(node("p", "", entry.shortAnswer));
+  answer.append(answerInner);
+  item.append(heading, answer);
+  return item;
+}
+
 function initializeFaq() {
-  const items = [...document.querySelectorAll("[data-faq-item]")];
+  const list = document.querySelector("[data-faq-list]");
+  if (!list) return;
+  list.replaceChildren(...watchtowerFaq.map(createHomepageFaqItem));
+  const items = [...list.querySelectorAll("[data-faq-item]")];
   if (items.length === 0) return;
 
   const setItemState = (item, open) => {

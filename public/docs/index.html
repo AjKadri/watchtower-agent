@@ -271,12 +271,8 @@
                 <p class="section-index">12 / REFERENCE</p>
                 <h2>Frequently asked questions.</h2>
                 <div class="docs-faq">
-                  <details open><summary>What is Watchtower?</summary><p>A read-only Base investigation system that turns a configured proxy upgrade event into verified historical evidence and a canonical receipt.</p></details>
-                  <details><summary>Which network does it support?</summary><p>Base mainnet, chain ID 8453.</p></details>
-                  <details><summary>What does it monitor?</summary><p>One configured <code>Upgraded(address)</code> event per registered profile, plus fixed historical implementation, bytecode, and protocol identity checks.</p></details>
-                  <details><summary>Does it require wallet access?</summary><p>No. The current UI is read-only, does not request a wallet or private key, and never submits transactions.</p></details>
-                  <details><summary>Can it prevent an exploit?</summary><p>No. It reports observable evidence after a configured event and does not prevent transactions or replace a smart-contract audit.</p></details>
-                  <details><summary>How is an incident verified?</summary><p>The scanner validates the block, transaction, receipt, log, decoded implementation, fixed checks, assertions, and explorer links. The receipt schema then checks the records agree.</p></details>
+                  <div data-doc-shared-faq></div>
+                  <details><summary>Can Watchtower prevent an exploit?</summary><p>No. It reports observable evidence after a configured event and does not prevent transactions or replace a smart-contract audit.</p></details>
                   <details><summary>What are receipts?</summary><p>Canonical JSON records whose SHA-256 IDs can be recomputed in the browser. They include the trigger, plan, checks, errors, limitations, disposition, and sources.</p></details>
                   <details><summary>How quickly are changes detected?</summary><p>There is no continuous monitoring or latency promise. The current live path is a bounded scan initiated by the user.</p></details>
                   <details><summary>Can I monitor multiple contracts?</summary><p>The registry contains three predefined profiles. The current MVP does not accept arbitrary contracts or open-ended project graphs.</p></details>

@@ -1,3 +1,5 @@
+import { watchtowerFaq } from "/faq-data.js";
+
 const themePreferenceKey = "watchtower-theme";
 
 function applyTheme(theme) {
@@ -78,5 +80,23 @@ function initializeSectionNavigation() {
   });
 }
 
+function createDocsFaqItem(entry, index) {
+  const details = document.createElement("details");
+  details.open = index === 0;
+  const summary = document.createElement("summary");
+  summary.textContent = entry.question;
+  const answer = document.createElement("p");
+  answer.textContent = entry.longAnswer;
+  details.append(summary, answer);
+  return details;
+}
+
+function initializeSharedFaq() {
+  const container = document.querySelector("[data-doc-shared-faq]");
+  if (!container) return;
+  container.replaceChildren(...watchtowerFaq.map(createDocsFaqItem));
+}
+
 initializeTheme();
+initializeSharedFaq();
 initializeSectionNavigation();

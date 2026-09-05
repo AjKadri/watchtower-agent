@@ -19,6 +19,7 @@ import {
   summarizeTraceProgression,
 } from "../public/view-model.js";
 import { archiveProfiles } from "../public/archive-data.js";
+import { watchtowerFaq } from "../public/faq-data.js";
 import { canonicalReceiptPayload, createReceiptId, normalizeEvmAddress, verifyReceipt } from "../public/receipt-verifier.js";
 import { investigationReceiptSchema } from "../src/domain/schemas.js";
 import { createInvestigationReceipt } from "../src/investigation/receipt.js";
@@ -796,25 +797,32 @@ describe("browser receipt verification", () => {
 
   it("renders an accessible homepage FAQ with an internal docs handoff", () => {
     const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+    const docs = readFileSync(new URL("../public/docs/index.html", import.meta.url), "utf8");
     const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
     const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+    const docsScript = readFileSync(new URL("../public/docs/docs.js", import.meta.url), "utf8");
 
     expect(html).toContain('class="faq-section"');
     expect(html).toContain('id="faq-title"');
     expect(html).toContain('href="/docs">Still curious? Read the full documentation');
-    for (const question of [
+    expect(html).toContain('data-faq-list');
+    expect(docs).toContain('data-doc-shared-faq');
+    expect(app).toContain('import { watchtowerFaq } from "/faq-data.js";');
+    expect(docsScript).toContain('import { watchtowerFaq } from "/faq-data.js";');
+    expect(watchtowerFaq).toHaveLength(7);
+    expect(new Set(watchtowerFaq.map(({ id }) => id)).size).toBe(watchtowerFaq.length);
+    expect(watchtowerFaq.every(({ question, shortAnswer, longAnswer }) => (
+      question && shortAnswer && longAnswer && shortAnswer.length < longAnswer.length
+    ))).toBe(true);
+    expect(watchtowerFaq.map(({ question }) => question)).toEqual([
       "What is Watchtower?",
       "What does Watchtower monitor?",
       "Is Watchtower a smart-contract auditor?",
-      "How does Watchtower decide something is suspicious?",
+      "How does Watchtower decide something deserves attention?",
       "Can I verify a Watchtower alert myself?",
       "Does Watchtower need access to my wallet?",
       "Which networks does Watchtower support?",
-    ]) {
-      expect(html).toContain(question);
-    }
-    expect(html).toContain('data-faq-trigger aria-expanded="true"');
-    expect(html).toContain('role="region"');
+    ]);
     expect(css).toContain(".faq-answer");
     expect(css).toContain(".faq-item.is-open");
     expect(app).toContain("function initializeFaq()");
