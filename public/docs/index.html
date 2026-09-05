@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Watchtower documentation for the read-only Base upgrade investigation MVP.">
+    <title>Watchtower Docs · Read-only Base investigations</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/docs/docs.css">
+    <script src="/docs/docs.js" type="module"></script>
+  </head>
+  <body class="docs-page">
+    <a class="skip-link" href="#docs-main">Skip to documentation</a>
+
+    <header class="masthead docs-masthead">
+      <div class="nav-frame docs-nav-frame">
+        <a class="wordmark" href="/" aria-label="Watchtower home">
+          <img class="wordmark-mark" src="/watchtower-mark.svg" alt="" aria-hidden="true">
+          <span>Watchtower</span>
+        </a>
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <a href="/#profiles">Monitor</a>
+          <a href="/#investigation">Investigations</a>
+          <a href="/#method">How it works</a>
+          <a href="/#receipts">Receipts</a>
+          <a href="/docs" aria-current="page">Docs</a>
+        </nav>
+        <div class="nav-actions">
+          <a class="nav-source" href="https://github.com/AjKadri/watchtower-agent" target="_blank" rel="noreferrer">View source ↗</a>
+          <button id="docs-theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">
+            <span class="theme-sun" aria-hidden="true">☀</span><span class="theme-moon" aria-hidden="true">◐</span>
+          </button>
+          <a class="nav-cta" href="/#profiles">Launch Watchtower</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="docs-main">
+      <div class="docs-shell">
+        <aside class="docs-sidebar" aria-label="Documentation navigation">
+          <div class="docs-sidebar-heading">
+            <span>DOCUMENTATION</span>
+            <strong>Watchtower Docs</strong>
+          </div>
+          <nav class="docs-sidebar-nav">
+            <div class="docs-nav-group">
+              <p>GETTING STARTED</p>
+              <a href="#overview" data-doc-link>Overview</a>
+              <a href="#quick-start" data-doc-link>Quick start</a>
+            </div>
+            <div class="docs-nav-group">
+              <p>CORE CONCEPTS</p>
+              <a href="#monitoring" data-doc-link>Monitoring</a>
+              <a href="#incidents" data-doc-link>Incidents</a>
+              <a href="#investigations" data-doc-link>Investigations</a>
+              <a href="#risk-levels" data-doc-link>Risk levels</a>
+              <a href="#receipts" data-doc-link>Receipts</a>
+            </div>
+            <div class="docs-nav-group">
+              <p>SYSTEM</p>
+              <a href="#how-it-works" data-doc-link>How it works</a>
+              <a href="#architecture" data-doc-link>Architecture</a>
+              <a href="#alerts" data-doc-link>Alerts</a>
+              <a href="#limitations" data-doc-link>Limitations</a>
+            </div>
+            <div class="docs-nav-group">
+              <p>REFERENCE</p>
+              <a href="#faq" data-doc-link>FAQ</a>
+              <a href="https://github.com/AjKadri/watchtower-agent" target="_blank" rel="noreferrer">View source ↗</a>
+            </div>
+          </nav>
+          <a class="docs-app-link" href="/#profiles">← Open the Watchtower app</a>
+        </aside>
+
+        <details class="docs-mobile-nav">
+          <summary><span>Documentation menu</span><span aria-hidden="true">＋</span></summary>
+          <nav aria-label="Mobile documentation navigation">
+            <a href="#overview" data-doc-link>Overview</a>
+            <a href="#quick-start" data-doc-link>Quick start</a>
+            <a href="#monitoring" data-doc-link>Monitoring</a>
+            <a href="#incidents" data-doc-link>Incidents</a>
+            <a href="#investigations" data-doc-link>Investigations</a>
+            <a href="#risk-levels" data-doc-link>Risk levels</a>
+            <a href="#receipts" data-doc-link>Receipts</a>
+            <a href="#how-it-works" data-doc-link>How it works</a>
+            <a href="#architecture" data-doc-link>Architecture</a>
+            <a href="#alerts" data-doc-link>Alerts</a>
+            <a href="#limitations" data-doc-link>Limitations</a>
+            <a href="#faq" data-doc-link>FAQ</a>
+          </nav>
+        </details>
+
+        <div class="docs-content-wrap">
+          <header class="docs-header">
+            <div>
+              <p class="docs-kicker"><span class="base-dot" aria-hidden="true"></span> DOCUMENTATION / BASE MAINNET</p>
+              <h1>Watchtower Docs</h1>
+              <p class="docs-lede">Learn how Watchtower investigates configured Base upgrades and produces evidence you can verify.</p>
+              <div class="docs-header-actions">
+                <a class="primary-action" href="/#profiles">Start monitoring <span aria-hidden="true">↘</span></a>
+                <a class="docs-secondary-action" href="https://github.com/AjKadri/watchtower-agent" target="_blank" rel="noreferrer">View source <span aria-hidden="true">↗</span></a>
+              </div>
+            </div>
+            <dl class="docs-header-meta">
+              <div><dt>Network</dt><dd>Base</dd></div>
+              <div><dt>Chain ID</dt><dd>8453</dd></div>
+              <div><dt>Scope</dt><dd>3 registered profiles</dd></div>
+              <div><dt>Release</dt><dd>v0.1.0 MVP</dd></div>
+            </dl>
+          </header>
+
+          <div class="docs-content-grid">
+            <article class="docs-article">
+              <section id="overview" class="docs-section" data-doc-section>
+                <p class="section-index">01 / GETTING STARTED</p>
+                <h2>Investigate the change, not just the event.</h2>
+                <p>Watchtower is a read-only historical investigation system for three configured Base contract profiles. It turns one approved proxy upgrade event into a bounded evidence path: verify the trigger, run fixed checks at exact historical blocks, explain the result, and issue a receipt.</p>
+                <div class="docs-callout">
+                  <span class="docs-callout-label">CURRENT BOUNDARY</span>
+                  <p>The public MVP does not accept arbitrary addresses, event signatures, calls, RPC URLs, or block ranges outside the registered profile. A replay is always labeled as a replay.</p>
+                </div>
+                <div class="docs-flow" aria-label="Watchtower investigation loop">
+                  <div class="docs-flow-step"><span>01</span><strong>WATCH</strong><p>Listen for the configured proxy and approved upgrade signature.</p></div>
+                  <div class="docs-flow-step"><span>02</span><strong>DETECT</strong><p>Verify the address, topic, block scope, and decoded implementation.</p></div>
+                  <div class="docs-flow-step"><span>03</span><strong>INVESTIGATE</strong><p>Run the profile’s fixed historical storage, code, and contract checks.</p></div>
+                  <div class="docs-flow-step"><span>04</span><strong>VERIFY</strong><p>Bind block, transaction, receipt, log, assertions, and source links.</p></div>
+                  <div class="docs-flow-step"><span>05</span><strong>ALERT</strong><p>Return a deterministic severity, explanation, disposition, and receipt.</p></div>
+                </div>
+              </section>
+
+              <section id="quick-start" class="docs-section" data-doc-section>
+                <p class="section-index">02 / QUICK START</p>
+                <h2>Follow one evidence path.</h2>
+                <p class="docs-section-lede">The current app is a focused demo of registered historical investigations. It is designed to be inspected without a wallet.</p>
+                <ol class="docs-steps">
+                  <li><span>01</span><div><h3>Choose a registered profile</h3><p>Select Aave V3 Base Pool, Compound III Base USDC Comet, or ether.fi Base weETH OFT.</p></div></li>
+                  <li><span>02</span><div><h3>Replay or scan</h3><p>Replay one committed fixture immediately. The server-selected ether.fi profile can run the bounded live scan when its archive RPC is available.</p></div></li>
+                  <li><span>03</span><div><h3>Read the trace</h3><p>Inspect the observed event, selected plan, exact block checks, evidence status, and final disposition.</p></div></li>
+                  <li><span>04</span><div><h3>Verify the receipt</h3><p>Download the receipt or recompute its canonical SHA-256 ID in the browser.</p></div></li>
+                </ol>
+                <div class="docs-ui-example" aria-label="Watchtower profile selection example">
+                  <div class="docs-ui-example-top"><span>WATCHTOWER / MONITOR TARGET</span><span class="docs-status">READ ONLY</span></div>
+                  <div class="docs-example-control"><div><strong>ether.fi Base weETH OFT</strong><code>etherfi-base-weeth-oft</code></div><a href="/#profiles">Open workspace <span aria-hidden="true">↗</span></a></div>
+                  <p>The browser intentionally has no address input. There is no wallet connection, private-key request, or transaction submission.</p>
+                </div>
+              </section>
+
+              <section id="monitoring" class="docs-section" data-doc-section>
+                <p class="section-index">03 / CORE CONCEPTS</p>
+                <h2>Monitoring is deliberately narrow.</h2>
+                <p class="docs-section-lede">Watchtower’s current registry watches one high-signal event on each configured proxy, then checks the state that gives that event context.</p>
+                <div class="docs-table-wrap">
+                  <table class="docs-table">
+                    <caption>Signals implemented by the current profiles</caption>
+                    <thead><tr><th scope="col">Signal</th><th scope="col">What Watchtower looks for</th><th scope="col">Why it matters</th></tr></thead>
+                    <tbody>
+                      <tr><th scope="row">Configured proxy upgrade</th><td><code>Upgraded(address)</code> from the profile’s primary proxy at its approved block.</td><td>Creates a precise implementation-change trigger for investigation.</td></tr>
+                      <tr><th scope="row">Historical implementation state</th><td>EIP-1967 implementation storage at block N−1 and block N.</td><td>Shows whether the proxy state agrees with the decoded implementation.</td></tr>
+                      <tr><th scope="row">Implementation bytecode</th><td>Deployed code presence and configured byte length at the upgrade block.</td><td>Confirms that code exists at the implementation address being checked.</td></tr>
+                      <tr><th scope="row">Protocol identity</th><td>Fixed profile calls such as Aave `getPool()`, Compound `governor()`, or ether.fi `endpoint()`.</td><td>Checks that the configured protocol identity still matches its approved assertion.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="docs-muted-note">Ownership changes, pause events, transfers, treasury activity, liquidity changes, wallet movements, and dynamic project discovery are outside this MVP.</p>
+              </section>
+
+              <section id="incidents" class="docs-section" data-doc-section>
+                <p class="section-index">04 / INCIDENTS</p>
+                <h2>An incident is a verified signal with context.</h2>
+                <p>Watchtower does not turn every transaction into an alert. A current incident is created when the configured proxy emits the approved upgrade event. The alert carries a factual title and summary, severity rule, observation time, evidence status, source links, and the associated investigation.</p>
+                <div class="docs-incident-card">
+                  <header><div><span class="docs-status-dot"></span><span>CONTRACT UPGRADE</span></div><span class="docs-risk info">INFORMATIONAL</span></header>
+                  <div class="docs-incident-title"><span>EXAMPLE / FIXTURE</span><h3>Configured ether.fi weETH OFT proxy implementation updated</h3><p>The decoded implementation matches the profile’s approved implementation at the configured upgrade block.</p></div>
+                  <dl><div><dt>Network</dt><dd>Base mainnet</dd></div><div><dt>Block</dt><dd>23487559</dd></div><div><dt>Evidence</dt><dd>Complete</dd></div><div><dt>Result</dt><dd>Corroborated</dd></div></dl>
+                  <footer><span><code>Upgraded(address)</code> · 6 checks passed</span><a href="/#investigation">Open workspace →</a></footer>
+                </div>
+              </section>
+
+              <section id="investigations" class="docs-section" data-doc-section>
+                <p class="section-index">05 / INVESTIGATIONS</p>
+                <h2>Every alert follows a fixed trace.</h2>
+                <p>After a candidate log is found, the scanner validates its block, transaction, and receipt, strictly decodes the event, selects a registered versioned plan, and executes only the checks authorized for that profile.</p>
+                <ol class="docs-investigation-flow">
+                  <li><span>01</span><div><strong>Trigger detected</strong><p>Confirm the configured emitter, topic, block, transaction, receipt, and decoded implementation.</p></div></li>
+                  <li><span>02</span><div><strong>Plan selected</strong><p>Choose the approved, escalation, or incomplete plan from the closed registry.</p></div></li>
+                  <li><span>03</span><div><strong>Historical state checked</strong><p>Read the EIP-1967 slot at N−1 and N using the exact block tags.</p></div></li>
+                  <li><span>04</span><div><strong>Implementation checked</strong><p>Check deployed bytecode at the decoded implementation address.</p></div></li>
+                  <li><span>05</span><div><strong>Protocol identity checked</strong><p>Run only the fixed calls registered for the selected profile.</p></div></li>
+                  <li><span>06</span><div><strong>Receipt produced</strong><p>Bind the observations, checks, limitations, links, and disposition into canonical JSON.</p></div></li>
+                </ol>
+                <div class="docs-callout docs-callout-neutral"><span class="docs-callout-label">DETERMINISTIC VERDICT PATH</span><p>No LLM participates in the verdict path. The explanation layer repeats observed facts and the configured severity rule; it does not infer identity, intent, causality, or safety.</p></div>
+              </section>
+
+              <section id="risk-levels" class="docs-section" data-doc-section>
+                <p class="section-index">06 / RISK LEVELS</p>
+                <h2>Severity names the rule that fired.</h2>
+                <p class="docs-section-lede">The current policy classifies the decoded implementation address against the profile’s approved address list. It is an assessment of that comparison, not a claim about intent.</p>
+                <div class="docs-risk-grid">
+                  <article><span class="docs-risk high">HIGH</span><h3>Zero address target</h3><p>The decoded implementation is the zero address.</p><code>target-is-zero-address</code></article>
+                  <article><span class="docs-risk suspicious">SUSPICIOUS</span><h3>Unapproved target</h3><p>The decoded implementation is nonzero but not in the approved target list.</p><code>target-is-not-approved</code></article>
+                  <article><span class="docs-risk info">INFORMATIONAL</span><h3>Approved target</h3><p>The decoded implementation matches the configured approved target.</p><code>target-is-approved</code></article>
+                </div>
+                <p class="docs-muted-note">The current policy does not emit critical, medium, low, or financial-risk scores.</p>
+              </section>
+
+              <section id="receipts" class="docs-section" data-doc-section>
+                <p class="section-index">07 / RECEIPTS</p>
+                <h2>Every result comes with receipts.</h2>
+                <p>A Watchtower receipt is the canonical record of one configured historical upgrade investigation. It preserves the trigger, selected plan, checks, errors, limitations, final disposition, and explorer links so another reader can inspect the same evidence path.</p>
+                <div class="docs-receipt-card">
+                  <div class="docs-receipt-top"><span>WATCHTOWER RECEIPT</span><span>SHA-256 / VERIFIED FIXTURE</span></div>
+                  <code class="docs-receipt-id">receipt_af9ac18199f550c4d6ccf64a16334dd03afbbe3a3bf06c705347e16684bd64b5</code>
+                  <div class="docs-receipt-grid"><div><dt>Block</dt><dd>23487559</dd></div><div><dt>Trigger</dt><dd><code>Upgraded(address)</code></dd></div><div><dt>Plan</dt><dd>corroborate-approved-upgrade · 1.0.0</dd></div><div><dt>Checks</dt><dd>6 / 6 passed</dd></div><div><dt>Result</dt><dd>corroborated</dd></div><div><dt>Network</dt><dd>Base mainnet · 8453</dd></div></div>
+                  <div class="docs-receipt-footer"><span>Trigger · plan · checks · result</span><a href="/#receipts">View fixture archive →</a></div>
+                </div>
+                <ul class="docs-inline-list"><li>Reproducibility through canonical JSON</li><li>Independent SHA-256 verification in the browser</li><li>Explorer links for the recorded transaction, block, and addresses</li></ul>
+                <p class="docs-muted-note">Committed fixtures can be replayed in the browser. Live alerts and receipts are held in process memory and clear when the server restarts.</p>
+              </section>
+
+              <section id="how-it-works" class="docs-section" data-doc-section>
+                <p class="section-index">08 / SYSTEM</p>
+                <h2>From Base evidence to a readable result.</h2>
+                <div class="docs-architecture-flow" aria-label="Watchtower system flow">
+                  <div><span>01</span><strong>BASE</strong><p>Provides the historical block, transaction, receipt, and log data.</p></div>
+                  <div><span>02</span><strong>VALIDATED INGESTION</strong><p>The ChainReader boundary validates the shape and identity of RPC responses.</p></div>
+                  <div><span>03</span><strong>DETECTION</strong><p>The scanner filters one configured proxy and one approved event topic.</p></div>
+                  <div><span>04</span><strong>INVESTIGATION</strong><p>A registered plan runs fixed storage, bytecode, and protocol checks.</p></div>
+                  <div><span>05</span><strong>EVIDENCE / RECEIPT</strong><p>Assertions, limitations, links, and disposition are normalized into records.</p></div>
+                  <div><span>06</span><strong>WATCHTOWER UI</strong><p>The static workspace renders the archive, trace, failures, and verification actions.</p></div>
+                </div>
+              </section>
+
+              <section id="architecture" class="docs-section" data-doc-section>
+                <p class="section-index">09 / ARCHITECTURE</p>
+                <h2>A small system with explicit boundaries.</h2>
+                <div class="docs-architecture-grid">
+                  <article><span class="docs-layer-number">01</span><h3>Frontend</h3><p>Vanilla HTML, CSS, and browser JavaScript served from <code>public/</code>. It renders the profile archive and investigation workspace.</p></article>
+                  <article><span class="docs-layer-number">02</span><h3>Express API</h3><p>Express exposes health, configuration, bounded scans, in-memory alerts, and validated receipt downloads.</p></article>
+                  <article><span class="docs-layer-number">03</span><h3>Base RPC reader</h3><p>viem provides read-only JSON-RPC access. The RPC URL stays server-side.</p></article>
+                  <article><span class="docs-layer-number">04</span><h3>Rules and investigation</h3><p>TypeScript modules decode the approved event, select a registered plan, run checks, and derive deterministic outcomes.</p></article>
+                  <article><span class="docs-layer-number">05</span><h3>Storage</h3><p>Scan results, alerts, evidence, and live receipts are held in process memory. Committed fixture data powers the public archive.</p></article>
+                  <article><span class="docs-layer-number">06</span><h3>External links</h3><p>Recorded explorer links point to BaseScan. There is no notification service, worker, database, authentication layer, or wallet integration.</p></article>
+                </div>
+                <div class="docs-source-row"><span>Read the implementation and fixtures directly.</span><a class="docs-secondary-action" href="https://github.com/AjKadri/watchtower-agent" target="_blank" rel="noreferrer">View source ↗</a></div>
+              </section>
+
+              <section id="alerts" class="docs-section" data-doc-section>
+                <p class="section-index">10 / ALERTS</p>
+                <h2>Alerts currently live in the Watchtower workspace.</h2>
+                <p>The web UI and JSON API expose alerts created by a bounded scan. An alert includes the configured incident class, severity and rule, factual title and summary, observation time, evidence status, source links, and an associated investigation when trigger evidence is complete.</p>
+                <div class="docs-alert-card"><div><span class="docs-status-dot"></span><span>WEB WORKSPACE</span></div><strong>Configured proxy upgrade observed</strong><p><code>Upgraded(address)</code> · complete evidence · corroborated</p><a href="/#investigation">Open the investigation →</a></div>
+                <p class="docs-muted-note">Telegram and Discord are not implemented alert-delivery channels in this repository. The public Telegram link is a project contact link only.</p>
+              </section>
+
+              <section id="limitations" class="docs-section" data-doc-section>
+                <p class="section-index">11 / LIMITATIONS</p>
+                <h2>Know what the evidence does not say.</h2>
+                <div class="docs-callout docs-callout-warning"><span class="docs-callout-label">IMPORTANT</span><p>Watchtower monitors configured deployed systems for observable upgrade evidence. It is not a smart-contract audit and does not guarantee that a contract is safe.</p></div>
+                <ul class="docs-limitations">
+                  <li><strong>Scope.</strong> Only three Base profiles and the configured <code>Upgraded(address)</code> event are supported.</li>
+                  <li><strong>Historical access.</strong> Exact-block checks need an archive-capable provider. RPC outages, timeouts, rate limits, or pruned history can produce incomplete evidence.</li>
+                  <li><strong>Live coverage.</strong> The live API scans one server-selected profile and one approved historical range. Other profiles are verified fixture replays.</li>
+                  <li><strong>Persistence.</strong> Live alerts and receipts are in memory and disappear when the process restarts.</li>
+                  <li><strong>Interpretation.</strong> Receipts do not establish identity, intent, causality, governance legitimacy, implementation safety, or remote cross-chain safety.</li>
+                  <li><strong>Out of scope.</strong> There is no continuous monitoring, notification delivery, authentication, wallet access, transaction submission, database, multi-chain support, dynamic proxy discovery, or arbitrary RPC execution.</li>
+                </ul>
+              </section>
+
+              <section id="faq" class="docs-section docs-section-last" data-doc-section>
+                <p class="section-index">12 / REFERENCE</p>
+                <h2>Frequently asked questions.</h2>
+                <div class="docs-faq">
+                  <details open><summary>What is Watchtower?</summary><p>A read-only Base investigation system that turns a configured proxy upgrade event into verified historical evidence and a canonical receipt.</p></details>
+                  <details><summary>Which network does it support?</summary><p>Base mainnet, chain ID 8453.</p></details>
+                  <details><summary>What does it monitor?</summary><p>One configured <code>Upgraded(address)</code> event per registered profile, plus fixed historical implementation, bytecode, and protocol identity checks.</p></details>
+                  <details><summary>Does it require wallet access?</summary><p>No. The current UI is read-only, does not request a wallet or private key, and never submits transactions.</p></details>
+                  <details><summary>Can it prevent an exploit?</summary><p>No. It reports observable evidence after a configured event and does not prevent transactions or replace a smart-contract audit.</p></details>
+                  <details><summary>How is an incident verified?</summary><p>The scanner validates the block, transaction, receipt, log, decoded implementation, fixed checks, assertions, and explorer links. The receipt schema then checks the records agree.</p></details>
+                  <details><summary>What are receipts?</summary><p>Canonical JSON records whose SHA-256 IDs can be recomputed in the browser. They include the trigger, plan, checks, errors, limitations, disposition, and sources.</p></details>
+                  <details><summary>How quickly are changes detected?</summary><p>There is no continuous monitoring or latency promise. The current live path is a bounded scan initiated by the user.</p></details>
+                  <details><summary>Can I monitor multiple contracts?</summary><p>The registry contains three predefined profiles. The current MVP does not accept arbitrary contracts or open-ended project graphs.</p></details>
+                  <details><summary>Where can I inspect the source?</summary><p>Use <a href="https://github.com/AjKadri/watchtower-agent" target="_blank" rel="noreferrer">View source ↗</a> to open the public repository.</p></details>
+                </div>
+              </section>
+            </article>
+
+            <aside class="docs-toc" aria-label="On this page">
+              <span>ON THIS PAGE</span>
+              <a href="#overview" data-doc-link>Overview</a>
+              <a href="#quick-start" data-doc-link>Quick start</a>
+              <a href="#monitoring" data-doc-link>Monitoring</a>
+              <a href="#incidents" data-doc-link>Incidents</a>
+              <a href="#investigations" data-doc-link>Investigations</a>
+              <a href="#risk-levels" data-doc-link>Risk levels</a>
+              <a href="#receipts" data-doc-link>Receipts</a>
+              <a href="#how-it-works" data-doc-link>How it works</a>
+              <a href="#architecture" data-doc-link>Architecture</a>
+              <a href="#alerts" data-doc-link>Alerts</a>
+              <a href="#limitations" data-doc-link>Limitations</a>
+              <a href="#faq" data-doc-link>FAQ</a>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer docs-footer">
+      <div class="site-frame footer-inner">
+        <a class="wordmark" href="/" aria-label="Watchtower home"><img class="wordmark-mark" src="/watchtower-mark.svg" alt="" aria-hidden="true"><span>Watchtower</span></a>
+        <div class="footer-notes"><span>Read-only Base mainnet research</span><span>Documentation for the v0.1.0 MVP</span></div>
+        <nav class="project-links" aria-label="Watchtower public links"><a href="https://github.com/AjKadri/watchtower-agent" target="_blank" rel="noreferrer">GitHub</a><a href="/">Open app</a></nav>
+      </div>
+    </footer>
+  </body>
+</html>

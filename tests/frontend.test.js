@@ -754,4 +754,43 @@ describe("browser receipt verification", () => {
     expect(app).toContain('"Receipt verification failed"');
     expect(app).toContain('check.result.hash ?? "Not recorded"');
   });
+
+  it("keeps the primary docs destination internal and the source link external", () => {
+    const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+    const docs = readFileSync(new URL("../public/docs/index.html", import.meta.url), "utf8");
+
+    expect(html).toContain('<a href="/docs">Docs</a>');
+    expect(docs).toContain("<title>Watchtower Docs · Read-only Base investigations</title>");
+    expect(docs).toContain('href="https://github.com/AjKadri/watchtower-agent"');
+    expect(docs).toContain('href="/"');
+    for (const sectionId of [
+      "overview",
+      "quick-start",
+      "monitoring",
+      "incidents",
+      "investigations",
+      "risk-levels",
+      "receipts",
+      "how-it-works",
+      "architecture",
+      "alerts",
+      "limitations",
+      "faq",
+    ]) {
+      expect(docs).toContain(`id="${sectionId}"`);
+    }
+  });
+
+  it("ships responsive docs navigation and reduced-motion support", () => {
+    const docs = readFileSync(new URL("../public/docs/index.html", import.meta.url), "utf8");
+    const css = readFileSync(new URL("../public/docs/docs.css", import.meta.url), "utf8");
+    const script = readFileSync(new URL("../public/docs/docs.js", import.meta.url), "utf8");
+
+    expect(docs).toContain('class="docs-mobile-nav"');
+    expect(docs).toContain('id="docs-theme-toggle"');
+    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(css).toContain(".docs-shell");
+    expect(script).toContain('const themePreferenceKey = "watchtower-theme"');
+    expect(script).toContain("IntersectionObserver");
+  });
 });
