@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import express, { type ErrorRequestHandler, type Express } from "express";
 import { z } from "zod";
 
+import type { AgentRuntime } from "../agent/provider.js";
 import type { ChainReader } from "../chain/types.js";
 import type { TargetConfig } from "../config/schema.js";
 import { investigationReceiptSchema, scanResultSchema, type ScanResult } from "../domain/schemas.js";
@@ -25,6 +26,7 @@ export type AppDependencies = {
   store?: ScanStore;
   publicDirectory?: string;
   scanDeadlineMs?: number;
+  agent?: AgentRuntime;
 };
 
 export const DEFAULT_SCAN_DEADLINE_MS = 30_000;
@@ -191,7 +193,7 @@ export function createApp(dependencies: AppDependencies): Express {
       try {
         const controller = new AbortController();
         const execution = await runWithDeadline(
-          scanApprovedRange(dependencies.reader, dependencies.config, { fromBlock, toBlock }, { signal: controller.signal }),
+          scanApprovedRange(dependencies.reader, dependencies.config, { fromBlock, toBlock }, { signal: controller.signal, agent: dependencies.agent }),
           controller,
           scanDeadlineMs,
           scanDeadlineResult(dependencies.config, fromBlock, toBlock),

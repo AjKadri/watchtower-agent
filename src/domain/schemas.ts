@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { toHex } from "viem";
 
+import { agentInvestigationSchema, notRunAgentInvestigation } from "../agent/schemas.js";
 import { investigationCheckIdSchema, investigationPlanSchema } from "../investigation/plans.js";
 import { createReceiptId } from "../pipeline/ids.js";
 import { EVM_ADDRESS_PATTERN, evmAwareEqual, evmAwareStringEqual, normalizeEvmAddress, sameEvmAddress } from "../evm/address.js";
@@ -239,6 +240,7 @@ export const evidenceSchema = z.object({
   detector: z.object({ id: z.string().min(1), inputs: z.record(z.string(), z.string()) }),
   severity: z.object({ ruleId: z.string().min(1), inputs: z.record(z.string(), z.string()), result: z.enum(["high", "suspicious", "informational"]) }),
   upgradeInvestigation: upgradeInvestigationSchema,
+  agentInvestigation: agentInvestigationSchema.default(notRunAgentInvestigation),
   investigationReceipt: investigationReceiptSchema.nullable(),
   observedFacts: z.array(z.string().min(1)).min(1),
   sources: sourceLinks,

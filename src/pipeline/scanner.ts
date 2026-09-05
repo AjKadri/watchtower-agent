@@ -1,4 +1,7 @@
 import type { Address, ChainBlock, ChainLog, ChainReader, ChainReceipt, ChainTransaction, Hash } from "../chain/types.js";
+import type { AgentRuntime } from "../agent/provider.js";
+import { runBoundedInvestigationAgent, runInitialDeterministicChecks } from "../agent/run.js";
+import { notRunAgentInvestigation } from "../agent/schemas.js";
 import type { TargetConfig } from "../config/schema.js";
 import type { Alert, Evidence, ScanFailure, ScanResult } from "../domain/schemas.js";
 import { scanResultSchema } from "../domain/schemas.js";
@@ -14,7 +17,7 @@ import { createAlertId, createScanId } from "./ids.js";
 import { classifyUpgrade } from "./severity.js";
 
 export type ScanBounds = { fromBlock?: bigint; toBlock?: bigint };
-export type ScanOptions = { signal?: AbortSignal };
+export type ScanOptions = { signal?: AbortSignal; agent?: AgentRuntime };
 
 const BASE_MAINNET_CHAIN_ID = 8453;
 
@@ -108,6 +111,7 @@ async function buildEvidence(
   implementation: Address,
   caches: EvidenceCaches,
   signal?: AbortSignal,
+  agentRuntime?: AgentRuntime,
 ): Promise<{ alert: Alert; evidence: Evidence; failures: ScanFailure[] }> {
   const emitter = normalizeEvmAddress(log.address);
   const normalizedImplementation = normalizeEvmAddress(implementation);
@@ -181,7 +185,26 @@ async function buildEvidence(
     triggerEvidenceStatus: triggerEvidenceComplete ? "complete" : "incomplete",
     severityRuleId: severity.ruleId,
   });
-  const upgradeInvestigation = await investigateApprovedUpgrade(reader, config, normalizedImplementation, plan, { signal });
+  let agentInvestigation = notRunAgentInvestigation;
+  const agentEnabledForLiveTarget = config.target.id === "etherfi-base-weeth-oft" && agentRuntime;
+  const upgradeInvestigation = await investigateApprovedUpgrade(reader, config, normalizedImplementation, plan, {
+    signal,
+    execute: async (executor) => {
+      await runInitialDeterministicChecks(executor);
+      agentInvestigation = await runBoundedInvestigationAgent(
+        executor,
+        {
+          targetId: config.target.id,
+          eventSignature: detector.eventSignature,
+          decodedImplementation: normalizedImplementation,
+          severity: severity.severity,
+          severityRuleId: severity.ruleId,
+        },
+        agentEnabledForLiveTarget ? agentRuntime : undefined,
+        signal,
+      );
+    },
+  });
   for (const check of upgradeInvestigation.checks) {
     if (check.failure) {
       addEvidenceError(check.failure.code, check.failure.message, check.failure.category);
@@ -274,6 +297,7 @@ async function buildEvidence(
     },
     severity: { ruleId: severity.ruleId, inputs: severity.inputs, result: severity.severity },
     upgradeInvestigation,
+    agentInvestigation,
     investigationReceipt,
     observedFacts,
     sources,
@@ -391,7 +415,7 @@ export async function scanApprovedRange(
     seenAlertIds.add(alertId);
 
     try {
-      const built = await buildEvidence(reader, config, log, implementation, caches, options.signal);
+      const built = await buildEvidence(reader, config, log, implementation, caches, options.signal, options.agent);
       built.alert.scanId = scanId;
       alerts.push(built.alert);
       evidence.push(built.evidence);

@@ -60,6 +60,7 @@ export async function main(): Promise<void> {
   const app = createApp({
     reader: createViemChainReader(runtime.rpcUrl),
     config: runtime.target,
+    agent: runtime.agent,
   });
   const server = await startServer(app, runtime.port);
 

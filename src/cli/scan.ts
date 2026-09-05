@@ -20,7 +20,7 @@ async function main(): Promise<void> {
 
   try {
     const reader = createViemChainReader(runtime.rpcUrl);
-    const result = await scanApprovedRange(reader, runtime.target);
+    const result = await scanApprovedRange(reader, runtime.target, {}, { agent: runtime.agent });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     if (result.status === "failed") process.exitCode = 1;
   } catch (error) {

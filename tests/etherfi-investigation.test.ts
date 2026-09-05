@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { AgentProviderError, type AgentRuntime, type InvestigationAgentProvider } from "../src/agent/provider.js";
+import type { AgentDecision, AgentDecisionInput } from "../src/agent/schemas.js";
 import { classifyRpcError, RpcReadError, type RpcFailureCategory } from "../src/chain/errors.js";
 import type {
   Address,
@@ -131,6 +133,119 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
     expect(reader.reads.every(({ blockNumber }) => blockNumber === BigInt(investigation.previousBlock)
       || blockNumber === BigInt(investigation.upgradeBlock))).toBe(true);
     expect(investigationReceiptSchema.safeParse(result.evidence[0].investigationReceipt).success).toBe(true);
+    expect(result.evidence[0].agentInvestigation).toMatchObject({ status: "not-run", provider: null, steps: [] });
+  });
+
+  it("runs bounded live agent decisions while deterministic checks and receipt stay fixed", async () => {
+    class SequencedProvider implements InvestigationAgentProvider {
+      readonly provider = "openrouter" as const;
+      readonly model = "test/model";
+      readonly inputs: AgentDecisionInput[] = [];
+      async decide(input: AgentDecisionInput): Promise<AgentDecision> {
+        this.inputs.push(input);
+        if (this.inputs.length === 1) {
+          return {
+            action: "run_check",
+            checkId: "token-at-upgrade",
+            rationale: "Check the registered token identity before concluding the investigation.",
+            narrative: "The initial historical checks agree with the configured upgrade.",
+            uncertainty: "Protocol identity checks remain.",
+          };
+        }
+        return {
+          action: "finish",
+          rationale: "The approved follow-up result is available.",
+          narrative: "The selected token identity and initial checks agree with the recorded profile.",
+          uncertainty: "The result covers only this configured historical upgrade.",
+        };
+      }
+    }
+    const provider = new SequencedProvider();
+    const runtime: AgentRuntime = { providerName: "openrouter", model: provider.model, provider };
+    const baseline = await scanApprovedRange(new EtherfiFixtureReader(), config);
+    const result = await scanApprovedRange(new EtherfiFixtureReader(), config, {}, { agent: runtime });
+
+    expect(provider.inputs[0].completedChecks.map(({ checkId }) => checkId)).toEqual([
+      "implementation-before",
+      "implementation-at-upgrade",
+      "implementation-bytecode",
+    ]);
+    expect(provider.inputs[0].availableCheckIds).toEqual([
+      "endpoint-at-upgrade",
+      "token-at-upgrade",
+      "shared-decimals-at-upgrade",
+    ]);
+    expect(result.evidence[0].agentInvestigation).toMatchObject({
+      status: "complete",
+      provider: "openrouter",
+      model: "test/model",
+      steps: [{ requestedCheckId: "token-at-upgrade", toolResultRef: "token-at-upgrade", outcome: "passed" }],
+    });
+    expect(result.evidence[0].upgradeInvestigation.checks.map(({ id }) => id)).toEqual(config.plans.approved.selectedChecks);
+    expect(result.evidence[0].investigationReceipt?.receiptId).toBe(baseline.evidence[0].investigationReceipt?.receiptId);
+  });
+
+  it("surfaces unavailable and failed agents without changing deterministic output", async () => {
+    const baseline = await scanApprovedRange(new EtherfiFixtureReader(), config);
+    const unavailable = await scanApprovedRange(new EtherfiFixtureReader(), config, {}, {
+      agent: { providerName: "openrouter", model: "test/model", provider: null },
+    });
+    const failingProvider: InvestigationAgentProvider = {
+      provider: "openrouter",
+      model: "test/model",
+      decide: async () => { throw new AgentProviderError("Provider unavailable.", "provider"); },
+    };
+    const failed = await scanApprovedRange(new EtherfiFixtureReader(), config, {}, {
+      agent: { providerName: "openrouter", model: failingProvider.model, provider: failingProvider },
+    });
+
+    expect(unavailable.evidence[0].agentInvestigation).toMatchObject({ status: "unavailable", failure: { category: "unavailable" } });
+    expect(failed.evidence[0].agentInvestigation).toMatchObject({ status: "failed", failure: { category: "provider" } });
+    expect(unavailable.evidence[0].upgradeInvestigation.checks).toHaveLength(6);
+    expect(failed.evidence[0].upgradeInvestigation.checks).toHaveLength(6);
+    expect(unavailable.evidence[0].investigationReceipt?.receiptId).toBe(baseline.evidence[0].investigationReceipt?.receiptId);
+    expect(failed.evidence[0].investigationReceipt?.receiptId).toBe(unavailable.evidence[0].investigationReceipt?.receiptId);
+  });
+
+  it.each([
+    ["timeout", new AgentProviderError("Provider timed out.", "timeout")],
+    ["malformed output", new AgentProviderError("Provider output was invalid.", "invalid-output")],
+  ])("fails safely for agent %s and still completes required checks", async (_label, providerError) => {
+    const provider: InvestigationAgentProvider = {
+      provider: "openrouter",
+      model: "test/model",
+      decide: async () => { throw providerError; },
+    };
+    const result = await scanApprovedRange(new EtherfiFixtureReader(), config, {}, {
+      agent: { providerName: "openrouter", model: provider.model, provider },
+    });
+
+    expect(result.evidence[0].agentInvestigation).toMatchObject({
+      status: "failed",
+      failure: { category: providerError.category === "timeout" ? "timeout" : "invalid-output" },
+    });
+    expect(result.evidence[0].upgradeInvestigation.checks).toHaveLength(6);
+    expect(result.evidence[0].upgradeInvestigation.disposition).toBe("corroborated");
+  });
+
+  it("rejects an agent check outside the selected plan and runs the deterministic fallback", async () => {
+    const provider: InvestigationAgentProvider = {
+      provider: "openrouter",
+      model: "test/model",
+      decide: async () => ({
+        action: "run_check",
+        checkId: "configured-pool",
+        rationale: "Attempt a cross-profile check.",
+        narrative: "No conclusion is available.",
+        uncertainty: "The request is outside this profile.",
+      }),
+    };
+    const result = await scanApprovedRange(new EtherfiFixtureReader(), config, {}, {
+      agent: { providerName: "openrouter", model: provider.model, provider },
+    });
+
+    expect(result.evidence[0].agentInvestigation).toMatchObject({ status: "failed", failure: { category: "invalid-tool" } });
+    expect(result.evidence[0].upgradeInvestigation.checks.map(({ id }) => id)).toEqual(config.plans.approved.selectedChecks);
   });
 
   it("produces a contradicted investigation when endpoint() at N conflicts", async () => {
