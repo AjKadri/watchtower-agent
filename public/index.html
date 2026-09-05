@@ -113,6 +113,39 @@
       </div></section>
 
       <section class="dark-breakout"><div class="site-frame breakout-grid"><div><p class="section-index">05 / EVIDENCE</p><h2>The chain records the change.<br><span>Watchtower explains the proof.</span></h2></div><div class="event-stream"><div><span class="stream-dot"></span><p><small>12:41:08 · BASE</small><strong>Upgraded(address)</strong></p><b>OBSERVED</b></div><div><span class="stream-line"></span><p><small>EXACT BLOCK TAGS</small><strong>Historical checks</strong></p><b>6 PASSED</b></div><div><span class="stream-dot complete"></span><p><small>CANONICAL PAYLOAD</small><strong>Receipt issued</strong></p><b>VERIFIED</b></div></div></div></section>
+      <section class="faq-section" aria-labelledby="faq-title"><div class="site-frame faq-grid">
+        <div class="faq-intro"><p class="section-index">06 / FAQ</p><p class="kicker">Quick answers</p><h2 id="faq-title">Questions judges usually ask.</h2><p>Quick answers about how Watchtower monitors, investigates and verifies onchain activity.</p><a class="text-action" href="/docs">Still curious? Read the full documentation <span aria-hidden="true">→</span></a></div>
+        <div class="faq-list" data-faq-list>
+          <article class="faq-item is-open" data-faq-item>
+            <h3><button id="faq-question-what" class="faq-trigger" type="button" data-faq-trigger aria-expanded="true" aria-controls="faq-answer-what"><span>What is Watchtower?</span><span class="faq-icon" aria-hidden="true"></span></button></h3>
+            <div id="faq-answer-what" class="faq-answer" role="region" aria-labelledby="faq-question-what" aria-hidden="false"><div><p>Watchtower is a read-only Base investigation system for three configured contract profiles. It turns an approved proxy upgrade event into a bounded evidence path, then returns a deterministic disposition and receipt. It does not claim an upgrade is safe or intentional.</p></div></div>
+          </article>
+          <article class="faq-item" data-faq-item>
+            <h3><button id="faq-question-monitor" class="faq-trigger" type="button" data-faq-trigger aria-expanded="false" aria-controls="faq-answer-monitor"><span>What does Watchtower monitor?</span><span class="faq-icon" aria-hidden="true"></span></button></h3>
+            <div id="faq-answer-monitor" class="faq-answer" role="region" aria-labelledby="faq-question-monitor" aria-hidden="true"><div><p>The current MVP watches a configured <code>Upgraded(address)</code> event on each registered proxy, then checks historical EIP-1967 implementation state, deployed bytecode, and fixed protocol identity calls. Ownership changes, pause events, treasury or liquidity activity, and wallet movements are outside this release.</p></div></div>
+          </article>
+          <article class="faq-item" data-faq-item>
+            <h3><button id="faq-question-auditor" class="faq-trigger" type="button" data-faq-trigger aria-expanded="false" aria-controls="faq-answer-auditor"><span>Is Watchtower a smart-contract auditor?</span><span class="faq-icon" aria-hidden="true"></span></button></h3>
+            <div id="faq-answer-auditor" class="faq-answer" role="region" aria-labelledby="faq-question-auditor" aria-hidden="true"><div><p>Watchtower monitors deployed systems after an observed upgrade. It can verify the configured event and related historical checks, but it is not a smart-contract audit and does not guarantee that a contract is safe.</p></div></div>
+          </article>
+          <article class="faq-item" data-faq-item>
+            <h3><button id="faq-question-suspicious" class="faq-trigger" type="button" data-faq-trigger aria-expanded="false" aria-controls="faq-answer-suspicious"><span>How does Watchtower decide something is suspicious?</span><span class="faq-icon" aria-hidden="true"></span></button></h3>
+            <div id="faq-answer-suspicious" class="faq-answer" role="region" aria-labelledby="faq-question-suspicious" aria-hidden="true"><div><p>Detection and severity are deterministic. The scanner validates the configured event, selects a registered plan, and compares the decoded implementation with the profile’s approved targets; the investigation runs only fixed checks. The current code does not use an AI model to decide the verdict.</p></div></div>
+          </article>
+          <article class="faq-item" data-faq-item>
+            <h3><button id="faq-question-verify" class="faq-trigger" type="button" data-faq-trigger aria-expanded="false" aria-controls="faq-answer-verify"><span>Can I verify a Watchtower alert myself?</span><span class="faq-icon" aria-hidden="true"></span></button></h3>
+            <div id="faq-answer-verify" class="faq-answer" role="region" aria-labelledby="faq-question-verify" aria-hidden="true"><div><p>Yes. Results include block, transaction, receipt, log and contract evidence, fixed-check assertions, explorer links, and a canonical receipt ID. The browser can recompute the SHA-256 receipt ID so the recorded evidence path can be inspected independently on Base.</p></div></div>
+          </article>
+          <article class="faq-item" data-faq-item>
+            <h3><button id="faq-question-wallet" class="faq-trigger" type="button" data-faq-trigger aria-expanded="false" aria-controls="faq-answer-wallet"><span>Does Watchtower need access to my wallet?</span><span class="faq-icon" aria-hidden="true"></span></button></h3>
+            <div id="faq-answer-wallet" class="faq-answer" role="region" aria-labelledby="faq-question-wallet" aria-hidden="true"><div><p>No. The current UI and API are read-only, do not request a wallet or private key, and never submit a transaction.</p></div></div>
+          </article>
+          <article class="faq-item" data-faq-item>
+            <h3><button id="faq-question-network" class="faq-trigger" type="button" data-faq-trigger aria-expanded="false" aria-controls="faq-answer-network"><span>Which networks does Watchtower support?</span><span class="faq-icon" aria-hidden="true"></span></button></h3>
+            <div id="faq-answer-network" class="faq-answer" role="region" aria-labelledby="faq-question-network" aria-hidden="true"><div><p>Watchtower currently focuses on Base mainnet, chain ID 8453. The registry contains three configured profiles; it does not claim multi-chain coverage.</p></div></div>
+          </article>
+        </div>
+      </div></section>
       <section class="final-cta"><div class="site-frame final-cta-inner"><p class="kicker">Start with real evidence</p><h2>Watch your first configured contract.</h2><p>Select one of three approved Base profiles and replay its verified investigation.</p><div><a class="primary-action" href="#profiles">Choose a profile</a><a class="text-action" href="#investigation">Explore the workspace →</a></div></div></section>
     </main>
 

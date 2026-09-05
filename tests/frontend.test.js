@@ -793,4 +793,32 @@ describe("browser receipt verification", () => {
     expect(script).toContain('const themePreferenceKey = "watchtower-theme"');
     expect(script).toContain("IntersectionObserver");
   });
+
+  it("renders an accessible homepage FAQ with an internal docs handoff", () => {
+    const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+    const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+
+    expect(html).toContain('class="faq-section"');
+    expect(html).toContain('id="faq-title"');
+    expect(html).toContain('href="/docs">Still curious? Read the full documentation');
+    for (const question of [
+      "What is Watchtower?",
+      "What does Watchtower monitor?",
+      "Is Watchtower a smart-contract auditor?",
+      "How does Watchtower decide something is suspicious?",
+      "Can I verify a Watchtower alert myself?",
+      "Does Watchtower need access to my wallet?",
+      "Which networks does Watchtower support?",
+    ]) {
+      expect(html).toContain(question);
+    }
+    expect(html).toContain('data-faq-trigger aria-expanded="true"');
+    expect(html).toContain('role="region"');
+    expect(css).toContain(".faq-answer");
+    expect(css).toContain(".faq-item.is-open");
+    expect(app).toContain("function initializeFaq()");
+    expect(app).toContain('answer.setAttribute("aria-hidden", String(!open))');
+    expect(app).toContain("initializeFaq();");
+  });
 });

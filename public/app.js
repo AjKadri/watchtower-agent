@@ -84,6 +84,29 @@ function initializeTheme() {
   });
 }
 
+function initializeFaq() {
+  const items = [...document.querySelectorAll("[data-faq-item]")];
+  if (items.length === 0) return;
+
+  const setItemState = (item, open) => {
+    const trigger = item.querySelector("[data-faq-trigger]");
+    const answer = item.querySelector(".faq-answer");
+    if (!trigger || !answer) return;
+    item.classList.toggle("is-open", open);
+    trigger.setAttribute("aria-expanded", String(open));
+    answer.setAttribute("aria-hidden", String(!open));
+  };
+
+  items.forEach((item) => {
+    const trigger = item.querySelector("[data-faq-trigger]");
+    if (!trigger) return;
+    trigger.addEventListener("click", () => {
+      const open = !item.classList.contains("is-open");
+      items.forEach((other) => setItemState(other, other === item && open));
+    });
+  });
+}
+
 function node(tag, className, text) {
   const element = document.createElement(tag);
   if (className) element.className = className;
@@ -862,4 +885,5 @@ async function initialize() {
 }
 
 initializeTheme();
+initializeFaq();
 initialize();
