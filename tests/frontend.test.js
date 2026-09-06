@@ -192,6 +192,7 @@ describe("dashboard view model", () => {
     expect(app).toContain('"Download Markdown"');
     expect(app).toContain('"Download JSON"');
     expect(app).toContain("buildReviewPacket");
+    expect(app).toContain("verifyReviewPacketText");
     expect(app).toContain('markdown.addEventListener("click", () => exportPacket("markdown", markdown));');
     expect(app).toContain('json.addEventListener("click", () => exportPacket("json", json));');
     expect(app).toContain("createSourceBadge");
@@ -393,6 +394,8 @@ describe("dashboard view model", () => {
     expect(html).toContain('id="archive-body"');
     expect(html).toContain('id="archive-empty"');
     expect(html).toContain('id="failure-panel"');
+    expect(html).toContain('id="packet-file"');
+    expect(html).toContain('id="packet-verification-result"');
     expect(html).toMatch(/<link\s+rel="icon"\s+type="image\/svg\+xml"\s+href="\/favicon\.svg"\s*\/?>/);
     expect(html).toMatch(/<img\s+class="wordmark-mark"\s+src="\/watchtower-mark\.svg"\s+alt=""\s+aria-hidden="true"\s*\/?>/);
     expect(html).toContain('href="https://github.com/AjKadri/watchtower-agent"');
@@ -425,6 +428,7 @@ describe("dashboard view model", () => {
     expect(css).toContain('html[data-theme="dark"]');
     expect(css).toContain(".profile-network");
     expect(css).toContain(".detail-title-kicker");
+    expect(css).toContain(".packet-verifier-panel");
   });
 
   it("ships an accessible persistent color-theme control", () => {

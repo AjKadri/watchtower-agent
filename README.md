@@ -52,6 +52,24 @@ upgrade event to a replayable receipt:
 The output records what Watchtower observed and checked. It does not make an
 unsupported claim that an upgrade is safe, legitimate, or intentional.
 
+## Review packets
+
+Watchtower can export the same investigation as a human-readable Markdown
+review packet or machine-readable JSON. Security teams, incident responders,
+auditors, and researchers can keep these files as an audit trail alongside the
+underlying explorer links and receipt evidence.
+
+To verify a JSON packet, choose it in the dashboard's **Verify an exported
+packet** control. Verification stays in the browser: it checks the packet
+format and schema, ignores saved verification metadata, and recomputes the
+canonical receipt's SHA-256 identifier with Web Crypto. No file is uploaded and
+verification does not fetch, call an RPC, or run a scan.
+
+A valid result verifies the canonical receipt payload only. Packet metadata,
+agent narrative, links, and other fields outside that payload are not covered by
+the receipt hash. Review packets do not authenticate their publisher, prove
+implementation safety, prevent exploits, or replace a smart-contract audit.
+
 ![Watchtower verified ether.fi fixture replay showing the canonical corroborated six-stage trace](./public/screenshots/watchtower-live-investigation.jpg)
 
 ## Supported profiles

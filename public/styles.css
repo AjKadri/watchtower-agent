@@ -328,6 +328,30 @@ h3, h4 { line-height: 1.25; }
 .replay-action:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .archive-empty { padding: var(--space-12) var(--space-5); border: 1px solid var(--color-border); color: var(--color-text-muted); text-align: center; }
 
+.packet-verifier-section { padding: 78px 0; border-bottom: 1px solid var(--line-strong); }
+.packet-verifier-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 420px); align-items: end; gap: var(--space-16); }
+.packet-verifier-heading > p { margin: 0; color: var(--color-text-muted); font-family: var(--font-serif); font-size: var(--text-lg); line-height: var(--leading-reading); }
+.packet-verifier-panel { min-width: 0; max-width: 100%; display: grid; grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.25fr); gap: var(--space-8); padding: var(--space-8) 0; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line); }
+.packet-file-control, .packet-verification-result { min-width: 0; max-width: 100%; }
+.packet-file-control { display: grid; align-content: start; gap: var(--space-3); }
+.packet-file-label { min-width: 0; display: grid; gap: var(--space-3); padding: var(--space-5); border: 1px solid var(--line-strong); color: var(--ink); background: var(--surface); cursor: pointer; font-weight: 750; }
+.packet-file-label:hover, .packet-file-label:focus-within { border-color: var(--accent); background: var(--accent-soft); }
+.packet-file-label input { width: 100%; min-width: 0; color: var(--muted); font-family: var(--mono); font-size: var(--text-xs); }
+.packet-file-label input:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: var(--focus-offset); }
+.packet-file-hint, .packet-verification-boundary { margin: 0; color: var(--muted); font-family: var(--mono); font-size: var(--text-xs); line-height: var(--leading-reading); }
+.packet-verification-result { padding: var(--space-6); border: 1px solid var(--line); background: var(--surface); }
+.packet-verification-result.valid { border-color: var(--accent); background: var(--accent-soft); }
+.packet-verification-result.tampered, .packet-verification-result.malformed, .packet-verification-result.mismatched-identifiers { border-color: var(--red); background: var(--red-soft); }
+.packet-verification-result.unsupported-schema, .packet-verification-result.missing-receipt, .packet-verification-result.wrong-format { border-color: var(--amber); background: var(--amber-soft); }
+.packet-verification-result.pending { border-color: var(--blue); background: var(--blue-soft); }
+.packet-verification-result h3 { margin-bottom: var(--space-3); font-family: var(--serif); font-size: var(--text-2xl); font-weight: 400; }
+.packet-verification-message { max-width: 680px; margin: 0; color: var(--muted); font-size: var(--text-sm); line-height: var(--leading-reading); }
+.packet-verification-details { min-width: 0; max-width: 100%; display: grid; gap: var(--space-3); margin: var(--space-5) 0 0; padding-top: var(--space-5); border-top: 1px solid var(--line); }
+.packet-verification-details div { min-width: 0; display: grid; grid-template-columns: minmax(140px, 0.35fr) minmax(0, 1fr); gap: var(--space-3); }
+.packet-verification-details dt { color: var(--faint); font-family: var(--mono); font-size: var(--text-xs); text-transform: uppercase; }
+.packet-verification-details dd { min-width: 0; margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.packet-verification-boundary { max-width: 860px; margin-top: var(--space-5); }
+
 .method-section { display: grid; grid-template-columns: minmax(260px, 0.32fr) minmax(0, 0.68fr); gap: 70px; }
 .method-heading { position: sticky; top: 30px; align-self: start; }
 .method-heading > p:last-child { max-width: 360px; margin-top: 18px; color: var(--muted); font-size: 0.82rem; line-height: 1.65; }
@@ -419,6 +443,10 @@ button:focus-visible, a:focus-visible { outline: var(--focus-width) solid var(--
   .archive-table strong { font-size: 0.92rem; }
   .method-section { display: block; }
   .method-heading { position: static; }
+  .packet-verifier-section { padding: 54px 0; }
+  .packet-verifier-heading { grid-template-columns: 1fr; gap: var(--space-5); }
+  .packet-verifier-panel { grid-template-columns: 1fr; gap: var(--space-6); padding: var(--space-6) 0; }
+  .packet-verification-details div { grid-template-columns: 1fr; gap: var(--space-1); }
   footer { flex-direction: column; align-items: flex-start; }
   .project-links { justify-content: flex-start; }
 }

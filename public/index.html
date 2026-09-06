@@ -519,6 +519,32 @@
 				</div>
 			</section>
 
+			<section id="packet-verifier" class="packet-verifier-section" aria-labelledby="packet-verifier-title">
+				<div class="site-frame packet-verifier-heading">
+					<div>
+						<p class="section-label">VERIFY</p>
+						<p class="kicker">Review packet</p>
+						<h2 id="packet-verifier-title">Verify an exported packet.</h2>
+					</div>
+					<p>Choose a Watchtower JSON packet to recompute its canonical receipt ID locally in this browser.</p>
+				</div>
+				<div class="site-frame packet-verifier-panel">
+					<div class="packet-file-control">
+						<label class="packet-file-label" for="packet-file">
+							<span>Choose a JSON review packet</span>
+							<input id="packet-file" type="file" accept=".json,application/json" />
+						</label>
+						<p class="packet-file-hint">No upload, fetch, RPC call, or scan is performed.</p>
+					</div>
+					<div id="packet-verification-result" class="packet-verification-result" role="status" aria-live="polite" aria-atomic="true">
+						<p class="kicker">Verification status</p>
+						<h3>Waiting for a packet</h3>
+						<p>Select an exported JSON packet to begin.</p>
+					</div>
+				</div>
+				<p class="site-frame packet-verification-boundary">A valid result verifies the canonical receipt payload and its SHA-256 identifier. Packet metadata, narrative, links, and other fields outside that payload are not verified by the receipt hash.</p>
+			</section>
+
 			<section class="dark-breakout">
 				<div class="site-frame breakout-grid">
 					<div>

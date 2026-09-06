@@ -7,6 +7,7 @@ import {
   reviewPacketFilename,
   serializeReviewPacketJson,
 } from "/review-packet.js";
+import { verifyReviewPacketText } from "/review-packet-verifier.js";
 import {
   buildArchiveEntries,
   buildEvidenceRows,
@@ -40,6 +41,8 @@ const elements = {
   healthDot: document.querySelector("#health-dot"),
   healthLabel: document.querySelector("#health-label"),
   profileSelector: document.querySelector("#profile-selector"),
+  packetFile: document.querySelector("#packet-file"),
+  packetVerificationResult: document.querySelector("#packet-verification-result"),
   scanButton: document.querySelector("#scan-button"),
   scanStatus: document.querySelector("#scan-status"),
   sourceBadge: document.querySelector("#source-badge"),
@@ -939,8 +942,75 @@ async function updateHealth() {
   }
 }
 
+const packetVerificationTitles = {
+  valid: "Valid review packet",
+  tampered: "Receipt verification failed",
+  malformed: "Malformed packet",
+  "unsupported-schema": "Unsupported schema",
+  "missing-receipt": "Receipt not found",
+  "wrong-format": "Wrong packet format",
+  "mismatched-identifiers": "Receipt identifiers differ",
+};
+
+function renderPacketVerification(result) {
+  const panel = elements.packetVerificationResult;
+  if (!panel) return;
+  const title = packetVerificationTitles[result.status] ?? "Verification unavailable";
+  const statusClass = result.status === "valid" ? "valid" : result.status;
+  panel.className = `packet-verification-result ${statusClass}`;
+  panel.replaceChildren(
+    node("p", "kicker", "Verification status"),
+    node("h3", "", title),
+    node("p", "packet-verification-message", result.message),
+  );
+  const details = [];
+  if (result.receiptIdentifier) details.push(["Packet receipt ID", result.receiptIdentifier]);
+  if (result.canonicalReceiptId) details.push(["Canonical receipt ID", result.canonicalReceiptId]);
+  if (result.computedReceiptId) details.push(["Recomputed receipt ID", result.computedReceiptId]);
+  if (details.length === 0) return;
+  const list = node("dl", "packet-verification-details");
+  for (const [label, value] of details) {
+    const group = node("div");
+    group.append(node("dt", "", label), node("dd", "mono", value));
+    list.append(group);
+  }
+  panel.append(list);
+}
+
+function renderPacketVerificationPending() {
+  const panel = elements.packetVerificationResult;
+  if (!panel) return;
+  panel.className = "packet-verification-result pending";
+  panel.replaceChildren(
+    node("p", "kicker", "Verification status"),
+    node("h3", "", "Recomputing receipt ID"),
+    node("p", "packet-verification-message", "The canonical receipt is being checked locally in this browser."),
+  );
+}
+
+async function verifyPacketFile(file) {
+  renderPacketVerificationPending();
+  try {
+    renderPacketVerification(await verifyReviewPacketText(await file.text()));
+  } catch {
+    renderPacketVerification({
+      status: "malformed",
+      message: "The selected file could not be read as a JSON review packet.",
+    });
+  }
+}
+
+function initializePacketVerifier() {
+  if (!elements.packetFile) return;
+  elements.packetFile.addEventListener("change", (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (file) void verifyPacketFile(file);
+  });
+}
+
 async function initialize() {
   elements.scanButton.addEventListener("click", runScan);
+  initializePacketVerifier();
   renderArchive();
   await updateHealth();
   try {
