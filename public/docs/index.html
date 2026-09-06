@@ -113,7 +113,7 @@
           <div class="docs-content-grid">
             <article class="docs-article">
               <section id="overview" class="docs-section" data-doc-section>
-                <p class="section-index">01 / GETTING STARTED</p>
+                <p class="section-label">GETTING STARTED</p>
                 <h2>Investigate the change, not just the event.</h2>
                 <p>Watchtower is a read-only historical investigation system for three configured Base contract profiles. It turns one approved proxy upgrade event into a bounded evidence path: verify the trigger, run exact-block checks, let a tightly constrained agent choose approved follow-ups on configured live scans, derive the result deterministically, and issue a receipt.</p>
                 <div class="docs-callout">
@@ -131,7 +131,7 @@
               </section>
 
               <section id="quick-start" class="docs-section" data-doc-section>
-                <p class="section-index">02 / QUICK START</p>
+                <p class="section-label">QUICK START</p>
                 <h2>Follow one evidence path.</h2>
                 <p class="docs-section-lede">The current app is a focused demo of registered historical investigations. It is designed to be inspected without a wallet.</p>
                 <ol class="docs-steps">
@@ -148,7 +148,7 @@
               </section>
 
               <section id="monitoring" class="docs-section" data-doc-section>
-                <p class="section-index">03 / CORE CONCEPTS</p>
+                <p class="section-label">CORE CONCEPTS</p>
                 <h2>Monitoring is deliberately narrow.</h2>
                 <p class="docs-section-lede">Watchtower’s current registry watches one high-signal event on each configured proxy, then checks the state that gives that event context.</p>
                 <div class="docs-table-wrap">
@@ -167,7 +167,7 @@
               </section>
 
               <section id="incidents" class="docs-section" data-doc-section>
-                <p class="section-index">04 / INCIDENTS</p>
+                <p class="section-label">INCIDENTS</p>
                 <h2>An incident is a verified signal with context.</h2>
                 <p>Watchtower does not turn every transaction into an alert. A current incident is created when the configured proxy emits the approved upgrade event. The alert carries a factual title and summary, severity rule, observation time, evidence status, source links, and the associated investigation.</p>
                 <div class="docs-incident-card">
@@ -179,7 +179,7 @@
               </section>
 
               <section id="investigations" class="docs-section" data-doc-section>
-                <p class="section-index">05 / INVESTIGATIONS</p>
+                <p class="section-label">INVESTIGATIONS</p>
                 <h2>Every alert follows a fixed trace.</h2>
                 <p>After a candidate log is found, the scanner validates its block, transaction, and receipt, strictly decodes the event, selects a registered versioned plan, and executes only the checks authorized for that profile. On a configured live ether.fi scan, the agent can choose which remaining registered check to inspect next.</p>
                 <ol class="docs-investigation-flow">
@@ -194,7 +194,7 @@
               </section>
 
               <section id="risk-levels" class="docs-section" data-doc-section>
-                <p class="section-index">06 / RISK LEVELS</p>
+                <p class="section-label">RISK LEVELS</p>
                 <h2>Severity names the rule that fired.</h2>
                 <p class="docs-section-lede">The current policy classifies the decoded implementation address against the profile’s approved address list. It is an assessment of that comparison, not a claim about intent.</p>
                 <div class="docs-risk-grid">
@@ -206,7 +206,7 @@
               </section>
 
               <section id="receipts" class="docs-section" data-doc-section>
-                <p class="section-index">07 / RECEIPTS</p>
+                <p class="section-label">RECEIPTS</p>
                 <h2>Every result comes with receipts.</h2>
                 <p>A Watchtower receipt is the canonical record of one configured historical upgrade investigation. It preserves the trigger, selected plan, checks, errors, limitations, final disposition, and explorer links so another reader can inspect the same evidence path.</p>
                 <div class="docs-receipt-card">
@@ -220,7 +220,7 @@
               </section>
 
               <section id="how-it-works" class="docs-section" data-doc-section>
-                <p class="section-index">08 / SYSTEM</p>
+                <p class="section-label">SYSTEM</p>
                 <h2>From Base evidence to a readable result.</h2>
                 <div class="docs-architecture-flow" aria-label="Watchtower system flow">
                   <div><span>01</span><strong>BASE</strong><p>Provides the historical block, transaction, receipt, and log data.</p></div>
@@ -233,7 +233,7 @@
               </section>
 
               <section id="architecture" class="docs-section" data-doc-section>
-                <p class="section-index">09 / ARCHITECTURE</p>
+                <p class="section-label">ARCHITECTURE</p>
                 <h2>A small system with explicit boundaries.</h2>
                 <div class="docs-architecture-grid">
                   <article><span class="docs-layer-number">01</span><h3>Frontend</h3><p>Vanilla HTML, CSS, and browser JavaScript served from <code>public/</code>. It renders the profile archive and investigation workspace.</p></article>
@@ -247,7 +247,7 @@
               </section>
 
               <section id="alerts" class="docs-section" data-doc-section>
-                <p class="section-index">10 / ALERTS</p>
+                <p class="section-label">ALERTS</p>
                 <h2>Alerts currently live in the Watchtower workspace.</h2>
                 <p>The web UI and JSON API expose alerts created by a bounded scan. An alert includes the configured incident class, severity and rule, factual title and summary, observation time, evidence status, source links, and an associated investigation when trigger evidence is complete.</p>
                 <div class="docs-alert-card"><div><span class="docs-status-dot"></span><span>WEB WORKSPACE</span></div><strong>Configured proxy upgrade observed</strong><p><code>Upgraded(address)</code> · complete evidence · corroborated</p><a href="/#investigation">Open the investigation →</a></div>
@@ -255,7 +255,7 @@
               </section>
 
               <section id="limitations" class="docs-section" data-doc-section>
-                <p class="section-index">11 / LIMITATIONS</p>
+                <p class="section-label">LIMITATIONS</p>
                 <h2>Know what the evidence does not say.</h2>
                 <div class="docs-callout docs-callout-warning"><span class="docs-callout-label">IMPORTANT</span><p>Watchtower monitors configured deployed systems for observable upgrade evidence. It is not a smart-contract audit and does not guarantee that a contract is safe.</p></div>
                 <ul class="docs-limitations">
@@ -270,7 +270,7 @@
               </section>
 
               <section id="faq" class="docs-section docs-section-last" data-doc-section>
-                <p class="section-index">12 / REFERENCE</p>
+                <p class="section-label">REFERENCE</p>
                 <h2>Frequently asked questions.</h2>
                 <div class="docs-faq">
                   <div data-doc-shared-faq></div>

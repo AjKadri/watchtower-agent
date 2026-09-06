@@ -402,7 +402,7 @@ describe("dashboard view model", () => {
     expect(html).toContain("Watch the contract.");
     expect(html).toContain("Watchtower detects a configured Base upgrade");
     expect(html).toContain("Choose a configured Base profile");
-    expect(html).toContain("Stage 01 · Observe");
+    expect(html).toContain('class="kicker">Observe</p>');
     expect(html).toContain('class="watch-field"');
     expect(html).toContain('class="dashboard-frame"');
     expect(html).toContain("Every result comes with receipts.");
@@ -808,6 +808,11 @@ describe("browser receipt verification", () => {
     expect(docs).toContain("<title>Watchtower Docs · Read-only Base investigations</title>");
     expect(docs).toContain('href="https://github.com/AjKadri/watchtower-agent"');
     expect(docs).toContain('href="/"');
+    expect(html).not.toContain("section-index");
+    expect(docs).not.toContain("section-index");
+    expect(html).not.toMatch(/class="section-label">\s*\d+\s*\//);
+    expect(docs).not.toMatch(/class="section-label">\s*\d+\s*\//);
+    expect(html).not.toContain("STAGE 04 / 06");
     for (const sectionId of [
       "overview",
       "quick-start",

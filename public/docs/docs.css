@@ -300,7 +300,7 @@
   font-size: clamp(2.25rem, 4.3vw, 4rem);
 }
 
-.docs-section > p:not(.section-index):not(.docs-section-lede):not(.docs-muted-note) {
+.docs-section > p:not(.section-label):not(.docs-section-lede):not(.docs-muted-note) {
   max-width: 780px;
   margin: 0;
   color: var(--muted);
