@@ -1,12 +1,6 @@
 export const REVIEW_PACKET_FORMAT = "watchtower-review-packet";
 export const REVIEW_PACKET_SCHEMA_VERSION = 1;
 
-const COMMON_CHECK_IDS = new Set([
-  "implementation-before",
-  "implementation-at-upgrade",
-  "implementation-bytecode",
-]);
-
 function objectOrEmpty(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }

@@ -191,6 +191,8 @@ describe("dashboard view model", () => {
     expect(app).toContain('"Download Markdown"');
     expect(app).toContain('"Download JSON"');
     expect(app).toContain("buildReviewPacket");
+    expect(app).toContain('markdown.addEventListener("click", () => exportPacket("markdown", markdown));');
+    expect(app).toContain('json.addEventListener("click", () => exportPacket("json", json));');
     expect(app).toContain("createSourceBadge");
     expect(app).toContain("detail-empty-facts");
     expect(app).toContain("status: \"skipped\"");
