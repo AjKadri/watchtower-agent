@@ -815,6 +815,8 @@ describe("browser receipt verification", () => {
     expect(docs).toContain("<title>Watchtower Docs · Read-only Base investigations</title>");
     expect(docs).toContain('href="https://github.com/AjKadri/watchtower-agent"');
     expect(docs).toContain('href="/"');
+    expect(docs).toContain('id="review-packets"');
+    expect(docs).toContain("BROWSER-LOCAL VERIFICATION");
     expect(html).not.toContain("section-index");
     expect(docs).not.toContain("section-index");
     expect(html).not.toMatch(/class="section-label">\s*\d+\s*\//);
@@ -828,6 +830,7 @@ describe("browser receipt verification", () => {
       "investigations",
       "risk-levels",
       "receipts",
+      "review-packets",
       "how-it-works",
       "architecture",
       "alerts",

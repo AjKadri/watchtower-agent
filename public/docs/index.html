@@ -56,6 +56,7 @@
               <a href="#investigations" data-doc-link>Investigations</a>
               <a href="#risk-levels" data-doc-link>Risk levels</a>
               <a href="#receipts" data-doc-link>Receipts</a>
+              <a href="#review-packets" data-doc-link>Review packets</a>
             </div>
             <div class="docs-nav-group">
               <p>SYSTEM</p>
@@ -81,9 +82,10 @@
             <a href="#monitoring" data-doc-link>Monitoring</a>
             <a href="#incidents" data-doc-link>Incidents</a>
             <a href="#investigations" data-doc-link>Investigations</a>
-            <a href="#risk-levels" data-doc-link>Risk levels</a>
-            <a href="#receipts" data-doc-link>Receipts</a>
-            <a href="#how-it-works" data-doc-link>How it works</a>
+              <a href="#risk-levels" data-doc-link>Risk levels</a>
+              <a href="#receipts" data-doc-link>Receipts</a>
+              <a href="#review-packets" data-doc-link>Review packets</a>
+              <a href="#how-it-works" data-doc-link>How it works</a>
             <a href="#architecture" data-doc-link>Architecture</a>
             <a href="#alerts" data-doc-link>Alerts</a>
             <a href="#limitations" data-doc-link>Limitations</a>
@@ -219,6 +221,23 @@
                 <p class="docs-muted-note">Committed fixtures can be replayed in the browser. Live alerts and receipts are held in process memory and clear when the server restarts.</p>
               </section>
 
+              <section id="review-packets" class="docs-section" data-doc-section>
+                <p class="section-label">REVIEW PACKETS</p>
+                <h2>Share the evidence in two useful formats.</h2>
+                <p>Each investigation can be downloaded as a human-readable Markdown review packet or a machine-readable JSON review packet. Security teams, incident responders, auditors, and researchers can keep either format as an audit trail alongside the recorded evidence and explorer links.</p>
+                <div class="docs-callout docs-callout-neutral">
+                  <span class="docs-callout-label">BROWSER-LOCAL VERIFICATION</span>
+                  <p>Select the JSON packet in the Watchtower app to check its format and schema, confirm that a canonical receipt is present, compare the packet and receipt identifiers, and recompute the receipt’s SHA-256 ID with Web Crypto. The saved <code>browserVerification</code> value is ignored, so every selection performs a fresh check. No file is uploaded and verification makes no fetch, RPC, or scan request.</p>
+                </div>
+                <ul class="docs-inline-list">
+                  <li>Markdown is intended for people reading and annotating an investigation.</li>
+                  <li>JSON is intended for tooling, archiving, and browser-local verification.</li>
+                  <li>A valid result verifies the canonical receipt payload and its identifier only.</li>
+                  <li>Packet metadata, narrative, agent investigation data, and saved verification metadata outside that payload are not covered by the receipt hash.</li>
+                </ul>
+                <p class="docs-muted-note">Review packets do not authenticate their publisher, prove implementation safety, prevent exploits, or replace a smart-contract audit.</p>
+              </section>
+
               <section id="how-it-works" class="docs-section" data-doc-section>
                 <p class="section-label">SYSTEM</p>
                 <h2>From Base evidence to a readable result.</h2>
@@ -290,9 +309,10 @@
               <a href="#monitoring" data-doc-link>Monitoring</a>
               <a href="#incidents" data-doc-link>Incidents</a>
               <a href="#investigations" data-doc-link>Investigations</a>
-              <a href="#risk-levels" data-doc-link>Risk levels</a>
-              <a href="#receipts" data-doc-link>Receipts</a>
-              <a href="#how-it-works" data-doc-link>How it works</a>
+            <a href="#risk-levels" data-doc-link>Risk levels</a>
+            <a href="#receipts" data-doc-link>Receipts</a>
+            <a href="#review-packets" data-doc-link>Review packets</a>
+            <a href="#how-it-works" data-doc-link>How it works</a>
               <a href="#architecture" data-doc-link>Architecture</a>
               <a href="#alerts" data-doc-link>Alerts</a>
               <a href="#limitations" data-doc-link>Limitations</a>
