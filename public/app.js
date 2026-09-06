@@ -1,6 +1,12 @@
 import { archiveProfiles, getArchiveProfile } from "/archive-data.js";
 import { verifyReceipt } from "/receipt-verifier.js";
 import {
+  buildReviewPacket,
+  formatReviewPacketMarkdown,
+  reviewPacketFilename,
+  serializeReviewPacketJson,
+} from "/review-packet.js";
+import {
   buildArchiveEntries,
   buildEvidenceRows,
   buildFixtureDetail,
@@ -296,8 +302,8 @@ function renderInvestigationOverview(detail, source) {
   return section;
 }
 
-function downloadJson(filename, payload) {
-  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: "application/json" });
+function downloadText(filename, content, type) {
+  const blob = new Blob([content], { type: `${type};charset=utf-8` });
   const href = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = href;
@@ -306,20 +312,36 @@ function downloadJson(filename, payload) {
   setTimeout(() => URL.revokeObjectURL(href), 0);
 }
 
+function downloadJson(filename, payload) {
+  downloadText(filename, `${JSON.stringify(payload, null, 2)}\n`, "application/json");
+}
+
 function downloadReceipt(receipt) {
   downloadJson(`watchtower-${receipt.receiptId}.json`, receipt);
 }
 
-function downloadReviewPacket(detail, source) {
+async function buildExportPacket(detail, source) {
   const receipt = detail.evidence.investigationReceipt;
   if (!receipt) return;
-  downloadJson(`watchtower-${receipt.receiptId}-review-packet.json`, {
-    format: "watchtower-review-packet",
-    source: source === "live" ? "live-rpc" : "verified-fixture",
-    alert: detail.alert,
-    evidence: detail.evidence,
-    receipt,
-  });
+  let verification;
+  try {
+    verification = { ...(await verifyReceipt(receipt)), performed: true };
+  } catch {
+    verification = { performed: true, verified: false, expectedReceiptId: null };
+  }
+  const profile = detail.profile ?? getArchiveProfile(detail.alert?.targetId);
+  return buildReviewPacket(detail, { source, profile, browserVerification: verification });
+}
+
+async function downloadReviewPacket(detail, source, format) {
+  const packet = await buildExportPacket(detail, source);
+  if (!packet) return null;
+  if (format === "markdown") {
+    downloadText(reviewPacketFilename(packet, "md"), formatReviewPacketMarkdown(packet), "text/markdown");
+  } else {
+    downloadText(reviewPacketFilename(packet, "json"), serializeReviewPacketJson(packet), "application/json");
+  }
+  return packet;
 }
 
 function receiptVerificationControl(receipt, detail, source) {
@@ -327,9 +349,33 @@ function receiptVerificationControl(receipt, detail, source) {
   const actionRow = node("div", "receipt-action-row");
   const result = node("p", "receipt-verification", "Verification has not been run in this browser.");
   result.setAttribute("role", "status");
-  const packet = node("button", "secondary-action", "Download review packet");
-  packet.type = "button";
-  packet.addEventListener("click", () => downloadReviewPacket(detail, source));
+  const markdown = node("button", "secondary-action", "Download Markdown");
+  const json = node("button", "secondary-action", "Download JSON");
+  const exportButtons = [markdown, json];
+  const exportPacket = async (format, button) => {
+    exportButtons.forEach((item) => { item.disabled = true; });
+    result.className = "receipt-verification pending";
+    result.textContent = `Recomputing the canonical receipt ID before ${format} export.`;
+    try {
+      const packet = await downloadReviewPacket(detail, source, format);
+      if (!packet) throw new Error("No receipt is available for export.");
+      const verified = packet.browserVerification.status === "verified";
+      result.className = `receipt-verification ${verified ? "verified" : "failed"}`;
+      result.textContent = verified
+        ? `Receipt verified · ${format} review packet downloaded.`
+        : `Receipt verification failed · ${format} review packet downloaded.`;
+    } catch {
+      result.className = "receipt-verification failed";
+      result.textContent = `${format} review packet export failed.`;
+    } finally {
+      exportButtons.forEach((item) => { item.disabled = false; });
+      button.blur();
+    }
+  };
+  markdown.type = "button";
+  json.type = "button";
+  markdown.addEventListener("click", () => exportPacket("Markdown", markdown));
+  json.addEventListener("click", () => exportPacket("JSON", json));
   const button = node("button", "secondary-action", "Verify receipt");
   button.type = "button";
   button.addEventListener("click", async () => {
@@ -347,7 +393,7 @@ function receiptVerificationControl(receipt, detail, source) {
       button.disabled = false;
     }
   });
-  actionRow.append(packet, button);
+  actionRow.append(markdown, json, button);
   wrapper.append(actionRow, result);
   return wrapper;
 }

@@ -188,8 +188,9 @@ describe("dashboard view model", () => {
     expect(app).toContain("archive-receipt-id");
     expect(app).toContain('"Copy receipt ID"');
     expect(app).toContain('"Replay fixture"');
-    expect(app).toContain('"Download review packet"');
-    expect(app).toContain('format: "watchtower-review-packet"');
+    expect(app).toContain('"Download Markdown"');
+    expect(app).toContain('"Download JSON"');
+    expect(app).toContain("buildReviewPacket");
     expect(app).toContain("createSourceBadge");
     expect(app).toContain("detail-empty-facts");
     expect(app).toContain("status: \"skipped\"");
