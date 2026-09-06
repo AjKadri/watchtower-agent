@@ -52,7 +52,7 @@ upgrade event to a replayable receipt:
 The output records what Watchtower observed and checked. It does not make an
 unsupported claim that an upgrade is safe, legitimate, or intentional.
 
-![Watchtower live ether.fi investigation showing a corroborated six-stage trace](./public/screenshots/watchtower-live-investigation.jpg)
+![Watchtower verified ether.fi fixture replay showing the canonical corroborated six-stage trace](./public/screenshots/watchtower-live-investigation.jpg)
 
 ## Supported profiles
 

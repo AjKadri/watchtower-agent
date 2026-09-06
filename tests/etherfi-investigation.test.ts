@@ -161,7 +161,13 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
       }
     }
     const provider = new SequencedProvider();
-    const runtime: AgentRuntime = { providerName: "openrouter", model: provider.model, provider };
+    const logEvents: string[] = [];
+    const runtime: AgentRuntime = {
+      providerName: "openrouter",
+      model: provider.model,
+      provider,
+      log: ({ event }) => logEvents.push(event),
+    };
     const baseline = await scanApprovedRange(new EtherfiFixtureReader(), config);
     const result = await scanApprovedRange(new EtherfiFixtureReader(), config, {}, { agent: runtime });
 
@@ -183,6 +189,14 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
     });
     expect(result.evidence[0].upgradeInvestigation.checks.map(({ id }) => id)).toEqual(config.plans.approved.selectedChecks);
     expect(result.evidence[0].investigationReceipt?.receiptId).toBe(baseline.evidence[0].investigationReceipt?.receiptId);
+    expect(logEvents).toEqual([
+      "agent-start",
+      "agent-step",
+      "agent-tool-selected",
+      "agent-tool-complete",
+      "agent-step",
+      "agent-complete",
+    ]);
   });
 
   it("surfaces unavailable and failed agents without changing deterministic output", async () => {
@@ -246,6 +260,40 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
 
     expect(result.evidence[0].agentInvestigation).toMatchObject({ status: "failed", failure: { category: "invalid-tool" } });
     expect(result.evidence[0].upgradeInvestigation.checks.map(({ id }) => id)).toEqual(config.plans.approved.selectedChecks);
+  });
+
+  it("stops after three agent decisions and completes the fixed plan deterministically", async () => {
+    const requested = ["endpoint-at-upgrade", "token-at-upgrade", "shared-decimals-at-upgrade"] as const;
+    let decisionCount = 0;
+    const provider: InvestigationAgentProvider = {
+      provider: "openrouter",
+      model: "test/model",
+      decide: async () => {
+        const checkId = requested[decisionCount];
+        decisionCount += 1;
+        return {
+          action: "run_check",
+          checkId,
+          rationale: `Run registered follow-up check ${checkId}.`,
+          narrative: "The bounded follow-up is still in progress.",
+          uncertainty: "The deterministic result is not yet finalized.",
+        };
+      },
+    };
+    const baseline = await scanApprovedRange(new EtherfiFixtureReader(), config);
+    const result = await scanApprovedRange(new EtherfiFixtureReader(), config, {}, {
+      agent: { providerName: "openrouter", model: provider.model, provider },
+    });
+
+    expect(decisionCount).toBe(3);
+    expect(result.evidence[0].agentInvestigation).toMatchObject({
+      status: "failed",
+      steps: requested.map((requestedCheckId) => ({ requestedCheckId })),
+      failure: { code: "agent-step-limit", category: "step-limit" },
+    });
+    expect(result.evidence[0].upgradeInvestigation.checks.map(({ id }) => id)).toEqual(config.plans.approved.selectedChecks);
+    expect(result.evidence[0].upgradeInvestigation.disposition).toBe("corroborated");
+    expect(result.evidence[0].investigationReceipt?.receiptId).toBe(baseline.evidence[0].investigationReceipt?.receiptId);
   });
 
   it("produces a contradicted investigation when endpoint() at N conflicts", async () => {

@@ -49,6 +49,7 @@ describe("OpenRouter agent provider", () => {
       providerName: "openrouter",
       model: "example/model",
       provider: null,
+      log: expect.any(Function),
     });
     expect(new AgentProviderError("safe", "provider").message).toBe("safe");
   });

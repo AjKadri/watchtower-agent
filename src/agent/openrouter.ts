@@ -1,5 +1,5 @@
 import { agentDecisionSchema, agentDecisionInputSchema, type AgentDecision, type AgentDecisionInput } from "./schemas.js";
-import { AGENT_CALL_TIMEOUT_MS, AgentProviderError, type InvestigationAgentProvider } from "./provider.js";
+import { AGENT_CALL_TIMEOUT_MS, AgentProviderError, type AgentLogEvent, type InvestigationAgentProvider } from "./provider.js";
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -107,12 +107,17 @@ export class OpenRouterAgentProvider implements InvestigationAgentProvider {
   }
 }
 
-export function createOpenRouterRuntime(input: { apiKey?: string; model?: string }): import("./provider.js").AgentRuntime {
+function logAgentEvent(event: AgentLogEvent): void {
+  console.info(JSON.stringify({ scope: "watchtower-agent", ...event }));
+}
+
+export function createOpenRouterRuntime(input: { apiKey?: string; model?: string; log?: (event: AgentLogEvent) => void }): import("./provider.js").AgentRuntime {
   const apiKey = input.apiKey?.trim();
   const model = input.model?.trim() || null;
   return {
     providerName: "openrouter",
     model,
     provider: apiKey && model ? new OpenRouterAgentProvider(model, apiKey) : null,
+    log: input.log ?? logAgentEvent,
   };
 }

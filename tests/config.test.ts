@@ -60,7 +60,12 @@ describe("closed target profile registry", () => {
       WATCHTOWER_AGENT_MODEL: "example/model",
     });
 
-    expect(runtime.agent).toEqual({ providerName: "openrouter", model: "example/model", provider: null });
+    expect(runtime.agent).toEqual({
+      providerName: "openrouter",
+      model: "example/model",
+      provider: null,
+      log: expect.any(Function),
+    });
   });
 
   it("registers exactly the three approved Base profiles", () => {
