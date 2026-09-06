@@ -115,17 +115,18 @@
               <section id="overview" class="docs-section" data-doc-section>
                 <p class="section-index">01 / GETTING STARTED</p>
                 <h2>Investigate the change, not just the event.</h2>
-                <p>Watchtower is a read-only historical investigation system for three configured Base contract profiles. It turns one approved proxy upgrade event into a bounded evidence path: verify the trigger, run fixed checks at exact historical blocks, explain the result, and issue a receipt.</p>
+                <p>Watchtower is a read-only historical investigation system for three configured Base contract profiles. It turns one approved proxy upgrade event into a bounded evidence path: verify the trigger, run exact-block checks, let a tightly constrained agent choose approved follow-ups on configured live scans, derive the result deterministically, and issue a receipt.</p>
                 <div class="docs-callout">
                   <span class="docs-callout-label">CURRENT BOUNDARY</span>
                   <p>The public MVP does not accept arbitrary addresses, event signatures, calls, RPC URLs, or block ranges outside the registered profile. A replay is always labeled as a replay.</p>
                 </div>
                 <div class="docs-flow" aria-label="Watchtower investigation loop">
-                  <div class="docs-flow-step"><span>01</span><strong>WATCH</strong><p>Listen for the configured proxy and approved upgrade signature.</p></div>
-                  <div class="docs-flow-step"><span>02</span><strong>DETECT</strong><p>Verify the address, topic, block scope, and decoded implementation.</p></div>
-                  <div class="docs-flow-step"><span>03</span><strong>INVESTIGATE</strong><p>Run the profile’s fixed historical storage, code, and contract checks.</p></div>
-                  <div class="docs-flow-step"><span>04</span><strong>VERIFY</strong><p>Bind block, transaction, receipt, log, assertions, and source links.</p></div>
-                  <div class="docs-flow-step"><span>05</span><strong>ALERT</strong><p>Return a deterministic severity, explanation, disposition, and receipt.</p></div>
+                  <div class="docs-flow-step"><span>01</span><strong>OBSERVE</strong><p>Verify the configured event and historical trigger evidence.</p></div>
+                  <div class="docs-flow-step"><span>02</span><strong>PLAN</strong><p>Select the immutable registered investigation plan.</p></div>
+                  <div class="docs-flow-step"><span>03</span><strong>CHECK</strong><p>Run initial deterministic historical checks.</p></div>
+                  <div class="docs-flow-step"><span>04</span><strong>INVESTIGATE</strong><p>Let the bounded agent request only approved follow-up check IDs.</p></div>
+                  <div class="docs-flow-step"><span>05</span><strong>DECIDE</strong><p>Derive severity and disposition with deterministic rules.</p></div>
+                  <div class="docs-flow-step"><span>06</span><strong>VERIFY</strong><p>Issue and browser-verify the canonical receipt.</p></div>
                 </div>
               </section>
 
@@ -180,16 +181,16 @@
               <section id="investigations" class="docs-section" data-doc-section>
                 <p class="section-index">05 / INVESTIGATIONS</p>
                 <h2>Every alert follows a fixed trace.</h2>
-                <p>After a candidate log is found, the scanner validates its block, transaction, and receipt, strictly decodes the event, selects a registered versioned plan, and executes only the checks authorized for that profile.</p>
+                <p>After a candidate log is found, the scanner validates its block, transaction, and receipt, strictly decodes the event, selects a registered versioned plan, and executes only the checks authorized for that profile. On a configured live ether.fi scan, the agent can choose which remaining registered check to inspect next.</p>
                 <ol class="docs-investigation-flow">
-                  <li><span>01</span><div><strong>Trigger detected</strong><p>Confirm the configured emitter, topic, block, transaction, receipt, and decoded implementation.</p></div></li>
-                  <li><span>02</span><div><strong>Plan selected</strong><p>Choose the approved, escalation, or incomplete plan from the closed registry.</p></div></li>
-                  <li><span>03</span><div><strong>Historical state checked</strong><p>Read the EIP-1967 slot at N−1 and N using the exact block tags.</p></div></li>
-                  <li><span>04</span><div><strong>Implementation checked</strong><p>Check deployed bytecode at the decoded implementation address.</p></div></li>
-                  <li><span>05</span><div><strong>Protocol identity checked</strong><p>Run only the fixed calls registered for the selected profile.</p></div></li>
-                  <li><span>06</span><div><strong>Receipt produced</strong><p>Bind the observations, checks, limitations, links, and disposition into canonical JSON.</p></div></li>
+                  <li><span>01</span><div><strong>Observe</strong><p>Confirm the configured emitter, topic, block, transaction, receipt, and decoded implementation.</p></div></li>
+                  <li><span>02</span><div><strong>Plan</strong><p>Choose the approved, escalation, or incomplete plan from the closed registry.</p></div></li>
+                  <li><span>03</span><div><strong>Check</strong><p>Read implementation state at N−1 and N and verify bytecode at N.</p></div></li>
+                  <li><span>04</span><div><strong>Investigate</strong><p>The bounded agent may select remaining check IDs; deterministic code supplies and executes their fixed parameters.</p></div></li>
+                  <li><span>05</span><div><strong>Decide</strong><p>Deterministic rules derive the disposition after every required plan check has run.</p></div></li>
+                  <li><span>06</span><div><strong>Verify</strong><p>Bind the trigger, plan, checks, limitations, links, and disposition into canonical JSON.</p></div></li>
                 </ol>
-                <div class="docs-callout docs-callout-neutral"><span class="docs-callout-label">DETERMINISTIC VERDICT PATH</span><p>No LLM participates in the verdict path. The explanation layer repeats observed facts and the configured severity rule; it does not infer identity, intent, causality, or safety.</p></div>
+                <div class="docs-callout docs-callout-neutral"><span class="docs-callout-label">DETERMINISTIC VERDICT PATH</span><p>The model can choose only the order of approved follow-up check IDs. It cannot supply RPC parameters, change severity or disposition, or modify receipt v1. Missing credentials and provider failures are visible while deterministic checks continue.</p></div>
               </section>
 
               <section id="risk-levels" class="docs-section" data-doc-section>
@@ -225,7 +226,7 @@
                   <div><span>01</span><strong>BASE</strong><p>Provides the historical block, transaction, receipt, and log data.</p></div>
                   <div><span>02</span><strong>VALIDATED INGESTION</strong><p>The ChainReader boundary validates the shape and identity of RPC responses.</p></div>
                   <div><span>03</span><strong>DETECTION</strong><p>The scanner filters one configured proxy and one approved event topic.</p></div>
-                  <div><span>04</span><strong>INVESTIGATION</strong><p>A registered plan runs fixed storage, bytecode, and protocol checks.</p></div>
+                  <div><span>04</span><strong>BOUNDED AGENT</strong><p>On configured live ether.fi scans, OpenRouter returns strictly validated decisions selecting only registered check IDs.</p></div>
                   <div><span>05</span><strong>EVIDENCE / RECEIPT</strong><p>Assertions, limitations, links, and disposition are normalized into records.</p></div>
                   <div><span>06</span><strong>WATCHTOWER UI</strong><p>The static workspace renders the archive, trace, failures, and verification actions.</p></div>
                 </div>
@@ -238,7 +239,7 @@
                   <article><span class="docs-layer-number">01</span><h3>Frontend</h3><p>Vanilla HTML, CSS, and browser JavaScript served from <code>public/</code>. It renders the profile archive and investigation workspace.</p></article>
                   <article><span class="docs-layer-number">02</span><h3>Express API</h3><p>Express exposes health, configuration, bounded scans, in-memory alerts, and validated receipt downloads.</p></article>
                   <article><span class="docs-layer-number">03</span><h3>Base RPC reader</h3><p>viem provides read-only JSON-RPC access. The RPC URL stays server-side.</p></article>
-                  <article><span class="docs-layer-number">04</span><h3>Rules and investigation</h3><p>TypeScript modules decode the approved event, select a registered plan, run checks, and derive deterministic outcomes.</p></article>
+                  <article><span class="docs-layer-number">04</span><h3>Rules and bounded agent</h3><p>TypeScript selects a registered plan and executes fixed checks. An optional server-side OpenRouter adapter can choose follow-up check order but cannot control RPC parameters or outcomes.</p></article>
                   <article><span class="docs-layer-number">05</span><h3>Storage</h3><p>Scan results, alerts, evidence, and live receipts are held in process memory. Committed fixture data powers the public archive.</p></article>
                   <article><span class="docs-layer-number">06</span><h3>External links</h3><p>Recorded explorer links point to BaseScan. There is no notification service, worker, database, authentication layer, or wallet integration.</p></article>
                 </div>
@@ -260,6 +261,7 @@
                 <ul class="docs-limitations">
                   <li><strong>Scope.</strong> Only three Base profiles and the configured <code>Upgraded(address)</code> event are supported.</li>
                   <li><strong>Historical access.</strong> Exact-block checks need an archive-capable provider. RPC outages, timeouts, rate limits, or pruned history can produce incomplete evidence.</li>
+                  <li><strong>Agent availability.</strong> Live agent decisions require server-side OpenRouter credentials. Missing credentials or provider failure is shown explicitly and does not stop required deterministic checks.</li>
                   <li><strong>Live coverage.</strong> The live API scans one server-selected profile and one approved historical range. Other profiles are verified fixture replays.</li>
                   <li><strong>Persistence.</strong> Live alerts and receipts are in memory and disappear when the process restarts.</li>
                   <li><strong>Interpretation.</strong> Receipts do not establish identity, intent, causality, governance legitimacy, implementation safety, or remote cross-chain safety.</li>

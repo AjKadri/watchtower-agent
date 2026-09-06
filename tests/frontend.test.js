@@ -357,8 +357,14 @@ describe("dashboard view model", () => {
   });
 
   it("ships valid deterministic fixture receipts and receipt links", () => {
+    const canonicalReceiptIds = {
+      "aave-v3-base-core": "receipt_ffa12a49a766b8a1eb68072fd078b4adfda4ae0ca9e118c65c94ae350ca33b51",
+      "compound-iii-base-usdc-comet": "receipt_46851ad7a61c84e956533f7619f38e8d423e24ee198e8999c2157db9c2df9216",
+      "etherfi-base-weeth-oft": "receipt_af9ac18199f550c4d6ccf64a16334dd03afbbe3a3bf06c705347e16684bd64b5",
+    };
     for (const profile of archiveProfiles) {
       expect(investigationReceiptSchema.safeParse(profile.receipt).success).toBe(true);
+      expect(profile.receipt.receiptId).toBe(canonicalReceiptIds[profile.id]);
       const detail = buildFixtureDetail(profile);
       const receiptStage = buildInvestigationTrace(detail)[5];
       expect(receiptStage.links).toEqual([expect.objectContaining({
@@ -384,8 +390,8 @@ describe("dashboard view model", () => {
     expect(html).toContain('id="archive-body"');
     expect(html).toContain('id="archive-empty"');
     expect(html).toContain('id="failure-panel"');
-    expect(html).toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg">');
-    expect(html).toContain('<img class="wordmark-mark" src="/watchtower-mark.svg" alt="" aria-hidden="true">');
+    expect(html).toMatch(/<link\s+rel="icon"\s+type="image\/svg\+xml"\s+href="\/favicon\.svg"\s*\/?>/);
+    expect(html).toMatch(/<img\s+class="wordmark-mark"\s+src="\/watchtower-mark\.svg"\s+alt=""\s+aria-hidden="true"\s*\/?>/);
     expect(html).toContain('href="https://github.com/AjKadri/watchtower-agent"');
     expect(html).toContain('href="https://x.com/watchtowerbase_"');
     expect(html).toContain('href="https://t.me/watchtowerbase"');
@@ -396,7 +402,7 @@ describe("dashboard view model", () => {
     expect(html).toContain("Watch the contract.");
     expect(html).toContain("Watchtower detects a configured Base upgrade");
     expect(html).toContain("Choose a configured Base profile");
-    expect(html).toContain("Phase 01 · Event observed");
+    expect(html).toContain("Stage 01 · Observe");
     expect(html).toContain('class="watch-field"');
     expect(html).toContain('class="dashboard-frame"');
     expect(html).toContain("Every result comes with receipts.");
@@ -498,12 +504,12 @@ describe("dashboard view model", () => {
 
     expect(trace).toHaveLength(6);
     expect(trace.map(({ title, status }) => ({ title, status }))).toEqual([
-      { title: "Event observed", status: "complete" },
-      { title: "Plan selected", status: "complete" },
-      { title: "Historical state checked", status: "complete" },
-      { title: "Implementation checked", status: "complete" },
-      { title: "Protocol identity checked", status: "complete" },
-      { title: "Receipt issued", status: "complete" },
+      { title: "Observe", status: "complete" },
+      { title: "Plan", status: "complete" },
+      { title: "Check", status: "complete" },
+      { title: "Investigate", status: "complete" },
+      { title: "Decide", status: "complete" },
+      { title: "Verify", status: "complete" },
     ]);
     expect(trace[5].links).toEqual([expect.objectContaining({
       label: "Download receipt JSON",
@@ -515,6 +521,43 @@ describe("dashboard view model", () => {
       summary: expect.stringContaining("expected"),
       elapsedMs: expect.any(Number),
     });
+    expect(trace[3].details[0]).toMatchObject({ id: "agent-status", status: "skipped" });
+  });
+
+  it("renders live agent choices and unavailable state without changing deterministic stages", () => {
+    const liveEvidence = structuredClone(evidence);
+    liveEvidence.agentInvestigation = {
+      status: "complete",
+      provider: "openrouter",
+      model: "test/model",
+      steps: [{
+        step: 1,
+        requestedCheckId: "configured-pool",
+        rationale: "Inspect the registered pool identity.",
+        toolResultRef: "configured-pool",
+        outcome: "passed",
+      }],
+      narrative: "The approved follow-up agrees with the configured profile.",
+      uncertainty: "This does not establish implementation safety.",
+      failure: null,
+    };
+    const liveTrace = buildInvestigationTrace({ alert, evidence: liveEvidence });
+    expect(liveTrace[3]).toMatchObject({ title: "Investigate", status: "complete" });
+    expect(liveTrace[3].details).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "agent-status", summary: expect.stringContaining("openrouter / test/model") }),
+      expect.objectContaining({ id: "agent-step-1", summary: expect.stringContaining("configured-pool") }),
+    ]));
+
+    liveEvidence.agentInvestigation = {
+      status: "unavailable",
+      provider: "openrouter",
+      model: null,
+      steps: [],
+      narrative: null,
+      uncertainty: null,
+      failure: { code: "agent-credentials-missing", category: "unavailable", message: "Agent credentials are missing." },
+    };
+    expect(buildInvestigationTrace({ alert, evidence: liveEvidence })[3]).toMatchObject({ status: "incomplete" });
   });
 
   it("renders the fixed Compound identity checks as a complete protocol stage", () => {
@@ -538,9 +581,9 @@ describe("dashboard view model", () => {
 
     const trace = buildInvestigationTrace({ alert, evidence: compoundEvidence });
 
-    expect(trace[4].status).toBe("complete");
-    expect(trace[4].details.map(({ id }) => id)).toEqual(compoundIds);
-    expect(trace[4].links.map(({ label }) => label)).toEqual(["Verify governor", "Verify Base USDC"]);
+    expect(trace[3].status).toBe("complete");
+    expect(trace[3].details.map(({ id }) => id)).toEqual(["agent-status", ...compoundIds]);
+    expect(trace[3].links.map(({ label }) => label)).toEqual(["Verify governor", "Verify Base USDC"]);
   });
 
   it("keeps incomplete investigation and skipped checks visible", () => {
@@ -583,7 +626,7 @@ describe("dashboard view model", () => {
     expect(trace[2].details).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: "implementation-at-upgrade", status: "mismatch" }),
     ]));
-    expect(trace[5].status).toBe("failed");
+    expect(trace[5].status).toBe("complete");
     expect(summarizeTraceProgression(trace)).toBe("Investigation failed");
   });
 
@@ -804,7 +847,7 @@ describe("browser receipt verification", () => {
 
     expect(html).toContain('class="faq-section"');
     expect(html).toContain('id="faq-title"');
-    expect(html).toContain('href="/docs">Still curious? Read the full documentation');
+    expect(html).toMatch(/href="\/docs"[^>]*>\s*Still curious\? Read the full documentation/);
     expect(html).toContain('data-faq-list');
     expect(docs).toContain('data-doc-shared-faq');
     expect(app).toContain('import { watchtowerFaq } from "/faq-data.js";');
@@ -828,5 +871,16 @@ describe("browser receipt verification", () => {
     expect(app).toContain("function initializeFaq()");
     expect(app).toContain('answer.setAttribute("aria-hidden", String(!open))');
     expect(app).toContain("initializeFaq();");
+  });
+
+  it("labels decorative monitoring visuals as illustrative instead of live state", () => {
+    const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+
+    expect(html).toContain("ILLUSTRATIVE FLOW");
+    expect(html).toContain("PRODUCT METAPHOR");
+    expect(html).toContain("NOT LIVE");
+    for (const misleadingCue of ["18s ago", "Investigating evidence", "01 signal", "12:41:08", "6 PASSED"]) {
+      expect(html).not.toContain(misleadingCue);
+    }
   });
 });

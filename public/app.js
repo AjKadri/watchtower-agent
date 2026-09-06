@@ -470,7 +470,7 @@ function appendTraceFact(container, label, value, href) {
 
 function stageEvidenceFields(stage, detail) {
   const { evidence } = detail;
-  if (stage.id === "event-observed") {
+  if (stage.id === "observe") {
     return [
       ["Event", evidence.event?.signature],
       ["Transaction", evidence.transaction?.hash, evidence.sources?.transaction],
@@ -481,7 +481,7 @@ function stageEvidenceFields(stage, detail) {
     ];
   }
   const receipt = evidence.investigationReceipt;
-  if (stage.id === "receipt-issued" && receipt) {
+  if (stage.id === "verify" && receipt) {
     return [
       ["Receipt ID", receipt.receiptId],
       ["Disposition", receipt.finalDisposition],
@@ -533,7 +533,7 @@ function renderStageDetails(stage, detail, source) {
 function renderTrace(detail, source) {
   const section = node("section", "trace-section");
   const heading = node("div", "content-heading");
-  heading.append(node("p", "kicker", "Investigation trace"), node("h3", "", "Six stages of verification"));
+  heading.append(node("p", "kicker", "Investigation trace"), node("h3", "", "Observe. Plan. Check. Investigate. Decide. Verify."));
   section.append(heading);
   const list = node("ol", "trace-list");
   for (const stage of buildInvestigationTrace(detail)) {

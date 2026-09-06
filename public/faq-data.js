@@ -24,8 +24,8 @@ export const watchtowerFaq = Object.freeze([
     id: "how-watchtower-decides",
     question: "How does Watchtower decide something deserves attention?",
     category: "core-concepts",
-    shortAnswer: "The scanner uses deterministic checks to validate the configured event, select the registered plan, compare the decoded implementation with the profile's approved target, and run fixed historical checks. No LLM participates in the verdict path. A flagged result describes a rule outcome, not proof of malicious intent.",
-    longAnswer: "Watchtower first validates the configured event and applies the registered profile's deterministic severity rule. It compares the decoded implementation with the approved target, then runs only the checks named by the selected plan. The verdict path does not use an LLM, and a high or suspicious result should be read as a rule-based signal for review, not proof of malicious intent.",
+    shortAnswer: "Deterministic rules validate the event, choose a registered plan, and assign severity. On a configured live ether.fi scan, a bounded agent may choose the order of approved follow-up checks, but deterministic code executes every required check and decides the final disposition.",
+    longAnswer: "Watchtower first validates the configured event and applies the profile's deterministic severity rule. On a configured live ether.fi scan, the bounded agent may request only remaining check IDs from that immutable plan; server code supplies every RPC parameter and executes every required check even if the agent fails. The model cannot change severity, disposition, receipt contents, or the meaning of recorded chain evidence, and a flagged result is not proof of malicious intent.",
   },
   {
     id: "verify-watchtower-alert",

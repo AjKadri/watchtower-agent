@@ -120,6 +120,15 @@ export function buildFixtureDetail(profile) {
       evidenceStatus: "complete",
       checks: receipt.checks,
     },
+    agentInvestigation: {
+      status: "not-run",
+      provider: null,
+      model: null,
+      steps: [],
+      narrative: null,
+      uncertainty: null,
+      failure: null,
+    },
     investigationReceipt: receipt,
     observedFacts: [
       `The configured ${profile.displayName} proxy emitted Upgraded(address) at log index ${trigger.log.index}.`,
@@ -250,18 +259,16 @@ function checksFor(ids, checks, skippedChecks) {
 }
 
 export function buildInvestigationTrace(detail) {
-  const { alert, evidence } = detail;
+  const { evidence } = detail;
   const investigation = evidence.upgradeInvestigation;
   const plan = investigation?.plan;
   const checks = investigation?.checks ?? [];
   const skippedChecks = plan?.skippedChecks ?? [];
-  const historicalIds = ["implementation-before", "implementation-at-upgrade"];
-  const implementationIds = ["implementation-bytecode"];
-  const commonIds = new Set([...historicalIds, ...implementationIds]);
+  const initialIds = ["implementation-before", "implementation-at-upgrade", "implementation-bytecode"];
+  const commonIds = new Set(initialIds);
   const plannedIds = [...(plan?.selectedChecks ?? []), ...skippedChecks];
   const protocolIds = [...new Set(plannedIds.filter((id) => !commonIds.has(id)))];
-  const historical = checksFor(historicalIds, checks, skippedChecks);
-  const implementation = checksFor(implementationIds, checks, skippedChecks);
+  const initial = checksFor(initialIds, checks, skippedChecks);
   const protocol = checksFor(protocolIds, checks, skippedChecks);
   const identityLinks = [
     ["Verify provider", evidence.sources.addresses.provider],
@@ -276,19 +283,36 @@ export function buildInvestigationTrace(detail) {
     && evidence.transaction.receiptStatus
     && evidence.log.rawTopics?.length,
   );
-  const receiptStatus = !receipt
-    ? "incomplete"
-    : receipt.finalDisposition === "contradicted"
-      ? "failed"
-      : receipt.finalDisposition === "incomplete"
-        ? "incomplete"
-        : "complete";
+  const agent = evidence.agentInvestigation ?? { status: "not-run", steps: [], narrative: null, uncertainty: null, failure: null };
+  const agentStatus = agent.status === "failed" ? "failed" : agent.status === "unavailable" ? "incomplete" : "complete";
+  const agentDetails = [
+    {
+      id: "agent-status",
+      label: "Bounded agent",
+      status: agent.status === "complete" ? "passed" : agent.status === "failed" ? "failed" : agent.status === "unavailable" ? "unsupported" : "skipped",
+      summary: agent.status === "complete"
+        ? `${agent.provider} / ${agent.model}. ${agent.narrative}`
+        : agent.status === "not-run"
+          ? "No live model execution is attached to this verified fixture replay."
+          : agent.failure?.message ?? "No agent result is available.",
+      elapsedMs: null,
+    },
+    ...(agent.steps ?? []).map((step) => ({
+      id: `agent-step-${step.step}`,
+      label: `Agent step ${step.step} · ${checkLabels[step.requestedCheckId] ?? step.requestedCheckId}`,
+      status: step.outcome,
+      summary: `${step.rationale} Deterministic result reference: ${step.toolResultRef}.`,
+      elapsedMs: null,
+    })),
+    ...(agent.uncertainty ? [{ id: "agent-uncertainty", label: "Uncertainty", status: "skipped", summary: agent.uncertainty, elapsedMs: null }] : []),
+    ...protocol,
+  ];
 
   return [
     {
-      id: "event-observed",
+      id: "observe",
       index: 1,
-      title: "Event observed",
+      title: "Observe",
       status: eventComplete ? "complete" : "incomplete",
       elapsedMs: null,
       summary: eventComplete
@@ -301,9 +325,9 @@ export function buildInvestigationTrace(detail) {
       ],
     },
     {
-      id: "plan-selected",
+      id: "plan",
       index: 2,
-      title: "Plan selected",
+      title: "Plan",
       status: plan ? "complete" : "incomplete",
       elapsedMs: null,
       summary: plan
@@ -317,45 +341,57 @@ export function buildInvestigationTrace(detail) {
       links: [],
     },
     {
-      id: "historical-state-checked",
+      id: "check",
       index: 3,
-      title: "Historical state checked",
-      status: stageStatus(historical),
-      elapsedMs: elapsedFor(historical),
-      summary: "EIP-1967 implementation storage was checked at the two approved historical block tags.",
-      details: historical,
-      links: [],
-    },
-    {
-      id: "implementation-checked",
-      index: 4,
-      title: "Implementation checked",
-      status: stageStatus(implementation),
-      elapsedMs: elapsedFor(implementation),
-      summary: "Decoded implementation bytecode was checked only at the approved upgrade block.",
-      details: implementation,
+      title: "Check",
+      status: stageStatus(initial),
+      elapsedMs: elapsedFor(initial),
+      summary: "Initial deterministic checks compare implementation state at N−1 and N, then verify deployed bytecode at N.",
+      details: initial,
       links: evidence.sources.addresses.implementation
         ? [{ label: "Verify implementation", href: evidence.sources.addresses.implementation, external: true }]
         : [],
     },
     {
-      id: "protocol-identity-checked",
-      index: 5,
-      title: "Protocol identity checked",
-      status: stageStatus(protocol),
+      id: "investigate",
+      index: 4,
+      title: "Investigate",
+      status: agentStatus === "complete" ? stageStatus(protocol) : agentStatus,
       elapsedMs: elapsedFor(protocol),
-      summary: "The profile's fixed protocol identity checks are shown below.",
-      details: protocol,
+      summary: agent.status === "complete"
+        ? "The bounded agent selected follow-up checks from the registered plan; deterministic code executed them."
+        : agent.status === "not-run"
+          ? "This is a verified fixture replay. No live agent run is claimed; the recorded deterministic follow-up checks are shown below."
+          : "Agent execution was unavailable or failed, so deterministic code completed every required plan check.",
+      details: agentDetails,
       links: identityLinks,
     },
     {
-      id: "receipt-issued",
+      id: "decide",
+      index: 5,
+      title: "Decide",
+      status: investigation?.disposition === "incomplete" ? "incomplete" : "complete",
+      elapsedMs: null,
+      summary: investigation
+        ? `Deterministic rules derived the ${investigation.disposition} disposition from the recorded check assertions.`
+        : "No deterministic disposition is available.",
+      details: investigation ? [{
+        id: "deterministic-disposition",
+        label: "Deterministic disposition",
+        status: investigation.disposition === "incomplete" ? "unsupported" : investigation.disposition === "contradicted" ? "mismatch" : "passed",
+        summary: `The selected plan produced ${investigation.disposition}; model narrative does not control this result.`,
+        elapsedMs: null,
+      }] : [],
+      links: [],
+    },
+    {
+      id: "verify",
       index: 6,
-      title: "Receipt issued",
-      status: receiptStatus,
+      title: "Verify",
+      status: receipt ? "complete" : "incomplete",
       elapsedMs: null,
       summary: receipt
-        ? `${receipt.receiptId} records the ${receipt.finalDisposition} final disposition.`
+        ? `${receipt.receiptId} binds the deterministic trigger, plan, checks, and ${receipt.finalDisposition} disposition.`
         : "No replayable receipt was issued because complete trigger evidence is unavailable.",
       details: receipt?.errors.map((error) => ({
         id: error.code,

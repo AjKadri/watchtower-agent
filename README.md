@@ -19,9 +19,10 @@ unsupported narrative.
 
 Watchtower turns one configured `Upgraded(address)` event into a bounded,
 read-only historical investigation. It verifies the trigger evidence, selects a
-fixed deterministic plan, runs exact-block checks, derives a deterministic
-disposition, and issues a replayable receipt that the browser can verify
-independently.
+fixed deterministic plan, runs initial exact-block checks, lets a bounded agent
+choose approved follow-up check IDs on configured live scans, derives a
+deterministic disposition, and issues a replayable receipt that the browser can
+verify independently.
 
 - [Live public demo](https://watchtower.ajkadri.dev)
 - [GitHub repository](https://github.com/AjKadri/watchtower-agent)
@@ -44,8 +45,9 @@ upgrade event to a replayable receipt:
 
 1. Choose one supported protocol profile.
 2. Inspect the configured historical upgrade event and decoded implementation.
-3. Follow the fixed plan through its exact-block historical checks.
-4. Open the receipt and recompute its SHA-256 ID in the browser.
+3. Follow Observe, Plan, Check, Investigate, Decide, and Verify.
+4. Inspect any live agent requests separately from the deterministic result.
+5. Open the receipt and recompute its SHA-256 ID in the browser.
 
 The output records what Watchtower observed and checked. It does not make an
 unsupported claim that an upgrade is safe, legitimate, or intentional.
@@ -69,16 +71,18 @@ The active live-scan profile is ether.fi Base weETH OFT.
 
 ## Six-stage investigation
 
-1. Event observed. Verify the configured proxy, transaction, log, topic, and
-   decoded implementation.
-2. Plan selected. Choose exactly one versioned plan with a fixed capability and
-   read budget.
-3. Historical state checked. Read the EIP-1967 implementation slot at the
-   profile's exact N-1 and N block tags.
-4. Implementation checked. Confirm bytecode at the decoded implementation at N.
-5. Protocol identity checked. Execute only the profile's fixed historical calls.
-6. Receipt issued. Bind the trigger, plan, checks, limitations, links, and
-   disposition into canonical JSON.
+1. Observe. Verify the configured proxy, transaction, log, topic, and decoded
+   implementation.
+2. Plan. Choose exactly one immutable versioned plan with a fixed capability
+   and read budget.
+3. Check. Read implementation state at N-1 and N and confirm bytecode at N.
+4. Investigate. On a configured live ether.fi scan, the bounded agent may
+   request only remaining check IDs from the selected plan. Deterministic code
+   resolves and executes every RPC parameter.
+5. Decide. Deterministic rules derive severity and the final disposition after
+   every required plan check has executed.
+6. Verify. Bind the trigger, plan, checks, limitations, links, and disposition
+   into receipt v1 and recompute its SHA-256 ID in the browser.
 
 The interface tells the full 60-second story: choose one of the three profiles,
 inspect its real historical event, follow plan selection and bounded checks,
@@ -124,7 +128,8 @@ They do not prove upgrade intent, governance legitimacy, implementation safety,
 remote cross-chain safety, or the security of related contracts.
 
 The final disposition, severity, assertions, and receipt hash are deterministic.
-No LLM participates in the verdict path.
+The model may choose approved follow-up order and produce a public narrative,
+but it cannot supply RPC parameters or participate in the verdict path.
 
 ## Investigation outcomes
 
@@ -148,7 +153,13 @@ Closed target registry
 Bounded viem Base reader -> runtime-validated chain evidence
         |
         v
-Deterministic plan and fixed historical checks
+Initial deterministic historical checks
+        |
+        v
+Bounded agent selects registered follow-up check IDs
+        |
+        v
+Deterministic executor completes every required plan check
         |
         v
 Normalized alert, investigation, and canonical receipt
@@ -162,6 +173,9 @@ Express API and in-memory store -> vanilla investigation workspace
 - viem provides read-only Base JSON-RPC access.
 - Zod validates configuration, chain evidence, scan results, and cross-object
   receipt invariants at runtime.
+- A provider-neutral agent interface uses a fixed OpenRouter endpoint for the
+  first adapter. Model decisions pass strict schemas and can select only
+  registered check IDs from the active plan.
 - Express exposes the API and static interface.
 - Vanilla HTML, CSS, and JavaScript render the archive, investigation trace,
   evidence details, failures, receipt downloads, and browser-side receipt
@@ -206,6 +220,19 @@ complete evidence, a corroborated investigation, and no failures.
 requires `npm run build` after a fresh checkout. It does not load the
 development-only `tsx` package. Use `npm run scan:dev` only for source-level
 development.
+
+To enable the optional bounded agent for a live ether.fi scan, set both values
+only in the ignored `.env` file:
+
+```sh
+OPENROUTER_API_KEY=your-server-side-key
+WATCHTOWER_AGENT_MODEL=your-openrouter-model-id
+```
+
+With either value missing, the evidence record reports the agent as
+`unavailable` and the deterministic investigation continues. Provider timeout,
+failure, malformed output, or an invalid tool request is reported as `failed`.
+Fixtures always report `not-run` and never imitate a live model execution.
 
 Build and run the compiled production artifact:
 
@@ -294,6 +321,8 @@ a rescan.
   claims are outside the current evidence boundary.
 - Historical checks require an archive-capable provider. Pruned history,
   rate limits, timeouts, and provider outages can produce an incomplete result.
+- Live agent decisions require configured OpenRouter credentials and provider
+  availability. Agent failure never prevents required deterministic checks.
 - The Aave fixture records implementation bytecode presence and a verified
   length of `22757` bytes, but no bytecode hash. The configured archive RPC
   hostname did not resolve during final provenance verification, so an earlier
@@ -317,11 +346,11 @@ structured failure, starts the compiled server directly, requests
 `GET /api/health`, and sends a graceful SIGTERM. CI does not require a live RPC
 provider or secret.
 
-The current release-hardening suite contains 147 tests covering all three
-profiles, deterministic receipt integrity, API behavior, malformed RPC evidence,
-scan cancellation and deadline cleanup, measured check timing, frontend states,
-production configuration, runtime pinning, CI requirements, and failure
-handling.
+The exact current test count is reported by `npm test`. Coverage includes all
+three profiles, bounded agent and tool failures, deterministic receipt
+integrity, API behavior, malformed RPC evidence, scan cancellation, frontend
+states, production configuration, runtime pinning, CI requirements, and safe
+failure handling.
 
 Verify the current public revision directly from the tracked remote:
 
