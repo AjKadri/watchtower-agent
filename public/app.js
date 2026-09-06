@@ -450,20 +450,21 @@ function receiptVerificationControl(receipt, detail, source) {
   const json = node("button", "secondary-action", "Download JSON");
   const exportButtons = [markdown, json];
   const exportPacket = async (format, button) => {
+    const label = format === "markdown" ? "Markdown" : "JSON";
     exportButtons.forEach((item) => { item.disabled = true; });
     result.className = "receipt-verification pending";
-    result.textContent = `Recomputing the canonical receipt ID before ${format} export.`;
+    result.textContent = `Recomputing the canonical receipt ID before ${label} export.`;
     try {
       const packet = await downloadReviewPacket(detail, source, format);
       if (!packet) throw new Error("No receipt is available for export.");
       const verified = packet.browserVerification.status === "verified";
       result.className = `receipt-verification ${verified ? "verified" : "failed"}`;
       result.textContent = verified
-        ? `Receipt verified · ${format} review packet downloaded.`
-        : `Receipt verification failed · ${format} review packet downloaded.`;
+        ? `Receipt verified · ${label} review packet downloaded.`
+        : `Receipt verification failed · ${label} review packet downloaded.`;
     } catch {
       result.className = "receipt-verification failed";
-      result.textContent = `${format} review packet export failed.`;
+      result.textContent = `${label} review packet export failed.`;
     } finally {
       exportButtons.forEach((item) => { item.disabled = false; });
       button.blur();
@@ -471,8 +472,8 @@ function receiptVerificationControl(receipt, detail, source) {
   };
   markdown.type = "button";
   json.type = "button";
-  markdown.addEventListener("click", () => exportPacket("Markdown", markdown));
-  json.addEventListener("click", () => exportPacket("JSON", json));
+  markdown.addEventListener("click", () => exportPacket("markdown", markdown));
+  json.addEventListener("click", () => exportPacket("json", json));
   const button = node("button", "secondary-action", "Verify receipt");
   button.type = "button";
   button.addEventListener("click", async () => {
