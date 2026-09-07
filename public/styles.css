@@ -663,3 +663,65 @@ html[data-theme="dark"] .final-cta { background: #111713; }
 @media (prefers-reduced-motion: reduce) {
   .radar-sweep, .event-node.alert i, .monitor-label i, .signal-progress span { animation: none; }.faq-trigger > span:first-child, .faq-icon::after, .faq-answer { transition-duration: 0.01ms; }
 }
+
+/* Investigation workspace refinement */
+.case-summary-disposition { margin: 0 0 var(--space-4); }
+.case-disposition-badge { padding: 8px 11px; font-size: var(--text-sm); letter-spacing: 0.08em; }
+.case-summary-brief { max-width: 34ch; margin: 0 0 var(--space-5); color: var(--muted); font-size: var(--text-sm); line-height: var(--leading-reading); }
+.case-summary-actions { display: none; }
+.agent-panel { min-width: 0; max-width: 100%; display: grid; gap: var(--space-5); margin-top: var(--space-8); padding: var(--space-6); border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.agent-panel-heading { min-width: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
+.agent-panel-heading > div { min-width: 0; }
+.agent-panel-heading h3 { margin: 0; font-family: var(--sans); font-size: var(--text-xl); font-weight: 760; letter-spacing: -0.03em; }
+.agent-panel-status { flex: 0 0 auto; }
+.agent-panel-source { max-width: 72ch; margin: 0; color: var(--muted); font-size: var(--text-sm); line-height: var(--leading-reading); }
+.agent-panel-meta { min-width: 0; max-width: 100%; display: grid; grid-template-columns: 0.8fr 1.35fr 0.85fr; gap: var(--space-4); margin: 0; padding: var(--space-4) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.agent-panel-meta div { min-width: 0; }
+.agent-panel-meta dt { margin-bottom: var(--space-1); color: var(--faint); font-family: var(--mono); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.agent-panel-meta dd { min-width: 0; margin: 0; color: var(--ink); font-family: var(--mono); font-size: var(--text-xs); line-height: var(--leading-reading); overflow-wrap: anywhere; }
+.agent-panel-notes { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
+.agent-panel-note { min-width: 0; }
+.agent-panel-note .kicker { margin-bottom: var(--space-2); }
+.agent-panel-note > p:last-child { margin: 0; color: var(--muted); font-size: var(--text-sm); line-height: var(--leading-reading); overflow-wrap: anywhere; }
+.agent-panel-note.planning > p:last-child { color: var(--ink); font-family: var(--serif); font-size: var(--text-lg); }
+.agent-panel-boundary { margin: 0; padding-top: var(--space-4); border-top: 1px solid var(--line); color: var(--faint); font-family: var(--mono); font-size: var(--text-xs); line-height: var(--leading-reading); }
+#profiles, #investigation, #method, #receipts, #packet-verifier { scroll-margin-top: 92px; }
+
+@media (max-width: 720px) {
+  .dashboard-main { display: flex; flex-direction: column; }
+  .dashboard-topline { order: -2; }
+  .investigation-shell { order: -1; }
+  .ops-summary { order: 0; }
+  .scan-status { order: 1; }
+  .failure-panel { order: 2; }
+  .case-summary { padding: 22px 18px 18px; }
+  .case-number { margin-bottom: 14px; }
+  .case-summary h3 { font-size: 1.5rem; }
+  .case-target { margin-bottom: 14px; font-size: var(--text-sm); }
+  .case-summary-brief { max-width: none; margin-bottom: var(--space-4); }
+  .case-summary-actions { display: grid; margin-top: var(--space-5); }
+  .case-summary-actions .primary-action { width: 100%; }
+  .detail-panel { display: flex; flex-direction: column; }
+  .detail-header { order: 0; }
+  .investigation-overview { order: 1; }
+  .decision-section { order: 2; }
+  .receipt-bar { order: 3; margin-top: var(--space-5); }
+  .trace-section { order: 4; }
+  .ledger-section { order: 5; }
+  .evidence-errors { order: 6; }
+  .evidence-section { order: 7; }
+  .sources-section { order: 8; }
+  .agent-panel { order: 9; margin-top: var(--space-6); padding: var(--space-5); }
+  .trace-stage:not(.trace-stage-expanded) .trace-facts,
+  .trace-stage:not(.trace-stage-expanded) .trace-links { display: none; }
+  .trace-disclosure-summary { min-height: 48px; }
+  .agent-panel-heading { flex-wrap: wrap; gap: var(--space-3); }
+  .agent-panel-meta, .agent-panel-notes { grid-template-columns: 1fr; }
+  .agent-panel-notes { gap: var(--space-4); }
+  .agent-panel-boundary { padding-top: var(--space-3); }
+}
+
+@media (max-width: 430px) {
+  .case-disposition-badge { font-size: var(--text-xs); }
+  .agent-panel-heading h3 { font-size: var(--text-lg); }
+}

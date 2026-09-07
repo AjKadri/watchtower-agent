@@ -13,8 +13,8 @@ import {
   fetchHealth,
   formatUtcTimestamp,
   investigationStateLabel,
-  isStructuredScanResult,
   isMobileLayout,
+  isStructuredScanResult,
   reconcileAlertSelection,
   summarizeTraceProgression,
 } from "../public/view-model.js";
@@ -202,6 +202,13 @@ describe("dashboard view model", () => {
     expect(app).toContain('overviewItem("Stages completed"');
     expect(app).toContain('["Failure category"');
     expect(app).toContain('elements.caseJourney.textContent = "Investigation failed"');
+    expect(app).toContain("renderAgentPanel");
+    expect(app).toContain("renderEmptyCaseSummary");
+    expect(app).toContain('const agentStatus = context.agentStatus ?? "not-run"');
+    expect(app).toContain("Bounded investigation planner");
+    expect(app).toContain('headingTitle.id = "agent-panel-title"');
+    expect(app).toContain("No live agent run claimed. Verified fixture replay.");
+    expect(app).toContain("Review receipt and packet");
   });
 
   it("keeps the investigation proof hierarchy and full receipt identifiers in the renderer", () => {
@@ -210,12 +217,41 @@ describe("dashboard view model", () => {
 
     expect(app).toContain("renderInvestigationOverview");
     expect(app).toContain("renderStageDetails");
+    expect(app).toContain("const focusStageId");
+    expect(app).toContain("trace-stage-expanded");
+    expect(app).toContain("isMobileLayout(window.innerWidth)");
     expect(app).toContain("dominant-status-badge");
     expect(app).toContain('node("h3", "receipt-id", receipt.receiptId)');
     expect(styles).toContain(".trace-disclosure");
     expect(styles).toContain(".decision-grid");
     expect(styles).toContain(".receipt-action-row");
+    expect(styles).toContain(".case-summary-disposition");
+    expect(styles).toContain(".agent-panel");
+    expect(styles).toContain(".trace-stage:not(.trace-stage-expanded) .trace-facts");
     expect(styles).toContain("overflow-wrap: anywhere");
+  });
+
+  it("keeps mobile investigation disclosure behavior bounded to the trace state", () => {
+    expect(isMobileLayout(320)).toBe(true);
+    expect(isMobileLayout(360)).toBe(true);
+    expect(isMobileLayout(390)).toBe(true);
+    expect(isMobileLayout(721)).toBe(false);
+
+    const incompleteEvidence = structuredClone(evidence);
+    incompleteEvidence.agentInvestigation = {
+      status: "failed",
+      provider: "openrouter",
+      model: "test/model",
+      steps: [],
+      narrative: null,
+      uncertainty: "Provider unavailable after the bounded timeout.",
+      failure: { code: "agent-provider-failed", category: "provider", message: "Provider failed." },
+    };
+    const trace = buildInvestigationTrace({ alert, evidence: incompleteEvidence });
+
+    expect(trace).toHaveLength(6);
+    expect(trace[3]).toMatchObject({ id: "investigate", status: "failed" });
+    expect(trace.filter(({ status }) => status === "failed" || status === "incomplete")).toHaveLength(1);
   });
 
   it("keeps archive triggers and checks tied to the committed fixture and registry", () => {

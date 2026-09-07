@@ -17,6 +17,7 @@ import {
   fetchHealth,
   formatUtcTimestamp,
   investigationStateLabel,
+  isMobileLayout,
   isStructuredScanResult,
   summarizeTraceProgression,
 } from "/view-model.js";
@@ -33,6 +34,9 @@ const elements = {
   caseProfileId: document.querySelector("#case-profile-id"),
   caseProtocol: document.querySelector("#case-protocol"),
   caseReceipt: document.querySelector("#case-receipt"),
+  caseSummaryActions: document.querySelector("#case-summary-actions"),
+  caseSummaryBrief: document.querySelector("#case-summary-brief"),
+  caseSummaryDisposition: document.querySelector("#case-summary-disposition"),
   caseStatus: document.querySelector("#case-status"),
   caseTarget: document.querySelector("#case-target"),
   detail: document.querySelector("#detail-panel"),
@@ -349,12 +353,35 @@ function renderCaseSummary(detail, source) {
   elements.caseReceipt.textContent = receipt?.receiptId ?? "Not issued";
   elements.caseReceipt.title = receipt?.receiptId ?? "";
   elements.caseJourney.textContent = summarizeTraceProgression(buildInvestigationTrace(detail));
+  elements.caseSummaryBrief.textContent = detail.alert.summary ?? "A bounded evidence record is ready for review.";
+  elements.caseSummaryDisposition.replaceChildren();
+  const disposition = investigation.disposition ?? "incomplete";
+  const dispositionBadge = badge(disposition, `case-disposition-badge ${disposition}`);
+  dispositionBadge.setAttribute("aria-label", `Deterministic disposition: ${disposition}`);
+  elements.caseSummaryDisposition.append(dispositionBadge);
+  renderCaseSummaryActions(detail);
   const activeProfile = getArchiveProfile(state.activeProfileId);
   const isLiveProfile = profile.id === state.activeProfileId;
   elements.activeProfileNote.textContent = isLiveProfile
     ? `Live scanning is limited to ${profile.displayName}. A bounded historical scan is available.`
     : `Verified fixture replay only. Live scanning is currently limited to ${activeProfile.displayName}.`;
   setSourceBadge(detail, source);
+}
+
+function renderCaseSummaryActions(detail) {
+  const container = elements.caseSummaryActions;
+  if (!container) return;
+  container.replaceChildren();
+  if (!detail.evidence.investigationReceipt) return;
+  const action = node("button", "primary-action", "Review receipt and packet");
+  action.type = "button";
+  action.addEventListener("click", () => {
+    const receiptBar = elements.detail.querySelector("#detail-receipt");
+    if (!receiptBar) return;
+    receiptBar.scrollIntoView({ behavior: "smooth", block: "start" });
+    receiptBar.querySelector("button, a")?.focus();
+  });
+  container.append(action);
 }
 
 function evidenceItem(row) {
@@ -541,15 +568,15 @@ function stageEvidenceFields(stage, detail) {
   return [];
 }
 
-function renderStageDetails(stage, detail, source) {
+function renderStageDetails(stage, detail, source, initialOpen) {
   const details = stage.details ?? [];
   const disclosure = node("details", "trace-disclosure");
-  disclosure.open = stage.status !== "complete" || stage.index === 1;
+  disclosure.open = initialOpen;
   const summary = node("summary", "trace-disclosure-summary");
   const countLabel = details.length > 0
     ? `${details.length} recorded assertion${details.length === 1 ? "" : "s"}`
     : "Recorded evidence fields";
-  summary.append(node("span", "trace-disclosure-label", "Stage details"), node("span", "trace-disclosure-count", countLabel));
+  summary.append(node("span", "trace-disclosure-label", "Show full evidence"), node("span", "trace-disclosure-count", countLabel));
   const content = node("div", "trace-disclosure-content");
   if (details.length > 0) {
     const detailList = node("ul", "trace-details");
@@ -586,7 +613,10 @@ function renderTrace(detail, source) {
   heading.append(node("p", "kicker", "Investigation trace"), node("h3", "", "Observe. Plan. Check. Investigate. Decide. Verify."));
   section.append(heading);
   const list = node("ol", "trace-list");
-  for (const stage of buildInvestigationTrace(detail)) {
+  const trace = buildInvestigationTrace(detail);
+  const focusStageId = trace.find(({ status }) => status === "failed" || status === "incomplete")?.id ?? null;
+  const compactViewport = isMobileLayout(window.innerWidth);
+  for (const stage of trace) {
     const item = node("li", `trace-stage ${stage.status}`);
     item.dataset.stage = stage.id;
     item.dataset.status = stage.status;
@@ -602,7 +632,8 @@ function renderTrace(detail, source) {
     appendTraceFact(stageFacts, "Timestamp", formatUtcTimestamp(detail.evidence.block?.timestamp));
     appendTraceFact(stageFacts, "Result", traceResultLabel(stage.status));
     appendTraceFact(stageFacts, "Block", detail.evidence.block?.number, detail.evidence.sources?.block);
-    body.append(top, node("p", "trace-summary", stage.summary), stageFacts, renderStageDetails(stage, detail, source));
+    const disclosure = renderStageDetails(stage, detail, source, compactViewport ? stage.id === focusStageId : true);
+    body.append(top, node("p", "trace-summary", stage.summary), stageFacts, disclosure);
     if (stage.links.length > 0) {
       const links = node("div", "trace-links");
       links.setAttribute("aria-label", `${stage.title} evidence links`);
@@ -626,6 +657,9 @@ function renderTrace(detail, source) {
       body.append(links);
     }
     item.append(body);
+    const syncExpandedState = () => item.classList.toggle("trace-stage-expanded", disclosure.open);
+    disclosure.addEventListener("toggle", syncExpandedState);
+    syncExpandedState();
     list.append(item);
   }
   section.append(list);
@@ -738,6 +772,105 @@ function renderDecision(detail) {
   return section;
 }
 
+function renderAgentPanel(detail, source) {
+  const agent = detail.evidence.agentInvestigation ?? {
+    status: "not-run",
+    provider: null,
+    model: null,
+    steps: [],
+    narrative: null,
+    uncertainty: null,
+    failure: null,
+  };
+  const plan = detail.evidence.upgradeInvestigation?.plan;
+  const initialCheckIds = new Set([
+    "implementation-before",
+    "implementation-at-upgrade",
+    "implementation-bytecode",
+  ]);
+  const allowedCheckIds = [...new Set((plan?.selectedChecks ?? []).filter((id) => !initialCheckIds.has(id)))];
+  const allowedCheckSet = new Set(allowedCheckIds);
+  const selectedCheckIds = [...new Set((agent.steps ?? [])
+    .map(({ requestedCheckId }) => requestedCheckId)
+    .filter((id) => allowedCheckSet.has(id)))];
+  const status = {
+    complete: { label: "Enabled · complete", variant: "complete" },
+    unavailable: { label: "Unavailable", variant: "unsupported" },
+    failed: { label: "Enabled · failed", variant: "failed" },
+    "not-run": { label: "Not run", variant: "skipped" },
+  }[agent.status] ?? { label: "Unavailable", variant: "unsupported" };
+  const section = node("section", "agent-panel");
+  section.id = "agent-planner";
+  section.setAttribute("aria-labelledby", "agent-panel-title");
+  const heading = node("div", "agent-panel-heading");
+  const headingCopy = node("div");
+  const headingTitle = node("h3", "", "Bounded investigation planner");
+  headingTitle.id = "agent-panel-title";
+  headingCopy.append(node("p", "kicker", "Planning context"), headingTitle);
+  heading.append(headingCopy, badge(status.label, `agent-panel-status ${status.variant}`));
+  const sourceNote = source === "verified-fixture"
+    ? "No live agent run claimed. Verified fixture replay."
+    : agent.status === "complete"
+      ? "The planner selected only registered follow-up checks for this live investigation."
+      : agent.status === "not-run"
+        ? "No live agent run is attached to this result."
+        : "The planner was unavailable or failed; deterministic evidence remains usable.";
+  const intro = node("p", "agent-panel-source", sourceNote);
+  const meta = node("dl", "agent-panel-meta");
+  const appendMeta = (label, value, className = "") => {
+    const group = node("div", className);
+    group.append(node("dt", "", label), node("dd", "", value));
+    meta.append(group);
+  };
+  appendMeta("Approved checks selected", `${selectedCheckIds.length} of ${allowedCheckIds.length}`);
+  appendMeta("Allowed scope", allowedCheckIds.join(", ") || "No registered follow-up checks");
+  appendMeta("Provider", agent.provider && agent.model ? `${agent.provider} · ${agent.model}` : "No provider result");
+  const notes = node("div", "agent-panel-notes");
+  const planningNote = agent.narrative
+    ?? agent.steps?.at(-1)?.rationale
+    ?? (agent.status === "not-run" ? "No planning note is attached to this verified replay." : agent.failure?.message ?? "No planning note was returned.");
+  const uncertainty = agent.uncertainty
+    ?? (agent.status === "not-run" ? "This replay contains deterministic evidence only." : agent.failure?.message ?? "No additional uncertainty was recorded.");
+  const note = (label, value, className) => {
+    const block = node("div", `agent-panel-note ${className}`);
+    block.append(node("p", "kicker", label), node("p", "", value));
+    notes.append(block);
+  };
+  note("Planning note", planningNote, "planning");
+  note("Uncertainty / limits", uncertainty, "uncertainty");
+  const boundary = node("p", "agent-panel-boundary", "Final disposition is deterministic. The planner can select registered follow-up checks, but it cannot assign the disposition or alter the evidence.");
+  section.append(heading, intro, meta, notes, boundary);
+  return section;
+}
+
+function renderEmptyCaseSummary(status, message) {
+  const profile = getArchiveProfile(state.selectedProfileId ?? state.activeProfileId);
+  const activeProfile = getArchiveProfile(state.activeProfileId);
+  const stateVariant = status === "failed" ? "failed" : "incomplete";
+  elements.caseProfileId.textContent = profile?.id ?? "Unavailable";
+  elements.caseProtocol.textContent = profile?.displayName ?? "Watchtower investigation";
+  elements.caseTarget.textContent = profile ? `${profile.targetName} · Base mainnet` : "Base mainnet";
+  elements.caseSummaryBrief.textContent = message;
+  elements.caseSummaryDisposition.replaceChildren();
+  const dispositionBadge = badge(stateVariant, `case-disposition-badge ${stateVariant}`);
+  dispositionBadge.setAttribute("aria-label", `Deterministic disposition: ${stateVariant}`);
+  elements.caseSummaryDisposition.append(dispositionBadge);
+  elements.caseStatus.textContent = status;
+  elements.caseDisposition.textContent = "not issued";
+  elements.caseJourney.textContent = status === "failed"
+    ? "Investigation failed"
+    : "0 of 6 stages complete · investigation incomplete";
+  elements.caseChecks.textContent = profile?.receipt?.checks ? `0 of ${profile.receipt.checks.length} passed` : "Not available";
+  elements.caseReceipt.textContent = "Not issued";
+  elements.caseReceipt.title = "";
+  elements.caseSummaryActions.replaceChildren();
+  elements.activeProfileNote.textContent = profile && activeProfile
+    ? profile.id === activeProfile.id
+      ? `Live scanning is limited to ${profile.displayName}. A bounded historical scan is available.`
+      : `Verified fixture replay only. Live scanning is currently limited to ${activeProfile.displayName}.`
+    : "Select a registered profile to begin a bounded read-only investigation.";
+}
+
 function renderDetail(detail, source) {
   const { alert, evidence } = detail;
   const investigation = evidence.upgradeInvestigation;
@@ -768,8 +901,10 @@ function renderDetail(detail, source) {
   elements.detail.append(renderDecision(detail));
 
   const receipt = evidence.investigationReceipt;
+  let receiptBar = null;
   if (receipt) {
-    const receiptBar = node("section", "receipt-bar");
+    receiptBar = node("section", "receipt-bar");
+    receiptBar.id = "detail-receipt";
     const copy = node("div");
     copy.append(node("p", "kicker", "Browser-verifiable receipt"), node("h3", "receipt-id", receipt.receiptId), node("p", "", "The review packet includes the alert, evidence, limitations, and canonical receipt. It documents what was checked and does not claim the upgrade is safe."));
     const actions = receiptVerificationControl(receipt, detail, source);
@@ -786,7 +921,6 @@ function renderDetail(detail, source) {
       actionRow.prepend(button);
     }
     receiptBar.append(copy, actions);
-    elements.detail.append(receiptBar);
   }
 
   const evidenceSection = node("section", "evidence-section");
@@ -797,6 +931,8 @@ function renderDetail(detail, source) {
   for (const row of buildEvidenceRows(evidence, alert.classificationLabel)) grid.append(evidenceItem(row));
   evidenceSection.append(evidenceHeading, grid);
   elements.detail.append(evidenceSection, renderSources(evidence));
+  if (receiptBar) elements.detail.append(receiptBar);
+  elements.detail.append(renderAgentPanel(detail, source));
   renderCaseSummary(detail, source);
 }
 
@@ -832,7 +968,26 @@ function showEmptyInvestigation(message, status = "incomplete", context = {}) {
     node("p", "detail-empty-copy", summary),
     facts,
   );
-  elements.detail.append(empty);
+  const profile = getArchiveProfile(state.selectedProfileId ?? state.activeProfileId);
+  const agentStatus = context.agentStatus ?? "not-run";
+  const emptyAgentDetail = {
+    alert: { targetId: profile?.id ?? null, summary: message },
+    evidence: {
+      upgradeInvestigation: profile?.receipt?.plan ? { plan: profile.receipt.plan } : null,
+      agentInvestigation: {
+        status: agentStatus,
+        provider: null,
+        model: null,
+        steps: [],
+        narrative: null,
+        uncertainty: context.agentUncertainty ?? null,
+        failure: context.agentFailure ?? null,
+      },
+      investigationReceipt: null,
+    },
+  };
+  elements.detail.append(empty, renderAgentPanel(emptyAgentDetail, "live"));
+  renderEmptyCaseSummary(status, message);
 }
 
 function selectProfile(profileId, requestedSource) {
