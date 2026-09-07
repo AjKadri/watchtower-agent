@@ -404,7 +404,7 @@
 .docs-investigation-flow > li > span,
 .docs-architecture-flow span,
 .docs-layer-number {
-  color: var(--faint);
+  color: var(--muted);
   font-family: var(--mono);
   font-size: 0.58rem;
   font-weight: 700;
@@ -557,6 +557,11 @@
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--surface-raised);
+}
+
+.docs-table-wrap:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
 }
 
 .docs-table {
@@ -833,7 +838,7 @@
   color: #a6c8b1;
 }
 
-.docs-receipt-id {
+.docs-section .docs-receipt-id {
   display: block;
   margin: 28px 0 22px;
   color: #f2fff5;

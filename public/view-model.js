@@ -284,7 +284,7 @@ export function buildInvestigationTrace(detail) {
     && evidence.log.rawTopics?.length,
   );
   const agent = evidence.agentInvestigation ?? { status: "not-run", steps: [], narrative: null, uncertainty: null, failure: null };
-  const agentStatus = agent.status === "failed" ? "failed" : agent.status === "unavailable" ? "incomplete" : "complete";
+  const deterministicStatus = stageStatus(protocol);
   const agentDetails = [
     {
       id: "agent-status",
@@ -356,13 +356,17 @@ export function buildInvestigationTrace(detail) {
       id: "investigate",
       index: 4,
       title: "Investigate",
-      status: agentStatus === "complete" ? stageStatus(protocol) : agentStatus,
+      status: deterministicStatus,
       elapsedMs: elapsedFor(protocol),
       summary: agent.status === "complete"
         ? "The bounded agent selected follow-up checks from the registered plan; deterministic code executed them."
         : agent.status === "not-run"
           ? "This is a verified fixture replay. No live agent run is claimed; the recorded deterministic follow-up checks are shown below."
-          : "Agent execution was unavailable or failed, so deterministic code completed every required plan check.",
+          : deterministicStatus === "complete"
+            ? `The bounded agent is ${agent.status}; deterministic code completed every required plan check.`
+            : deterministicStatus === "failed"
+              ? `The bounded agent is ${agent.status}; one or more deterministic follow-up checks failed.`
+              : `The bounded agent is ${agent.status}; deterministic follow-up checks are incomplete.`,
       details: agentDetails,
       links: identityLinks,
     },

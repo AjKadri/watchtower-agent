@@ -231,14 +231,14 @@ describe("dashboard view model", () => {
     expect(styles).toContain("overflow-wrap: anywhere");
   });
 
-  it("keeps mobile investigation disclosure behavior bounded to the trace state", () => {
+  it("keeps mobile investigation disclosure behavior bounded to deterministic trace state", () => {
     expect(isMobileLayout(320)).toBe(true);
     expect(isMobileLayout(360)).toBe(true);
     expect(isMobileLayout(390)).toBe(true);
     expect(isMobileLayout(721)).toBe(false);
 
-    const incompleteEvidence = structuredClone(evidence);
-    incompleteEvidence.agentInvestigation = {
+    const failedAgentEvidence = structuredClone(evidence);
+    failedAgentEvidence.agentInvestigation = {
       status: "failed",
       provider: "openrouter",
       model: "test/model",
@@ -247,11 +247,14 @@ describe("dashboard view model", () => {
       uncertainty: "Provider unavailable after the bounded timeout.",
       failure: { code: "agent-provider-failed", category: "provider", message: "Provider failed." },
     };
-    const trace = buildInvestigationTrace({ alert, evidence: incompleteEvidence });
+    const trace = buildInvestigationTrace({ alert, evidence: failedAgentEvidence });
 
     expect(trace).toHaveLength(6);
-    expect(trace[3]).toMatchObject({ id: "investigate", status: "failed" });
-    expect(trace.filter(({ status }) => status === "failed" || status === "incomplete")).toHaveLength(1);
+    expect(trace[3]).toMatchObject({ id: "investigate", status: "complete" });
+    expect(trace[3].details).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "agent-status", status: "failed" }),
+    ]));
+    expect(summarizeTraceProgression(trace)).toBe("6 of 6 stages complete");
   });
 
   it("keeps archive triggers and checks tied to the committed fixture and registry", () => {
@@ -432,6 +435,8 @@ describe("dashboard view model", () => {
     expect(html).toContain('id="failure-panel"');
     expect(html).toContain('id="packet-file"');
     expect(html).toContain('id="packet-verification-result"');
+    expect(html).toContain('class="site-frame monitor-track" role="region" tabindex="0" aria-label="Investigation stages"');
+    expect(html).toContain('<a class="wordmark" href="#top" aria-label="Watchtower home"');
     expect(html).toMatch(/<link\s+rel="icon"\s+type="image\/svg\+xml"\s+href="\/favicon\.svg"\s*\/?>/);
     expect(html).toMatch(/<img\s+class="wordmark-mark"\s+src="\/watchtower-mark\.svg"\s+alt=""\s+aria-hidden="true"\s*\/?>/);
     expect(html).toContain('href="https://github.com/AjKadri/watchtower-agent"');
@@ -462,6 +467,7 @@ describe("dashboard view model", () => {
     expect(css).toContain(".hero-actions");
     expect(css).toContain("@keyframes radar-sweep");
     expect(css).toContain('html[data-theme="dark"]');
+    expect(css).toContain(".monitor-track:focus-visible");
     expect(css).toContain(".profile-network");
     expect(css).toContain(".detail-title-kicker");
     expect(css).toContain(".packet-verifier-panel");
@@ -601,7 +607,38 @@ describe("dashboard view model", () => {
       uncertainty: null,
       failure: { code: "agent-credentials-missing", category: "unavailable", message: "Agent credentials are missing." },
     };
-    expect(buildInvestigationTrace({ alert, evidence: liveEvidence })[3]).toMatchObject({ status: "incomplete" });
+    const unavailableTrace = buildInvestigationTrace({ alert, evidence: liveEvidence });
+    expect(unavailableTrace[3]).toMatchObject({ status: "complete" });
+    expect(unavailableTrace[3].details).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "agent-status", status: "unsupported" }),
+    ]));
+    expect(summarizeTraceProgression(unavailableTrace)).toBe("6 of 6 stages complete");
+  });
+
+  it("keeps deterministic failures visible when the bounded agent state is separate", () => {
+    const mismatchEvidence = structuredClone(evidence);
+    mismatchEvidence.agentInvestigation = {
+      status: "unavailable",
+      provider: "openrouter",
+      model: null,
+      steps: [],
+      narrative: null,
+      uncertainty: null,
+      failure: { code: "agent-credentials-missing", category: "unavailable", message: "Agent credentials are missing." },
+    };
+    mismatchEvidence.upgradeInvestigation.checks = checks.map((item) => item.id === "configured-pool"
+      ? { ...item, status: "mismatch", assertion: { ...item.assertion, actual: "2", matches: false } }
+      : item);
+
+    const trace = buildInvestigationTrace({ alert, evidence: mismatchEvidence });
+
+    expect(trace[3].status).toBe("failed");
+    expect(trace[3].summary).toContain("deterministic follow-up checks failed");
+    expect(trace[3].details).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "agent-status", status: "unsupported" }),
+      expect.objectContaining({ id: "configured-pool", status: "mismatch" }),
+    ]));
+    expect(summarizeTraceProgression(trace)).toBe("Investigation failed");
   });
 
   it("renders the fixed Compound identity checks as a complete protocol stage", () => {
@@ -846,13 +883,19 @@ describe("browser receipt verification", () => {
   it("keeps the primary docs destination internal and the source link external", () => {
     const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
     const docs = readFileSync(new URL("../public/docs/index.html", import.meta.url), "utf8");
+    const css = readFileSync(new URL("../public/docs/docs.css", import.meta.url), "utf8");
 
     expect(html).toContain('<a href="/docs">Docs</a>');
     expect(docs).toContain("<title>Watchtower Docs · Read-only Base investigations</title>");
     expect(docs).toContain('href="https://github.com/AjKadri/watchtower-agent"');
     expect(docs).toContain('href="/"');
     expect(docs).toContain('id="review-packets"');
+    expect(docs).toContain('class="docs-table-wrap" role="region" tabindex="0" aria-label="Signals implemented by current profiles"');
+    expect(docs).toContain('<dl class="docs-receipt-grid">');
+    expect(docs).toContain("Current public build");
+    expect(docs).not.toContain("v0.1.0 MVP");
     expect(docs).toContain("BROWSER-LOCAL VERIFICATION");
+    expect(css).toContain(".docs-table-wrap:focus-visible");
     expect(html).not.toContain("section-index");
     expect(docs).not.toContain("section-index");
     expect(html).not.toMatch(/class="section-label">\s*\d+\s*\//);
