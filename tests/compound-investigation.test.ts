@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { AgentProviderError, type AgentRuntime, type InvestigationAgentProvider } from "../src/agent/provider.js";
 import { RpcReadError } from "../src/chain/errors.js";
 import type {
   Address,
@@ -132,6 +133,23 @@ describe("Compound III Base USDC Comet investigation profile", () => {
     expect(reader.reads.every(({ blockNumber }) => blockNumber === BigInt(investigation.previousBlock)
       || blockNumber === BigInt(investigation.upgradeBlock))).toBe(true);
     expect(investigationReceiptSchema.safeParse(result.evidence[0].investigationReceipt).success).toBe(true);
+  });
+
+  it("keeps deterministic Compound disposition complete when the bounded agent fails", async () => {
+    const provider: InvestigationAgentProvider = {
+      provider: "openrouter",
+      model: "test/model",
+      decide: async () => { throw new AgentProviderError("Provider unavailable.", "provider"); },
+    };
+    const runtime: AgentRuntime = { providerName: "openrouter", model: provider.model, provider };
+    const result = await scanApprovedRange(new CompoundFixtureReader(), config, {}, { agent: runtime });
+
+    expect(result.status).toBe("complete");
+    expect(result.evidence[0]).toMatchObject({
+      upgradeInvestigation: { disposition: "corroborated", evidenceStatus: "complete", checks: expect.any(Array) },
+      agentInvestigation: { status: "failed", failure: { category: "provider" } },
+    });
+    expect(result.evidence[0].upgradeInvestigation?.checks).toHaveLength(6);
   });
 
   it("produces a contradicted investigation when governor() at N conflicts", async () => {

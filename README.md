@@ -33,9 +33,10 @@ bytecode, and protocol-specific checks at the upgrade block.
 - [Run the demo locally](#local-setup-and-tests)
 
 The live demo supports the three committed, verified fixture replays and live
-scans for the configured Aave V3 Base Pool and ether.fi Base weETH OFT profiles
-when the archive-capable Base RPC is available. Compound remains fixture-only.
-The same bounded flow can be reproduced locally.
+scans for the configured Aave V3 Base Pool, Compound III Base USDC Comet, and
+ether.fi Base weETH OFT profiles when the archive-capable Base RPC is available.
+All three profiles also have verified fixture replays. The same bounded flow
+can be reproduced locally.
 
 ## Verify it yourself in 60 seconds
 
@@ -46,8 +47,8 @@ The same bounded flow can be reproduced locally.
 5. Open the receipt or review packet.
 6. Recompute the canonical receipt ID in the browser.
 
-Aave and ether.fi are configured for live scanning. Compound is a verified
-fixture replay. The live path requires an archive-capable Base RPC endpoint.
+All three profiles are configured for live scanning and have verified fixture
+replays. The live path requires an archive-capable Base RPC endpoint.
 
 ![Watchtower investigation workspace showing a verified ether.fi fixture replay and receipt](./public/screenshots/watchtower-live-investigation.jpg)
 
@@ -128,8 +129,9 @@ server-selected profile.
 | ether.fi Base weETH OFT | [Block 23487559](https://basescan.org/block/23487559) | EIP-1967 implementation before and after, implementation bytecode, `endpoint()`, `token()`, `sharedDecimals()` |
 
 The committed fixtures contain real evidence from these three upgrades. Live
-scanning is enabled for the configured Aave V3 Base Pool and ether.fi Base
-weETH OFT profiles. Compound remains a verified fixture replay.
+scanning is enabled for the configured Aave V3 Base Pool, Compound III Base USDC
+Comet, and ether.fi Base weETH OFT profiles. All three profiles also have
+verified fixture replays.
 
 ## Architecture and technical detail
 
@@ -140,8 +142,8 @@ weETH OFT profiles. Compound remains a verified fixture replay.
 2. **Plan.** Choose exactly one immutable versioned plan with a fixed capability
    and read budget.
 3. **Check.** Read implementation state at N-1 and N and confirm bytecode at N.
-4. **Investigate.** On a configured live Aave or ether.fi scan, the bounded
-   agent may request only remaining check IDs from the selected plan.
+4. **Investigate.** On a configured live Aave, Compound, or ether.fi scan, the
+   bounded agent may request only remaining check IDs from the selected plan.
    Deterministic code resolves and executes every RPC parameter.
 5. **Decide.** Deterministic rules derive severity and the final disposition
    after every required plan check has executed.
@@ -256,7 +258,7 @@ Express API and in-memory store -> vanilla investigation workspace
 | `GET` | `/api/receipts/:receiptId` | Download a validated JSON receipt |
 
 Run the configured default scan. To select a live-enabled profile explicitly,
-send its registered `profileId` (Aave or ether.fi):
+send its registered `profileId` (Aave, Compound, or ether.fi):
 
 ```sh
 curl -X POST \
@@ -310,9 +312,9 @@ a rescan.
 - Only the three listed Base profiles are supported.
 - Only the configured `Upgraded(address)` event is detected.
 - The live API scans one registered live-enabled profile and one approved
-  historical range per request. Aave and ether.fi are live-enabled; Compound
-  remains a verified fixture replay. The browser selector cannot change
-  scanner scope.
+  historical range per request. Aave, Compound, and ether.fi are live-enabled,
+  and all three also have verified fixture replays. The browser selector cannot
+  change scanner scope.
 - There is no continuous monitoring, notification delivery, authentication,
   wallet access, transaction submission, database, multi-chain support,
   dynamic proxy discovery, or arbitrary RPC execution.
@@ -369,7 +371,8 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000). The three fixture replays
 are available immediately.
 
-The live Aave and ether.fi investigations need an archive-capable Base mainnet endpoint.
+The live Aave, Compound III, and ether.fi investigations need an archive-capable
+Base mainnet endpoint.
 Set `BASE_RPC_URL` only in the ignored `.env` file, then run:
 
 ```sh
@@ -385,8 +388,8 @@ and requires `npm run build` after a fresh checkout. It does not load the
 development-only `tsx` package. Use `npm run scan:dev` for source-level
 development.
 
-To enable the optional bounded agent for a live Aave or ether.fi scan, set both
-values only in the ignored `.env` file:
+To enable the optional bounded agent for a live Aave, Compound, or ether.fi
+scan, set both values only in the ignored `.env` file:
 
 ```sh
 OPENROUTER_API_KEY=your-server-side-key

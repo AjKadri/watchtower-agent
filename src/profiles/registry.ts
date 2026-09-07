@@ -15,6 +15,7 @@ export const targetProfileIdSchema = z.enum([
 
 export const LIVE_SCAN_PROFILE_IDS = [
   "aave-v3-base-core",
+  "compound-iii-base-usdc-comet",
   "etherfi-base-weeth-oft",
 ] as const;
 

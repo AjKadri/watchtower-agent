@@ -89,12 +89,12 @@ describe("closed target profile registry", () => {
     expect(profiles[2].expectedFixture.path).toBe("fixtures/base/etherfi-weeth-oft-upgrade-23487559");
   });
 
-  it("keeps live scanning closed to the approved Aave and ether.fi profiles", () => {
+  it("keeps live scanning closed to the approved three profiles", () => {
     expect(LIVE_SCAN_PROFILE_IDS).toEqual([
       "aave-v3-base-core",
+      "compound-iii-base-usdc-comet",
       "etherfi-base-weeth-oft",
     ]);
-    expect(LIVE_SCAN_PROFILE_IDS).not.toContain("compound-iii-base-usdc-comet");
   });
 
   it("rejects unknown profile IDs and selection overrides", () => {

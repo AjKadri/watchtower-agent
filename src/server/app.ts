@@ -200,7 +200,7 @@ export function createApp(dependencies: AppDependencies): Express {
         response.status(400).json({
           error: {
             code: "profile-not-live-enabled",
-            message: "Live scans are enabled only for the configured Aave V3 Base Pool and ether.fi Base weETH OFT profiles.",
+            message: "Live scans are enabled only for the configured Aave V3 Base Pool, Compound III Base USDC Comet, and ether.fi Base weETH OFT profiles.",
           },
         });
         return;

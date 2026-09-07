@@ -38,9 +38,20 @@ type EtherfiInvestigationFixture = {
   tokenAtUpgradeResult: Hex;
   sharedDecimalsAtUpgradeResult: Hex;
 };
+type CompoundInvestigationFixture = {
+  previousBlock: string;
+  upgradeBlock: string;
+  implementationBeforeWord: Hex;
+  implementationAtUpgradeWord: Hex;
+  implementationByteLength: string;
+  governorBeforeResult: Hex;
+  governorAtUpgradeResult: Hex;
+  baseTokenAtUpgradeResult: Hex;
+};
 
 const fixtureRoot = "../fixtures/base/aave-v3-upgrade-41105890/";
 const config = getTargetProfile("aave-v3-base-core");
+const compoundConfig = getTargetProfile("compound-iii-base-usdc-comet");
 const etherfiConfig = getTargetProfile("etherfi-base-weeth-oft");
 const block = readJson<FixtureBlock>(`${fixtureRoot}block.json`, import.meta.url);
 const transaction = readJson<FixtureTransaction>(`${fixtureRoot}transaction.json`, import.meta.url);
@@ -140,6 +151,55 @@ class EtherfiApiFixtureReader implements ChainReader {
   }
 }
 
+const compoundFixtureRoot = "../fixtures/base/compound-iii-usdc-upgrade-40235590/";
+const compoundBlock = readJson<FixtureBlock>(`${compoundFixtureRoot}block.json`, import.meta.url);
+const compoundTransaction = readJson<FixtureTransaction>(`${compoundFixtureRoot}transaction.json`, import.meta.url);
+const compoundReceipt = readJson<FixtureReceipt>(`${compoundFixtureRoot}receipt.json`, import.meta.url);
+const compoundInvestigationFixture = readJson<CompoundInvestigationFixture>(`${compoundFixtureRoot}investigation.json`, import.meta.url);
+const compoundLog: ChainLog = {
+  ...compoundReceipt.selectedLogs[0],
+  blockHash: compoundBlock.hash,
+  blockNumber: BigInt(compoundBlock.number),
+  logIndex: Number(compoundReceipt.selectedLogs[0].logIndex),
+  transactionHash: compoundReceipt.transactionHash,
+  transactionIndex: 93,
+};
+
+class CompoundApiFixtureReader implements ChainReader {
+  filters: LogFilter[] = [];
+  async getChainId(): Promise<number> { return 8453; }
+  async getLatestBlockNumber(): Promise<bigint> { return 50_000_000n; }
+  async getLogs(filter: LogFilter) {
+    this.filters.push(filter);
+    return { logs: [compoundLog], malformed: [] };
+  }
+  async getBlock(): Promise<ChainBlock> {
+    return {
+      hash: compoundBlock.hash,
+      number: BigInt(compoundBlock.number),
+      timestamp: BigInt(Date.parse(compoundBlock.timestamp) / 1_000),
+    };
+  }
+  async getTransaction(): Promise<ChainTransaction> { return compoundTransaction; }
+  async getTransactionReceipt(): Promise<ChainReceipt> {
+    return { transactionHash: compoundReceipt.transactionHash, status: compoundReceipt.status, logs: [compoundLog] };
+  }
+  async getStorageAt(_address: `0x${string}`, _slot: Hex, blockNumber: bigint): Promise<Hex> {
+    return blockNumber === BigInt(compoundInvestigationFixture.previousBlock)
+      ? compoundInvestigationFixture.implementationBeforeWord
+      : compoundInvestigationFixture.implementationAtUpgradeWord;
+  }
+  async getCode(): Promise<Hex> {
+    return `0x${"60".repeat(Number(compoundInvestigationFixture.implementationByteLength))}`;
+  }
+  async call(_address: `0x${string}`, data: Hex, blockNumber: bigint): Promise<Hex> {
+    if (data === "0xc55dae63") return compoundInvestigationFixture.baseTokenAtUpgradeResult;
+    return blockNumber === BigInt(compoundInvestigationFixture.previousBlock)
+      ? compoundInvestigationFixture.governorBeforeResult
+      : compoundInvestigationFixture.governorAtUpgradeResult;
+  }
+}
+
 const servers: Server[] = [];
 
 async function serve(reader: ChainReader, scanDeadlineMs?: number, selectedConfig = config): Promise<string> {
@@ -170,11 +230,12 @@ describe("Watchtower API", () => {
     const configurationText = JSON.stringify(configuration);
     expect(configuration.liveScanProfileIds).toEqual([
       "aave-v3-base-core",
+      "compound-iii-base-usdc-comet",
       "etherfi-base-weeth-oft",
     ]);
     expect(configuration.profiles).toEqual([
       expect.objectContaining({ id: "aave-v3-base-core", liveScanEligible: true, fixtureReplayAvailable: true }),
-      expect.objectContaining({ id: "compound-iii-base-usdc-comet", liveScanEligible: false, fixtureReplayAvailable: true }),
+      expect.objectContaining({ id: "compound-iii-base-usdc-comet", liveScanEligible: true, fixtureReplayAvailable: true }),
       expect.objectContaining({ id: "etherfi-base-weeth-oft", liveScanEligible: true, fixtureReplayAvailable: true }),
     ]);
     expect(configuration.profile).toMatchObject({ id: "aave-v3-base-core", liveScanEligible: true });
@@ -278,6 +339,45 @@ describe("Watchtower API", () => {
     }]);
   });
 
+  it("selects the registered Compound live profile and runs its fixed six-check plan", async () => {
+    const reader = new CompoundApiFixtureReader();
+    const baseUrl = await serve(reader, undefined, compoundConfig);
+    const response = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ profileId: "compound-iii-base-usdc-comet" }),
+    });
+    const result = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(result).toMatchObject({
+      status: "complete",
+      targetId: "compound-iii-base-usdc-comet",
+      failures: [],
+      evidence: [{
+        block: { number: "40235590" },
+        upgradeInvestigation: {
+          disposition: "corroborated",
+          checks: [
+            { id: "implementation-before" },
+            { id: "implementation-at-upgrade" },
+            { id: "implementation-bytecode" },
+            { id: "governor-before" },
+            { id: "governor-at-upgrade" },
+            { id: "base-token-at-upgrade" },
+          ],
+        },
+        investigationReceipt: { finalDisposition: "corroborated" },
+      }],
+    });
+    expect(reader.filters).toEqual([{
+      address: compoundConfig.target.primaryContract.address,
+      topic0: compoundConfig.detectors[0].topic0,
+      fromBlock: 40_235_590n,
+      toBlock: 40_235_590n,
+    }]);
+  });
+
   it("validates scan, alert, and receipt identifiers before lookup", async () => {
     const baseUrl = await serve(new ApiFixtureReader());
 
@@ -312,14 +412,6 @@ describe("Watchtower API", () => {
     });
     expect(invalid.status).toBe(400);
     expect(reader.filters).toHaveLength(0);
-
-    const fixtureOnly = await fetch(`${baseUrl}/api/scans`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ profileId: "compound-iii-base-usdc-comet" }),
-    });
-    expect(fixtureOnly.status).toBe(400);
-    expect(await fixtureOnly.json()).toMatchObject({ error: { code: "profile-not-live-enabled" } });
 
     const invalidProfile = await fetch(`${baseUrl}/api/scans`, {
       method: "POST",

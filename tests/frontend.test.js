@@ -126,6 +126,7 @@ describe("dashboard view model", () => {
   it("exposes only the three configured profiles in the selector", () => {
     const options = buildProfileOptions(archiveProfiles, "etherfi-base-weeth-oft", [
       "aave-v3-base-core",
+      "compound-iii-base-usdc-comet",
       "etherfi-base-weeth-oft",
     ]);
 
@@ -137,6 +138,7 @@ describe("dashboard view model", () => {
     expect(options.filter(({ isActive }) => isActive).map(({ id }) => id)).toEqual(["etherfi-base-weeth-oft"]);
     expect(options.filter(({ isLiveScanEligible }) => isLiveScanEligible).map(({ id }) => id)).toEqual([
       "aave-v3-base-core",
+      "compound-iii-base-usdc-comet",
       "etherfi-base-weeth-oft",
     ]);
     expect(options.every(({ id }) => !id.startsWith("0x"))).toBe(true);
@@ -147,7 +149,7 @@ describe("dashboard view model", () => {
     ]);
     expect(options.map(({ availability }) => availability)).toEqual([
       "Live scan eligible",
-      "Verified fixture replay",
+      "Live scan eligible",
       "Live scan eligible",
     ]);
   });
@@ -450,6 +452,7 @@ describe("dashboard view model", () => {
     expect(html).toContain('href="https://x.com/watchtowerbase_"');
     expect(html).toContain('href="https://t.me/watchtowerbase"');
     expect(html).toContain('Run configured live scan');
+    expect(html).toContain('Three configured profiles. Three live-scan targets.');
     expect(app).toContain('Run configured ${profile.displayName} live scan');
     expect(app).toContain('${profile.displayName} is live-scan eligible. The scan remains bounded to its registered historical range.');
     expect(app).toContain('Verified fixture replay only. Live scanning is enabled for ${liveScanScopeLabel()}.');
