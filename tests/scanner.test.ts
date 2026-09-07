@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { AgentRuntime, InvestigationAgentProvider } from "../src/agent/provider.js";
 import { RpcReadError, type RpcFailureCategory } from "../src/chain/errors.js";
 import type {
   Address,
@@ -217,6 +218,46 @@ describe("bounded evidence scan", () => {
       fromBlock: 41_105_890n,
       toBlock: 41_105_890n,
     }]);
+  });
+
+  it("enables the bounded agent for the approved Aave live profile", async () => {
+    const provider: InvestigationAgentProvider = {
+      provider: "openrouter",
+      model: "test/model",
+      decide: async () => ({
+        action: "finish",
+        rationale: "The deterministic evidence is sufficient.",
+        narrative: "The configured Aave checks will complete deterministically.",
+        uncertainty: "This result covers only the configured historical upgrade.",
+      }),
+    };
+    const runtime: AgentRuntime = {
+      providerName: "openrouter",
+      model: provider.model,
+      provider,
+    };
+
+    const result = await scanApprovedRange(new FixtureReader(), config, {}, { agent: runtime });
+
+    expect(result.status).toBe("complete");
+    expect(result.evidence[0].agentInvestigation).toMatchObject({
+      status: "complete",
+      provider: "openrouter",
+      model: "test/model",
+      steps: [],
+    });
+    expect(result.evidence[0].upgradeInvestigation.checks).toHaveLength(6);
+    expect(result.evidence[0].investigationReceipt).not.toHaveProperty("narrative");
+  });
+
+  it("keeps the Aave fixture receipt unchanged while live code evidence may add a hash", async () => {
+    const result = await scanApprovedRange(new FixtureReader(), config);
+    const bytecode = result.evidence[0].upgradeInvestigation.checks.find(({ id }) => id === "implementation-bytecode");
+
+    expect(bytecode?.result).toMatchObject({ kind: "bytecode", hash: expect.stringMatching(/^0x[0-9a-f]{64}$/) });
+    expect(result.evidence[0].investigationReceipt?.receiptId).not.toBe(
+      "receipt_ffa12a49a766b8a1eb68072fd078b4adfda4ae0ca9e118c65c94ae350ca33b51",
+    );
   });
 
   it("accepts a lowercase viem emitter against checksum configuration and receipt data", async () => {

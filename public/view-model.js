@@ -30,7 +30,8 @@ export function canRenderAlertDetail(alerts, selectedAlertId, responseAlertId) {
   return selectedAlertId === responseAlertId && alerts.some(({ id }) => id === responseAlertId);
 }
 
-export function buildProfileOptions(profiles, activeProfileId) {
+export function buildProfileOptions(profiles, activeProfileId, liveProfileIds = [activeProfileId]) {
+  const liveProfiles = new Set(liveProfileIds.filter(Boolean));
   return profiles.map((profile, index) => ({
     index: index + 1,
     id: profile.id,
@@ -39,7 +40,8 @@ export function buildProfileOptions(profiles, activeProfileId) {
     product: profile.product,
     targetPurpose: profile.targetPurpose,
     isActive: profile.id === activeProfileId,
-    availability: profile.id === activeProfileId ? "Live scan eligible" : "Verified fixture replay",
+    isLiveScanEligible: liveProfiles.has(profile.id),
+    availability: liveProfiles.has(profile.id) ? "Live scan eligible" : "Verified fixture replay",
   }));
 }
 

@@ -29,9 +29,19 @@ type InvestigationFixture = {
   poolRevisionBeforeResult: Hex;
   poolRevisionAtUpgradeResult: Hex;
 };
+type EtherfiInvestigationFixture = {
+  previousBlock: string;
+  implementationBeforeWord: Hex;
+  implementationAtUpgradeWord: Hex;
+  implementationByteLength: string;
+  endpointAtUpgradeResult: Hex;
+  tokenAtUpgradeResult: Hex;
+  sharedDecimalsAtUpgradeResult: Hex;
+};
 
 const fixtureRoot = "../fixtures/base/aave-v3-upgrade-41105890/";
 const config = getTargetProfile("aave-v3-base-core");
+const etherfiConfig = getTargetProfile("etherfi-base-weeth-oft");
 const block = readJson<FixtureBlock>(`${fixtureRoot}block.json`, import.meta.url);
 const transaction = readJson<FixtureTransaction>(`${fixtureRoot}transaction.json`, import.meta.url);
 const receipt = readJson<FixtureReceipt>(`${fixtureRoot}receipt.json`, import.meta.url);
@@ -82,10 +92,58 @@ class ApiFixtureReader implements ChainReader {
   }
 }
 
+const etherfiFixtureRoot = "../fixtures/base/etherfi-weeth-oft-upgrade-23487559/";
+const etherfiBlock = readJson<FixtureBlock>(`${etherfiFixtureRoot}block.json`, import.meta.url);
+const etherfiTransaction = readJson<FixtureTransaction>(`${etherfiFixtureRoot}transaction.json`, import.meta.url);
+const etherfiReceipt = readJson<FixtureReceipt>(`${etherfiFixtureRoot}receipt.json`, import.meta.url);
+const etherfiInvestigationFixture = readJson<EtherfiInvestigationFixture>(`${etherfiFixtureRoot}investigation.json`, import.meta.url);
+const etherfiLog: ChainLog = {
+  ...etherfiReceipt.selectedLogs[0],
+  blockHash: etherfiBlock.hash,
+  blockNumber: BigInt(etherfiBlock.number),
+  logIndex: Number(etherfiReceipt.selectedLogs[0].logIndex),
+  transactionHash: etherfiReceipt.transactionHash,
+  transactionIndex: 93,
+};
+
+class EtherfiApiFixtureReader implements ChainReader {
+  filters: LogFilter[] = [];
+  async getChainId(): Promise<number> { return 8453; }
+  async getLatestBlockNumber(): Promise<bigint> { return 50_000_000n; }
+  async getLogs(filter: LogFilter) {
+    this.filters.push(filter);
+    return { logs: [etherfiLog], malformed: [] };
+  }
+  async getBlock(): Promise<ChainBlock> {
+    return {
+      hash: etherfiBlock.hash,
+      number: BigInt(etherfiBlock.number),
+      timestamp: BigInt(Date.parse(etherfiBlock.timestamp) / 1_000),
+    };
+  }
+  async getTransaction(): Promise<ChainTransaction> { return etherfiTransaction; }
+  async getTransactionReceipt(): Promise<ChainReceipt> {
+    return { transactionHash: etherfiReceipt.transactionHash, status: etherfiReceipt.status, logs: [etherfiLog] };
+  }
+  async getStorageAt(_address: `0x${string}`, _slot: Hex, blockNumber: bigint): Promise<Hex> {
+    return blockNumber === BigInt(etherfiInvestigationFixture.previousBlock)
+      ? etherfiInvestigationFixture.implementationBeforeWord
+      : etherfiInvestigationFixture.implementationAtUpgradeWord;
+  }
+  async getCode(): Promise<Hex> {
+    return `0x${"60".repeat(Number(etherfiInvestigationFixture.implementationByteLength))}`;
+  }
+  async call(_address: `0x${string}`, data: Hex, _blockNumber: bigint): Promise<Hex> {
+    if (data === "0x5e280f11") return etherfiInvestigationFixture.endpointAtUpgradeResult;
+    if (data === "0xfc0c546a") return etherfiInvestigationFixture.tokenAtUpgradeResult;
+    return etherfiInvestigationFixture.sharedDecimalsAtUpgradeResult;
+  }
+}
+
 const servers: Server[] = [];
 
-async function serve(reader: ChainReader, scanDeadlineMs?: number): Promise<string> {
-  const server = createServer(createApp({ reader, config, ...(scanDeadlineMs && { scanDeadlineMs }) }));
+async function serve(reader: ChainReader, scanDeadlineMs?: number, selectedConfig = config): Promise<string> {
+  const server = createServer(createApp({ reader, config: selectedConfig, ...(scanDeadlineMs && { scanDeadlineMs }) }));
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address() as AddressInfo;
@@ -110,6 +168,16 @@ describe("Watchtower API", () => {
     expect(health.headers.get("content-security-policy")).toContain("default-src 'self'");
     const configuration = await publicConfig.json();
     const configurationText = JSON.stringify(configuration);
+    expect(configuration.liveScanProfileIds).toEqual([
+      "aave-v3-base-core",
+      "etherfi-base-weeth-oft",
+    ]);
+    expect(configuration.profiles).toEqual([
+      expect.objectContaining({ id: "aave-v3-base-core", liveScanEligible: true, fixtureReplayAvailable: true }),
+      expect.objectContaining({ id: "compound-iii-base-usdc-comet", liveScanEligible: false, fixtureReplayAvailable: true }),
+      expect.objectContaining({ id: "etherfi-base-weeth-oft", liveScanEligible: true, fixtureReplayAvailable: true }),
+    ]);
+    expect(configuration.profile).toMatchObject({ id: "aave-v3-base-core", liveScanEligible: true });
     expect(configurationText).toContain("Upgraded(address)");
     expect(configuration.detector).toMatchObject({
       incidentClass: "contract_upgrade",
@@ -131,7 +199,7 @@ describe("Watchtower API", () => {
     const scanResponse = await fetch(`${baseUrl}/api/scans`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: "{}",
+      body: JSON.stringify({ profileId: "aave-v3-base-core" }),
     });
     const scan = await scanResponse.json();
 
@@ -185,6 +253,31 @@ describe("Watchtower API", () => {
     expect(JSON.stringify(downloadedReceipt)).not.toContain("BASE_RPC_URL");
   });
 
+  it("selects the registered ether.fi live profile", async () => {
+    const reader = new EtherfiApiFixtureReader();
+    const baseUrl = await serve(reader, undefined, etherfiConfig);
+    const response = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ profileId: "etherfi-base-weeth-oft" }),
+    });
+    const result = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(result).toMatchObject({
+      status: "complete",
+      targetId: "etherfi-base-weeth-oft",
+      failures: [],
+      evidence: [{ block: { number: "23487559" }, investigationReceipt: { finalDisposition: "corroborated" } }],
+    });
+    expect(reader.filters).toEqual([{
+      address: etherfiConfig.target.primaryContract.address,
+      topic0: etherfiConfig.detectors[0].topic0,
+      fromBlock: 23_487_559n,
+      toBlock: 23_487_559n,
+    }]);
+  });
+
   it("validates scan, alert, and receipt identifiers before lookup", async () => {
     const baseUrl = await serve(new ApiFixtureReader());
 
@@ -219,6 +312,41 @@ describe("Watchtower API", () => {
     });
     expect(invalid.status).toBe(400);
     expect(reader.filters).toHaveLength(0);
+
+    const fixtureOnly = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ profileId: "compound-iii-base-usdc-comet" }),
+    });
+    expect(fixtureOnly.status).toBe(400);
+    expect(await fixtureOnly.json()).toMatchObject({ error: { code: "profile-not-live-enabled" } });
+
+    const invalidProfile = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ profileId: "not-registered" }),
+    });
+    expect(invalidProfile.status).toBe(400);
+    expect(await invalidProfile.json()).toMatchObject({ error: { code: "invalid-scan-request" } });
+
+    const arbitraryRpc = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ profileId: "aave-v3-base-core", rpcUrl: "https://example.invalid" }),
+    });
+    expect(arbitraryRpc.status).toBe(400);
+    expect(await arbitraryRpc.json()).toMatchObject({ error: { code: "invalid-scan-request" } });
+
+    const arbitraryRange = await fetch(`${baseUrl}/api/scans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ profileId: "aave-v3-base-core", fromBlock: "41105889", toBlock: "41105889" }),
+    });
+    expect(arbitraryRange.status).toBe(400);
+    expect(await arbitraryRange.json()).toMatchObject({
+      status: "failed",
+      failures: [{ code: "range-outside-approved-bounds" }],
+    });
 
     reader.failLogs = true;
     const failed = await fetch(`${baseUrl}/api/scans`, {

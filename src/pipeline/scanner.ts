@@ -13,6 +13,7 @@ import { explainEvidence } from "../investigation/explain.js";
 import { selectInvestigationPlan } from "../investigation/plans.js";
 import { createInvestigationReceipt } from "../investigation/receipt.js";
 import { investigateApprovedUpgrade } from "../investigation/upgrade.js";
+import { isLiveScanProfileId } from "../profiles/registry.js";
 import { createAlertId, createScanId } from "./ids.js";
 import { classifyUpgrade } from "./severity.js";
 
@@ -186,7 +187,7 @@ async function buildEvidence(
     severityRuleId: severity.ruleId,
   });
   let agentInvestigation = notRunAgentInvestigation;
-  const agentEnabledForLiveTarget = config.target.id === "etherfi-base-weeth-oft" && agentRuntime;
+  const agentEnabledForLiveTarget = isLiveScanProfileId(config.target.id) && agentRuntime;
   const upgradeInvestigation = await investigateApprovedUpgrade(reader, config, normalizedImplementation, plan, {
     signal,
     execute: async (executor) => {

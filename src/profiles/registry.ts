@@ -13,6 +13,17 @@ export const targetProfileIdSchema = z.enum([
   "etherfi-base-weeth-oft",
 ]);
 
+export const LIVE_SCAN_PROFILE_IDS = [
+  "aave-v3-base-core",
+  "etherfi-base-weeth-oft",
+] as const;
+
+export type LiveScanProfileId = typeof LIVE_SCAN_PROFILE_IDS[number];
+
+export function isLiveScanProfileId(profileId: unknown): profileId is LiveScanProfileId {
+  return typeof profileId === "string" && (LIVE_SCAN_PROFILE_IDS as readonly string[]).includes(profileId);
+}
+
 export const investigationCheckIdSchema = z.enum([
   "implementation-before",
   "implementation-at-upgrade",

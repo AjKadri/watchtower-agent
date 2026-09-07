@@ -124,7 +124,10 @@ const alert = { id: "alert-current", classificationLabel: "Contract upgrade" };
 
 describe("dashboard view model", () => {
   it("exposes only the three configured profiles in the selector", () => {
-    const options = buildProfileOptions(archiveProfiles, "etherfi-base-weeth-oft");
+    const options = buildProfileOptions(archiveProfiles, "etherfi-base-weeth-oft", [
+      "aave-v3-base-core",
+      "etherfi-base-weeth-oft",
+    ]);
 
     expect(options.map(({ label }) => label)).toEqual([
       "Aave V3 Base Pool",
@@ -132,6 +135,10 @@ describe("dashboard view model", () => {
       "ether.fi Base weETH OFT",
     ]);
     expect(options.filter(({ isActive }) => isActive).map(({ id }) => id)).toEqual(["etherfi-base-weeth-oft"]);
+    expect(options.filter(({ isLiveScanEligible }) => isLiveScanEligible).map(({ id }) => id)).toEqual([
+      "aave-v3-base-core",
+      "etherfi-base-weeth-oft",
+    ]);
     expect(options.every(({ id }) => !id.startsWith("0x"))).toBe(true);
     expect(options.map(({ targetPurpose }) => targetPurpose)).toEqual([
       "Base Pool implementation proxy",
@@ -139,7 +146,7 @@ describe("dashboard view model", () => {
       "Base weETH OFT implementation proxy",
     ]);
     expect(options.map(({ availability }) => availability)).toEqual([
-      "Verified fixture replay",
+      "Live scan eligible",
       "Verified fixture replay",
       "Live scan eligible",
     ]);
@@ -444,8 +451,10 @@ describe("dashboard view model", () => {
     expect(html).toContain('href="https://t.me/watchtowerbase"');
     expect(html).toContain('Run configured live scan');
     expect(app).toContain('Run configured ${profile.displayName} live scan');
-    expect(app).toContain('Live scan limited to ${activeProfile.displayName}');
-    expect(app).toContain('Verified fixture replay only. Live scanning is currently limited to ${activeProfile.displayName}.');
+    expect(app).toContain('${profile.displayName} is live-scan eligible. The scan remains bounded to its registered historical range.');
+    expect(app).toContain('Verified fixture replay only. Live scanning is enabled for ${liveScanScopeLabel()}.');
+    expect(app).toContain('body: JSON.stringify({ profileId: state.selectedProfileId })');
+    expect(app).toContain('state.config.liveScanProfileIds');
     expect(html).toContain("Watch the contract.");
     expect(html).toContain("Watchtower detects a configured Base upgrade");
     expect(html).toContain("Choose a configured Base profile");

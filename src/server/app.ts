@@ -9,10 +9,18 @@ import type { TargetConfig } from "../config/schema.js";
 import { investigationReceiptSchema, scanResultSchema, type ScanResult } from "../domain/schemas.js";
 import { createScanId } from "../pipeline/ids.js";
 import { scanApprovedRange } from "../pipeline/scanner.js";
+import {
+  getTargetProfile,
+  isLiveScanProfileId,
+  listTargetProfiles,
+  LIVE_SCAN_PROFILE_IDS,
+  targetProfileIdSchema,
+} from "../profiles/registry.js";
 import { ScanStore } from "./store.js";
 
 const decimalBlock = z.string().regex(/^(0|[1-9][0-9]*)$/);
 const scanRequestSchema = z.object({
+  profileId: targetProfileIdSchema.optional(),
   fromBlock: decimalBlock.optional(),
   toBlock: decimalBlock.optional(),
 }).strict();
@@ -35,9 +43,23 @@ let processScanActive = false;
 
 function publicConfiguration(config: TargetConfig) {
   const detector = config.detectors[0];
+  const liveProfileIds = [...LIVE_SCAN_PROFILE_IDS];
   return {
     network: { name: config.network.name, chainId: config.network.chainId },
-    profile: { id: config.profileId, protocol: config.protocol.name, product: config.protocol.product },
+    profile: {
+      id: config.profileId,
+      protocol: config.protocol.name,
+      product: config.protocol.product,
+      liveScanEligible: isLiveScanProfileId(config.profileId),
+    },
+    liveScanProfileIds: liveProfileIds,
+    profiles: listTargetProfiles().map((profile) => ({
+      id: profile.profileId,
+      protocol: profile.protocol.name,
+      product: profile.protocol.product,
+      liveScanEligible: isLiveScanProfileId(profile.profileId),
+      fixtureReplayAvailable: profile.expectedFixture.status === "committed",
+    })),
     target: {
       id: config.target.id,
       name: config.target.name,
@@ -167,7 +189,19 @@ export function createApp(dependencies: AppDependencies): Express {
       const parsed = scanRequestSchema.safeParse(request.body);
       if (!parsed.success) {
         response.status(400).json({
-          error: { code: "invalid-scan-request", message: "The scan request may contain only decimal fromBlock and toBlock values." },
+          error: { code: "invalid-scan-request", message: "The scan request may contain only a registered profileId and decimal fromBlock and toBlock values." },
+        });
+        return;
+      }
+
+      const requestedProfileId = parsed.data.profileId ?? dependencies.config.profileId;
+      const selectedConfig = getTargetProfile(requestedProfileId);
+      if (!isLiveScanProfileId(selectedConfig.profileId)) {
+        response.status(400).json({
+          error: {
+            code: "profile-not-live-enabled",
+            message: "Live scans are enabled only for the configured Aave V3 Base Pool and ether.fi Base weETH OFT profiles.",
+          },
         });
         return;
       }
@@ -184,19 +218,19 @@ export function createApp(dependencies: AppDependencies): Express {
 
       const fromBlock = parsed.data.fromBlock
         ? BigInt(parsed.data.fromBlock)
-        : BigInt(dependencies.config.scan.fromBlock);
+        : BigInt(selectedConfig.scan.fromBlock);
       const toBlock = parsed.data.toBlock
         ? BigInt(parsed.data.toBlock)
-        : BigInt(dependencies.config.scan.toBlock);
+        : BigInt(selectedConfig.scan.toBlock);
       processScanActive = true;
       let releaseLockOnReturn = true;
       try {
         const controller = new AbortController();
         const execution = await runWithDeadline(
-          scanApprovedRange(dependencies.reader, dependencies.config, { fromBlock, toBlock }, { signal: controller.signal, agent: dependencies.agent }),
+          scanApprovedRange(dependencies.reader, selectedConfig, { fromBlock, toBlock }, { signal: controller.signal, agent: dependencies.agent }),
           controller,
           scanDeadlineMs,
-          scanDeadlineResult(dependencies.config, fromBlock, toBlock),
+          scanDeadlineResult(selectedConfig, fromBlock, toBlock),
         );
         store.save(execution.result);
         response.status(scanHttpStatus(execution.result)).json(execution.result);

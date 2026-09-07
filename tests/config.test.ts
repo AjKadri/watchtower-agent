@@ -5,6 +5,7 @@ import { targetConfigSchema, targetProfileSelectionSchema } from "../src/config/
 import { validateUpgradeEventAbi } from "../src/events/upgrade.js";
 import {
   getTargetProfile,
+  LIVE_SCAN_PROFILE_IDS,
   listTargetProfiles,
   resolveTargetProfile,
 } from "../src/profiles/registry.js";
@@ -86,6 +87,14 @@ describe("closed target profile registry", () => {
     }
     expect(profiles.map(({ expectedFixture }) => expectedFixture.status)).toEqual(["committed", "committed", "committed"]);
     expect(profiles[2].expectedFixture.path).toBe("fixtures/base/etherfi-weeth-oft-upgrade-23487559");
+  });
+
+  it("keeps live scanning closed to the approved Aave and ether.fi profiles", () => {
+    expect(LIVE_SCAN_PROFILE_IDS).toEqual([
+      "aave-v3-base-core",
+      "etherfi-base-weeth-oft",
+    ]);
+    expect(LIVE_SCAN_PROFILE_IDS).not.toContain("compound-iii-base-usdc-comet");
   });
 
   it("rejects unknown profile IDs and selection overrides", () => {

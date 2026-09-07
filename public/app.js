@@ -55,6 +55,7 @@ const elements = {
 const state = {
   activeProfileId: null,
   selectedProfileId: null,
+  liveProfileIds: [],
   config: null,
   liveDetails: new Map(),
 };
@@ -250,11 +251,11 @@ function setSourceBadge(detail, source) {
 
 function renderProfiles() {
   elements.profileSelector.replaceChildren();
-  for (const option of buildProfileOptions(archiveProfiles, state.activeProfileId)) {
+  for (const option of buildProfileOptions(archiveProfiles, state.activeProfileId, state.liveProfileIds)) {
     const button = node("button", `profile-option${option.id === state.selectedProfileId ? " selected" : ""}`);
     button.type = "button";
     button.dataset.profileId = option.id;
-    button.dataset.profileSource = option.isActive ? "live-available" : "verified-fixture";
+    button.dataset.profileSource = option.isLiveScanEligible ? "live-available" : "verified-fixture";
     button.setAttribute("aria-pressed", String(option.id === state.selectedProfileId));
     const index = node("span", "profile-index", String(option.index).padStart(2, "0"));
     const copy = node("span", "profile-copy");
@@ -266,7 +267,7 @@ function renderProfiles() {
     );
     const metadata = node("span", "profile-metadata");
     metadata.append(
-      node("span", `profile-mode ${option.isActive ? "active" : "fixture"}`, option.availability),
+      node("span", `profile-mode ${option.isLiveScanEligible ? "active" : "fixture"}`, option.availability),
       node("span", "profile-id", option.id),
     );
     const action = node("span", "profile-select-label", option.id === state.selectedProfileId ? "Selected" : "Select");
@@ -274,6 +275,17 @@ function renderProfiles() {
     button.addEventListener("click", () => selectProfile(option.id));
     elements.profileSelector.append(button);
   }
+}
+
+function isLiveScanEligible(profileId) {
+  return state.liveProfileIds.includes(profileId);
+}
+
+function liveScanScopeLabel() {
+  const names = archiveProfiles
+    .filter(({ id }) => isLiveScanEligible(id))
+    .map(({ displayName }) => displayName);
+  return names.length > 0 ? names.join(" and ") : "no registered profiles";
 }
 
 function renderArchive() {
@@ -360,11 +372,10 @@ function renderCaseSummary(detail, source) {
   dispositionBadge.setAttribute("aria-label", `Deterministic disposition: ${disposition}`);
   elements.caseSummaryDisposition.append(dispositionBadge);
   renderCaseSummaryActions(detail);
-  const activeProfile = getArchiveProfile(state.activeProfileId);
-  const isLiveProfile = profile.id === state.activeProfileId;
+  const isLiveProfile = isLiveScanEligible(profile.id);
   elements.activeProfileNote.textContent = isLiveProfile
-    ? `Live scanning is limited to ${profile.displayName}. A bounded historical scan is available.`
-    : `Verified fixture replay only. Live scanning is currently limited to ${activeProfile.displayName}.`;
+    ? `${profile.displayName} is live-scan eligible. The scan remains bounded to its registered historical range.`
+    : `Verified fixture replay only. Live scanning is enabled for ${liveScanScopeLabel()}.`;
   setSourceBadge(detail, source);
 }
 
@@ -845,7 +856,6 @@ function renderAgentPanel(detail, source) {
 
 function renderEmptyCaseSummary(status, message) {
   const profile = getArchiveProfile(state.selectedProfileId ?? state.activeProfileId);
-  const activeProfile = getArchiveProfile(state.activeProfileId);
   const stateVariant = status === "failed" ? "failed" : "incomplete";
   elements.caseProfileId.textContent = profile?.id ?? "Unavailable";
   elements.caseProtocol.textContent = profile?.displayName ?? "Watchtower investigation";
@@ -864,10 +874,10 @@ function renderEmptyCaseSummary(status, message) {
   elements.caseReceipt.textContent = "Not issued";
   elements.caseReceipt.title = "";
   elements.caseSummaryActions.replaceChildren();
-  elements.activeProfileNote.textContent = profile && activeProfile
-    ? profile.id === activeProfile.id
-      ? `Live scanning is limited to ${profile.displayName}. A bounded historical scan is available.`
-      : `Verified fixture replay only. Live scanning is currently limited to ${activeProfile.displayName}.`
+  elements.activeProfileNote.textContent = profile
+    ? isLiveScanEligible(profile.id)
+      ? `${profile.displayName} is live-scan eligible. The scan remains bounded to its registered historical range.`
+      : `Verified fixture replay only. Live scanning is enabled for ${liveScanScopeLabel()}.`
     : "Select a registered profile to begin a bounded read-only investigation.";
 }
 
@@ -1000,15 +1010,14 @@ function selectProfile(profileId, requestedSource) {
   const detail = source === "live" ? liveDetail : buildFixtureDetail(profile);
   renderFailures(detail.scanFailures);
   renderDetail(detail, source);
-  const activeProfile = getArchiveProfile(state.activeProfileId);
-  const isLiveProfile = profile.id === state.activeProfileId;
+  const isLiveProfile = isLiveScanEligible(profile.id);
   elements.scanButton.disabled = !isLiveProfile;
   elements.scanButton.textContent = isLiveProfile
     ? `Run configured ${profile.displayName} live scan`
-    : `Live scan limited to ${activeProfile.displayName}`;
+    : "Live scan unavailable for fixture replay";
   elements.scanButton.title = isLiveProfile
     ? `Run the approved bounded historical scan for ${profile.displayName}.`
-    : `This is a verified fixture replay. Live scanning is currently limited to ${activeProfile.displayName}.`;
+    : "This is a verified fixture replay. Live scanning is enabled only for the registered live profiles.";
   elements.scanStatus.textContent = source === "live"
     ? "Showing the latest in-memory live RPC result."
     : "Showing the committed verified fixture. Replay does not call the RPC.";
@@ -1016,22 +1025,27 @@ function selectProfile(profileId, requestedSource) {
 
 async function loadStoredLiveDetail() {
   const payload = await request("/api/alerts");
-  const alert = payload.alerts.find(({ targetId }) => targetId === state.activeProfileId);
-  if (!alert) return;
-  const detail = await request(`/api/alerts/${encodeURIComponent(alert.id)}`);
-  state.liveDetails.set(alert.targetId, { ...detail, source: "live" });
+  for (const alert of payload.alerts.filter(({ targetId }) => isLiveScanEligible(targetId))) {
+    try {
+      const detail = await request(`/api/alerts/${encodeURIComponent(alert.id)}`);
+      state.liveDetails.set(alert.targetId, { ...detail, source: "live" });
+    } catch {
+      // Keep other stored live profiles available when one detail has expired.
+    }
+  }
 }
 
 async function runScan() {
-  if (state.selectedProfileId !== state.activeProfileId) return;
+  if (!isLiveScanEligible(state.selectedProfileId)) return;
   elements.scanButton.disabled = true;
-  elements.scanStatus.textContent = `Scanning approved Base block ${state.config.scan.fromBlock}.`;
+  const profile = getArchiveProfile(state.selectedProfileId);
+  elements.scanStatus.textContent = `Scanning approved Base block ${profile?.block.number ?? state.config.scan.fromBlock}.`;
   renderFailures([]);
   try {
     const result = await request("/api/scans", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: "{}",
+      body: JSON.stringify({ profileId: state.selectedProfileId }),
     });
     renderScanResult(result);
   } catch (error) {
@@ -1052,7 +1066,7 @@ async function runScan() {
     elements.caseJourney.textContent = "Investigation failed";
     setSourceBadge({ scanStatus: "failed" }, "live");
   } finally {
-    elements.scanButton.disabled = state.selectedProfileId !== state.activeProfileId;
+    elements.scanButton.disabled = !isLiveScanEligible(state.selectedProfileId);
   }
 }
 
@@ -1171,6 +1185,9 @@ async function initialize() {
   try {
     state.config = await request("/api/config");
     state.activeProfileId = state.config.profile.id;
+    state.liveProfileIds = Array.isArray(state.config.liveScanProfileIds)
+      ? state.config.liveScanProfileIds.filter((id) => typeof id === "string")
+      : [state.activeProfileId];
     state.selectedProfileId = state.activeProfileId;
     if (!getArchiveProfile(state.activeProfileId)) throw new Error("The active server profile is outside the verified frontend registry.");
     try {

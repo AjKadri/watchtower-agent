@@ -138,7 +138,7 @@
                 <p class="docs-section-lede">The current app is a focused demo of registered historical investigations. It is designed to be inspected without a wallet.</p>
                 <ol class="docs-steps">
                   <li><span>01</span><div><h3>Choose a registered profile</h3><p>Select Aave V3 Base Pool, Compound III Base USDC Comet, or ether.fi Base weETH OFT.</p></div></li>
-                  <li><span>02</span><div><h3>Replay or scan</h3><p>Replay one committed fixture immediately. The server-selected ether.fi profile can run the bounded live scan when its archive RPC is available.</p></div></li>
+                  <li><span>02</span><div><h3>Replay or scan</h3><p>Replay one committed fixture immediately. The configured Aave V3 Base Pool and ether.fi profiles can run bounded live scans when the archive RPC is available. Compound remains fixture-only.</p></div></li>
                   <li><span>03</span><div><h3>Read the trace</h3><p>Inspect the observed event, selected plan, exact block checks, evidence status, and final disposition.</p></div></li>
                   <li><span>04</span><div><h3>Verify the receipt</h3><p>Download the receipt or recompute its canonical SHA-256 ID in the browser.</p></div></li>
                 </ol>
@@ -183,7 +183,7 @@
               <section id="investigations" class="docs-section" data-doc-section>
                 <p class="section-label">INVESTIGATIONS</p>
                 <h2>Every alert follows a fixed trace.</h2>
-                <p>After a candidate log is found, the scanner validates its block, transaction, and receipt, strictly decodes the event, selects a registered versioned plan, and executes only the checks authorized for that profile. On a configured live ether.fi scan, the agent can choose which remaining registered check to inspect next.</p>
+                <p>After a candidate log is found, the scanner validates its block, transaction, and receipt, strictly decodes the event, selects a registered versioned plan, and executes only the checks authorized for that profile. On a configured live Aave or ether.fi scan, the agent can choose which remaining registered check to inspect next.</p>
                 <ol class="docs-investigation-flow">
                   <li><span>01</span><div><strong>Observe</strong><p>Confirm the configured emitter, topic, block, transaction, receipt, and decoded implementation.</p></div></li>
                   <li><span>02</span><div><strong>Plan</strong><p>Choose the approved, escalation, or incomplete plan from the closed registry.</p></div></li>
@@ -246,7 +246,7 @@
                   <div><span>01</span><strong>BASE</strong><p>Provides the historical block, transaction, receipt, and log data.</p></div>
                   <div><span>02</span><strong>VALIDATED INGESTION</strong><p>The ChainReader boundary validates the shape and identity of RPC responses.</p></div>
                   <div><span>03</span><strong>DETECTION</strong><p>The scanner filters one configured proxy and one approved event topic.</p></div>
-                  <div><span>04</span><strong>BOUNDED AGENT</strong><p>On configured live ether.fi scans, OpenRouter returns strictly validated decisions selecting only registered check IDs.</p></div>
+                  <div><span>04</span><strong>BOUNDED AGENT</strong><p>On configured live Aave or ether.fi scans, OpenRouter returns strictly validated decisions selecting only registered check IDs.</p></div>
                   <div><span>05</span><strong>EVIDENCE / RECEIPT</strong><p>Assertions, limitations, links, and disposition are normalized into records.</p></div>
                   <div><span>06</span><strong>WATCHTOWER UI</strong><p>The static workspace renders the archive, trace, failures, and verification actions.</p></div>
                 </div>
@@ -282,7 +282,8 @@
                   <li><strong>Scope.</strong> Only three Base profiles and the configured <code>Upgraded(address)</code> event are supported.</li>
                   <li><strong>Historical access.</strong> Exact-block checks need an archive-capable provider. RPC outages, timeouts, rate limits, or pruned history can produce incomplete evidence.</li>
                   <li><strong>Agent availability.</strong> Live agent decisions require server-side OpenRouter credentials. Missing credentials or provider failure is shown explicitly and does not stop required deterministic checks.</li>
-                  <li><strong>Live coverage.</strong> The live API scans one server-selected profile and one approved historical range. Other profiles are verified fixture replays.</li>
+                  <li><strong>Live coverage.</strong> The live API scans one registered live-enabled profile and one approved historical range per request. Aave and ether.fi are live-enabled; Compound is a verified fixture replay.</li>
+                  <li><strong>Receipt distinction.</strong> The committed Aave fixture keeps its original receipt without a bytecode hash. A live Aave scan may include a reproducible implementation hash and therefore produce a different receipt ID.</li>
                   <li><strong>Persistence.</strong> Live alerts and receipts are in memory and disappear when the process restarts.</li>
                   <li><strong>Interpretation.</strong> Receipts do not establish identity, intent, causality, governance legitimacy, implementation safety, or remote cross-chain safety.</li>
                   <li><strong>Out of scope.</strong> There is no continuous monitoring, notification delivery, authentication, wallet access, transaction submission, database, multi-chain support, dynamic proxy discovery, or arbitrary RPC execution.</li>
