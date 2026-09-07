@@ -1,5 +1,8 @@
+import { z } from "zod";
+
 import { agentDecisionSchema, agentDecisionInputSchema, type AgentDecision, type AgentDecisionInput } from "./schemas.js";
 import { AGENT_CALL_TIMEOUT_MS, AgentProviderError, type AgentLogEvent, type InvestigationAgentProvider } from "./provider.js";
+import { investigationCheckIdSchema } from "../investigation/plans.js";
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -7,30 +10,50 @@ type Fetch = typeof fetch;
 
 const decisionJsonSchema = {
   type: "object",
-  oneOf: [
-    {
-      additionalProperties: false,
-      required: ["action", "checkId", "rationale", "narrative", "uncertainty"],
-      properties: {
-        action: { const: "run_check" },
-        checkId: { type: "string" },
-        rationale: { type: "string", minLength: 1, maxLength: 400 },
-        narrative: { type: "string", maxLength: 1000 },
-        uncertainty: { type: "string", maxLength: 500 },
-      },
-    },
-    {
-      additionalProperties: false,
-      required: ["action", "rationale", "narrative", "uncertainty"],
-      properties: {
-        action: { const: "finish" },
-        rationale: { type: "string", minLength: 1, maxLength: 400 },
-        narrative: { type: "string", minLength: 1, maxLength: 1000 },
-        uncertainty: { type: "string", minLength: 1, maxLength: 500 },
-      },
-    },
-  ],
+  additionalProperties: false,
+  required: ["action", "checkId", "rationale", "narrative", "uncertainty"],
+  properties: {
+    action: { type: "string", enum: ["run_check", "finish"] },
+    checkId: { enum: [...investigationCheckIdSchema.options, null] },
+    rationale: { type: "string", minLength: 1, maxLength: 400 },
+    narrative: { type: "string", maxLength: 1000 },
+    uncertainty: { type: "string", maxLength: 500 },
+  },
 } as const;
+
+const providerDecisionSchema = z.object({
+  action: z.enum(["run_check", "finish"]),
+  checkId: z.union([investigationCheckIdSchema, z.null()]),
+  rationale: z.string().trim().min(1).max(400),
+  narrative: z.string().trim().max(1_000),
+  uncertainty: z.string().trim().max(500),
+}).strict();
+
+function invalidDecision(): AgentProviderError {
+  return new AgentProviderError("The investigation provider returned an invalid decision.", "invalid-output");
+}
+
+function normalizeProviderDecision(decoded: unknown, input: AgentDecisionInput): AgentDecision {
+  const parsed = providerDecisionSchema.safeParse(decoded);
+  if (!parsed.success) throw invalidDecision();
+
+  if (parsed.data.action === "run_check") {
+    if (parsed.data.checkId === null || !input.availableCheckIds.includes(parsed.data.checkId)) throw invalidDecision();
+    const decision = agentDecisionSchema.safeParse(parsed.data);
+    if (!decision.success) throw invalidDecision();
+    return decision.data;
+  }
+
+  if (parsed.data.checkId !== null) throw invalidDecision();
+  const decision = agentDecisionSchema.safeParse({
+    action: "finish",
+    rationale: parsed.data.rationale,
+    narrative: parsed.data.narrative,
+    uncertainty: parsed.data.uncertainty,
+  });
+  if (!decision.success) throw invalidDecision();
+  return decision.data;
+}
 
 function safeContent(payload: unknown): unknown {
   if (!payload || typeof payload !== "object") return undefined;
@@ -94,9 +117,7 @@ export class OpenRouterAgentProvider implements InvestigationAgentProvider {
       } catch {
         throw new AgentProviderError("The investigation provider returned malformed structured output.", "invalid-output");
       }
-      const decision = agentDecisionSchema.safeParse(decoded);
-      if (!decision.success) throw new AgentProviderError("The investigation provider returned an invalid decision.", "invalid-output");
-      return decision.data;
+      return normalizeProviderDecision(decoded, parsedInput);
     } catch (error) {
       if (error instanceof AgentProviderError) throw error;
       if (signal.aborted) throw new AgentProviderError("The investigation provider request timed out or was cancelled.", "timeout");
