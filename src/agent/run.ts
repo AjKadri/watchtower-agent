@@ -120,6 +120,10 @@ export async function runBoundedInvestigationAgent(
       });
     }
 
+    if (step === AGENT_MAXIMUM_STEPS) {
+      return fail("agent-step-limit", "step-limit", "The bounded investigation agent must finish on its final decision.");
+    }
+
     runtime.log?.({ event: "agent-tool-selected", targetId: context.targetId, step, checkId: decision.checkId });
     try {
       const result = await executeAgentTool(executor, decision);

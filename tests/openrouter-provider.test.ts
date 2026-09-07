@@ -17,6 +17,8 @@ const input: AgentDecisionInput = {
   completedChecks: [],
 };
 
+const finalInput: AgentDecisionInput = { ...input, step: 3 };
+
 const runCheckDecision = {
   action: "run_check",
   checkId: "endpoint-at-upgrade",
@@ -72,6 +74,24 @@ describe("OpenRouter agent provider", () => {
     expect(schema).not.toHaveProperty("oneOf");
     expect(schema.properties.checkId.enum).toContain("endpoint-at-upgrade");
     expect(schema.properties.checkId.enum).toContain(null);
+  });
+
+  it("sends a finish-only schema on the final decision", async () => {
+    const { provider, fetchMock } = providerFor(JSON.stringify(finishDecision));
+
+    await expect(provider.decide(finalInput)).resolves.toEqual({
+      action: "finish",
+      rationale: finishDecision.rationale,
+      narrative: finishDecision.narrative,
+      uncertainty: finishDecision.uncertainty,
+    });
+
+    const options = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const request = JSON.parse(String(options.body));
+    const schema = request.response_format.json_schema.schema;
+    expect(schema.properties.action).toEqual({ type: "string", enum: ["finish"] });
+    expect(schema.properties.checkId).toEqual({ type: "null" });
+    expect(request.messages[0].content).toContain("On the final decision (step 3), you must return action finish with checkId null.");
   });
 
   it("normalizes a valid finish decision with a null check ID", async () => {

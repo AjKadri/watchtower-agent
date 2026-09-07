@@ -8,18 +8,21 @@ const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 type Fetch = typeof fetch;
 
-const decisionJsonSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["action", "checkId", "rationale", "narrative", "uncertainty"],
-  properties: {
-    action: { type: "string", enum: ["run_check", "finish"] },
-    checkId: { enum: [...investigationCheckIdSchema.options, null] },
-    rationale: { type: "string", minLength: 1, maxLength: 400 },
-    narrative: { type: "string", maxLength: 1000 },
-    uncertainty: { type: "string", maxLength: 500 },
-  },
-} as const;
+function decisionJsonSchemaForStep(step: AgentDecisionInput["step"]) {
+  const finalStep = step === 3;
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["action", "checkId", "rationale", "narrative", "uncertainty"],
+    properties: {
+      action: { type: "string", enum: finalStep ? ["finish"] : ["run_check", "finish"] },
+      checkId: finalStep ? { type: "null" } : { enum: [...investigationCheckIdSchema.options, null] },
+      rationale: { type: "string", minLength: 1, maxLength: 400 },
+      narrative: { type: "string", maxLength: 1000 },
+      uncertainty: { type: "string", maxLength: 500 },
+    },
+  } as const;
+}
 
 const providerDecisionSchema = z.object({
   action: z.enum(["run_check", "finish"]),
@@ -96,13 +99,13 @@ export class OpenRouterAgentProvider implements InvestigationAgentProvider {
           messages: [
             {
               role: "system",
-              content: "You are Watchtower's bounded investigation planner. Use only the supplied registered check IDs. Return a short public rationale, narrative, and uncertainty statement. Never invent chain facts or request raw RPC parameters.",
+              content: "You are Watchtower's bounded investigation planner. Use only the supplied registered check IDs. Before the final decision, you may request one supplied check at a time. On the final decision (step 3), you must return action finish with checkId null. A pre-check narrative is not a final conclusion; provide the post-check narrative only with finish. Return a short public rationale, narrative, and uncertainty statement. Never invent chain facts or request raw RPC parameters.",
             },
             { role: "user", content: JSON.stringify(parsedInput) },
           ],
           response_format: {
             type: "json_schema",
-            json_schema: { name: "watchtower_agent_decision", strict: true, schema: decisionJsonSchema },
+            json_schema: { name: "watchtower_agent_decision", strict: true, schema: decisionJsonSchemaForStep(parsedInput.step) },
           },
         }),
         signal,

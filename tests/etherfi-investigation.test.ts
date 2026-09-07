@@ -136,6 +136,34 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
     expect(result.evidence[0].agentInvestigation).toMatchObject({ status: "not-run", provider: null, steps: [] });
   });
 
+  it("allows the agent to finish on its first decision before deterministic completion", async () => {
+    const provider: InvestigationAgentProvider = {
+      provider: "openrouter",
+      model: "test/model",
+      decide: async () => ({
+        action: "finish",
+        rationale: "The available deterministic evidence is sufficient.",
+        narrative: "The fixed plan will complete the remaining required checks.",
+        uncertainty: "This result covers only the configured historical upgrade.",
+      }),
+    };
+    const reader = new EtherfiFixtureReader();
+    const baseline = await scanApprovedRange(new EtherfiFixtureReader(), config);
+    const result = await scanApprovedRange(reader, config, {}, {
+      agent: { providerName: "openrouter", model: provider.model, provider },
+    });
+
+    expect(result.evidence[0].agentInvestigation).toMatchObject({
+      status: "complete",
+      steps: [],
+      narrative: "The fixed plan will complete the remaining required checks.",
+    });
+    expect(reader.reads).toHaveLength(6);
+    expect(result.evidence[0].upgradeInvestigation.checks).toHaveLength(6);
+    expect(result.evidence[0].investigationReceipt?.receiptId).toBe(baseline.evidence[0].investigationReceipt?.receiptId);
+    expect(result.evidence[0].investigationReceipt).not.toHaveProperty("narrative");
+  });
+
   it("runs bounded live agent decisions while deterministic checks and receipt stay fixed", async () => {
     class SequencedProvider implements InvestigationAgentProvider {
       readonly provider = "openrouter" as const;
@@ -168,8 +196,9 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
       provider,
       log: ({ event }) => logEvents.push(event),
     };
+    const reader = new EtherfiFixtureReader();
     const baseline = await scanApprovedRange(new EtherfiFixtureReader(), config);
-    const result = await scanApprovedRange(new EtherfiFixtureReader(), config, {}, { agent: runtime });
+    const result = await scanApprovedRange(reader, config, {}, { agent: runtime });
 
     expect(provider.inputs[0].completedChecks.map(({ checkId }) => checkId)).toEqual([
       "implementation-before",
@@ -188,7 +217,9 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
       steps: [{ requestedCheckId: "token-at-upgrade", toolResultRef: "token-at-upgrade", outcome: "passed" }],
     });
     expect(result.evidence[0].upgradeInvestigation.checks.map(({ id }) => id)).toEqual(config.plans.approved.selectedChecks);
+    expect(reader.reads).toHaveLength(6);
     expect(result.evidence[0].investigationReceipt?.receiptId).toBe(baseline.evidence[0].investigationReceipt?.receiptId);
+    expect(result.evidence[0].investigationReceipt).not.toHaveProperty("narrative");
     expect(logEvents).toEqual([
       "agent-start",
       "agent-step",
@@ -197,6 +228,61 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
       "agent-step",
       "agent-complete",
     ]);
+  });
+
+  it("runs two registered checks before finishing and completes the remaining plan deterministically", async () => {
+    const provider: InvestigationAgentProvider = {
+      provider: "openrouter",
+      model: "test/model",
+      decide: async (input) => input.step === 1
+        ? {
+          action: "run_check",
+          checkId: "endpoint-at-upgrade",
+          rationale: "Check the registered endpoint result.",
+          narrative: "The endpoint check is ready for review.",
+          uncertainty: "The token identity check remains.",
+        }
+        : input.step === 2
+          ? {
+            action: "run_check",
+            checkId: "token-at-upgrade",
+            rationale: "Check the registered token identity.",
+            narrative: "The token identity check is ready for review.",
+            uncertainty: "The final deterministic check remains.",
+          }
+          : {
+            action: "finish",
+            rationale: "The selected checks are sufficient.",
+            narrative: "The deterministic plan will complete the remaining check.",
+            uncertainty: "This result covers only the configured historical upgrade.",
+          },
+    };
+    const providerInputs: AgentDecisionInput[] = [];
+    const recordingProvider: InvestigationAgentProvider = {
+      ...provider,
+      decide: async (input) => {
+        providerInputs.push(input);
+        return provider.decide(input);
+      },
+    };
+    const reader = new EtherfiFixtureReader();
+    const baseline = await scanApprovedRange(new EtherfiFixtureReader(), config);
+    const result = await scanApprovedRange(reader, config, {}, {
+      agent: { providerName: "openrouter", model: recordingProvider.model, provider: recordingProvider },
+    });
+
+    expect(providerInputs).toHaveLength(3);
+    expect(providerInputs[2]?.availableCheckIds).toEqual(["shared-decimals-at-upgrade"]);
+    expect(result.evidence[0].agentInvestigation).toMatchObject({
+      status: "complete",
+      steps: [
+        { step: 1, requestedCheckId: "endpoint-at-upgrade" },
+        { step: 2, requestedCheckId: "token-at-upgrade" },
+      ],
+    });
+    expect(reader.reads).toHaveLength(6);
+    expect(result.evidence[0].upgradeInvestigation.checks.map(({ id }) => id)).toEqual(config.plans.approved.selectedChecks);
+    expect(result.evidence[0].investigationReceipt?.receiptId).toBe(baseline.evidence[0].investigationReceipt?.receiptId);
   });
 
   it("surfaces unavailable and failed agents without changing deterministic output", async () => {
@@ -262,13 +348,16 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
     expect(result.evidence[0].upgradeInvestigation.checks.map(({ id }) => id)).toEqual(config.plans.approved.selectedChecks);
   });
 
-  it("stops after three agent decisions and completes the fixed plan deterministically", async () => {
+  it("fails safely when a provider requests a tool on the final decision", async () => {
     const requested = ["endpoint-at-upgrade", "token-at-upgrade", "shared-decimals-at-upgrade"] as const;
     let decisionCount = 0;
+    const inputs: AgentDecisionInput[] = [];
+    const logEvents: Array<{ event: string; step?: number }> = [];
     const provider: InvestigationAgentProvider = {
       provider: "openrouter",
       model: "test/model",
-      decide: async () => {
+      decide: async (input) => {
+        inputs.push(input);
         const checkId = requested[decisionCount];
         decisionCount += 1;
         return {
@@ -280,17 +369,26 @@ describe("ether.fi Base weETH OFT investigation profile", () => {
         };
       },
     };
+    const reader = new EtherfiFixtureReader();
     const baseline = await scanApprovedRange(new EtherfiFixtureReader(), config);
-    const result = await scanApprovedRange(new EtherfiFixtureReader(), config, {}, {
-      agent: { providerName: "openrouter", model: provider.model, provider },
+    const result = await scanApprovedRange(reader, config, {}, {
+      agent: {
+        providerName: "openrouter",
+        model: provider.model,
+        provider,
+        log: (event) => logEvents.push(event),
+      },
     });
 
     expect(decisionCount).toBe(3);
+    expect(inputs[2]?.step).toBe(3);
     expect(result.evidence[0].agentInvestigation).toMatchObject({
       status: "failed",
-      steps: requested.map((requestedCheckId) => ({ requestedCheckId })),
+      steps: requested.slice(0, 2).map((requestedCheckId, index) => ({ step: index + 1, requestedCheckId })),
       failure: { code: "agent-step-limit", category: "step-limit" },
     });
+    expect(logEvents.some(({ event, step }) => event === "agent-tool-selected" && step === 3)).toBe(false);
+    expect(reader.reads).toHaveLength(6);
     expect(result.evidence[0].upgradeInvestigation.checks.map(({ id }) => id)).toEqual(config.plans.approved.selectedChecks);
     expect(result.evidence[0].upgradeInvestigation.disposition).toBe("corroborated");
     expect(result.evidence[0].investigationReceipt?.receiptId).toBe(baseline.evidence[0].investigationReceipt?.receiptId);
