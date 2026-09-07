@@ -1,68 +1,109 @@
 # Watchtower
 
-## The problem
+## Product promise
 
-When a protocol upgrades, the on-chain event tells you that its implementation changed.
+**What Watchtower does**
 
-It does not tell you what was running before, whether the new code exists, or whether the protocol still matched its expected setup at that exact moment.
+Watchtower investigates a configured Base protocol upgrade at the exact
+historical block where it occurred. It checks the trigger, historical proxy
+state, implementation bytecode, and protocol-specific evidence, then produces a
+deterministic disposition and browser-verifiable receipt.
 
-Watchtower investigates that gap using the proxy’s historical state, deployed
+It is read-only, bounded, and does not claim that an upgrade is safe,
+legitimate, or intentional.
+
+### Why this matters
+
+When a protocol upgrades, the on-chain event tells you that its implementation
+changed.
+
+It does not tell you what was running before, whether the new code exists, or
+whether the protocol still matched its expected setup at that exact moment.
+
+Watchtower investigates that gap using the proxy's historical state, deployed
 bytecode, and protocol-specific checks at the upgrade block.
 
-## Who Watchtower is for
+## Live demo and public links
 
-Watchtower serves protocol security teams, incident responders, auditors, and
-researchers who need a reproducible upgrade investigation instead of an
-unsupported narrative.
-
-## What Watchtower does
-
-Watchtower turns one configured `Upgraded(address)` event into a bounded,
-read-only historical investigation. It verifies the trigger evidence, selects a
-fixed deterministic plan, runs initial exact-block checks, lets a bounded agent
-choose approved follow-up check IDs on configured live scans, derives a
-deterministic disposition, and issues a replayable receipt that the browser can
-verify independently.
-
-- [Live public demo](https://watchtower.ajkadri.dev)
-- [GitHub repository](https://github.com/AjKadri/watchtower-agent)
+- [Open the live demo](https://watchtower.ajkadri.dev/)
+- [Read the documentation](https://watchtower.ajkadri.dev/docs)
+- [View the GitHub repository](https://github.com/AjKadri/watchtower-agent)
 - [Follow Watchtower on X](https://x.com/watchtowerbase_)
 - [Join the Watchtower Telegram](https://t.me/watchtowerbase)
-- [Run the demo locally](#run-the-demo)
-- [Aave fixture transaction](https://basescan.org/tx/0x748f1885704560973c376f4a679be5bd01fec8e93c3f179ded177860f8dac47a)
-- [Compound fixture transaction](https://basescan.org/tx/0x5de36ea4daf596890b2f0f3696547bda11090d16c9eaf8f2d35bb4b4ca13f1f4)
-- [ether.fi fixture transaction](https://basescan.org/tx/0x8e5e5ea61db41bc1f403552c7303324c37d50406d40ef02e10a1b634f535dfe2)
+- [Run the demo locally](#local-setup-and-tests)
 
-Watchtower is live at [watchtower.ajkadri.dev](https://watchtower.ajkadri.dev).
-The hosted demo supports the three committed, verified investigation fixtures
-and live historical ether.fi investigation when its configured archive RPC is
-available. The same bounded demo can also be reproduced locally.
+The live demo supports the three committed, verified fixture replays and the
+configured live ether.fi investigation when its archive-capable Base RPC is
+available. The same bounded flow can be reproduced locally.
 
-## Follow one investigation
+## Verify it yourself in 60 seconds
 
-Watchtower is designed to be inspected as one evidence path, from the observed
-upgrade event to a replayable receipt:
-
-1. Choose one supported protocol profile.
-2. Inspect the configured historical upgrade event and decoded implementation.
+1. Open the [live demo](https://watchtower.ajkadri.dev/).
+2. Choose a configured Base profile.
 3. Follow Observe, Plan, Check, Investigate, Decide, and Verify.
-4. Inspect any live agent requests separately from the deterministic result.
-5. Open the receipt and recompute its SHA-256 ID in the browser.
+4. Open the evidence trace and inspect the exact block, transaction, and checks.
+5. Open the receipt or review packet.
+6. Recompute the canonical receipt ID in the browser.
 
-The output records what Watchtower observed and checked. It does not make an
-unsupported claim that an upgrade is safe, legitimate, or intentional.
+Aave and Compound are verified fixture replays. ether.fi is the configured
+live-scan profile. The live path requires an archive-capable Base RPC endpoint.
 
-## Review packets
+![Watchtower investigation workspace showing a verified ether.fi fixture replay and receipt](./public/screenshots/watchtower-live-investigation.jpg)
 
-Watchtower review packets are for exchange and infrastructure teams reviewing
-integrations, protocol teams reviewing upgrades, and crypto-agent companies
-that need deterministic protocol evidence.
+## What Watchtower checks
 
-The same bounded investigation is available in two formats:
+The registry is deliberately narrow. Each investigation uses the server-selected
+profile, qualifying transaction, event, block range, and versioned plan.
 
-- Markdown supports human review and annotation.
-- JSON supports machine consumption, archiving, and retention in an external
-  audit trail.
+| Signal | What Watchtower checks | Why it matters |
+| --- | --- | --- |
+| Upgrade trigger | The configured proxy emits `Upgraded(address)` in the approved transaction and block. | Establishes the precise implementation-change event. |
+| Historical proxy state | The EIP-1967 implementation slot at block N-1 and block N. | Compares the proxy state before and at the upgrade. |
+| Implementation bytecode | Code presence and the recorded byte length or hash at block N. | Confirms that the decoded implementation has deployed code. |
+| Aave V3 identity | `getPool()` at N and optional `POOL_REVISION()` checks at N-1 and N. | Corroborates the configured Pool proxy and revision values. |
+| Compound III identity | `governor()` at N-1 and N, plus `baseToken()` at N. | Corroborates the configured Comet identity. |
+| ether.fi identity | `endpoint()`, `token()`, and `sharedDecimals()` at N. | Corroborates the configured OFT identity. |
+
+Ownership changes, pause or unpause events, transfers, treasury activity,
+liquidity changes, wallet movements, dynamic discovery, and open-ended project
+graphs are outside this MVP.
+
+## Review packets and receipt proof
+
+A completed investigation can be exported in two formats. Markdown and JSON
+represent the same investigation.
+
+The packet includes:
+
+- the configured profile and chain
+- the upgrade transaction and exact block
+- trigger and implementation evidence
+- fixed protocol-specific checks
+- disposition and limitations
+- the canonical receipt identifier
+
+Markdown supports human review and annotation. JSON supports machine
+consumption, archiving, and retention in an external audit trail.
+
+The packet supports exchange and infrastructure teams reviewing integrations,
+protocol teams reviewing upgrades, and crypto-agent companies that need
+deterministic protocol evidence. Watchtower provides evidence for the decision.
+It does not make the operational decision.
+
+To verify a JSON packet, choose it in the dashboard's **Verify an exported
+packet** control. Verification stays in the browser. It checks the packet
+format and schema, ignores saved verification metadata, compares the packet and
+canonical receipt identifiers, and independently recomputes the canonical
+receipt ID with Web Crypto. No file is uploaded, fetched, or sent to an RPC.
+
+Browser verification covers the canonical receipt inside the packet. Additional
+packet context, display metadata, saved verification metadata, agent narrative,
+links, and other fields outside that payload are not all hash-bound. A verified
+receipt proves the recorded deterministic evidence path, not the safety or
+legitimacy of an upgrade.
+
+Watchtower does not pause deposits, approve integrations, declare upgrades safe,
+generate LLM risk scores, or monitor arbitrary contracts.
 
 The core path is:
 
@@ -72,21 +113,6 @@ bounded historical investigation
 → explicit disposition
 → verifiable receipt
 ```
-
-To verify a JSON packet, choose it in the dashboard's **Verify an exported
-packet** control. Verification stays in the browser: it checks the packet
-format and schema, ignores saved verification metadata, and independently recomputes the
-canonical receipt inside the packet with Web Crypto. No file is uploaded and
-verification does not fetch, call an RPC, or run a scan.
-
-A valid result verifies the canonical receipt payload only. Additional packet
-context, display metadata, saved verification metadata, agent narrative, links,
-and other fields outside that payload are not all hash-bound. Watchtower does
-not pause deposits, approve integrations, declare upgrades safe, generate LLM
-risk scores, or monitor arbitrary contracts. Review packets do not authenticate
-their publisher, prevent exploits, or replace a smart-contract audit.
-
-![Watchtower verified ether.fi fixture replay showing the canonical corroborated six-stage trace](./public/screenshots/watchtower-live-investigation.jpg)
 
 ## Supported profiles
 
@@ -100,32 +126,31 @@ server-selected profile.
 | Compound III Base USDC Comet | [Block 40235590](https://basescan.org/block/40235590) | EIP-1967 implementation before and after, implementation bytecode, `governor()` before and after, `baseToken()` |
 | ether.fi Base weETH OFT | [Block 23487559](https://basescan.org/block/23487559) | EIP-1967 implementation before and after, implementation bytecode, `endpoint()`, `token()`, `sharedDecimals()` |
 
-The committed fixtures contain only real evidence from these three upgrades.
-The active live-scan profile is ether.fi Base weETH OFT.
+The committed fixtures contain real evidence from these three upgrades. The
+active live-scan profile is ether.fi Base weETH OFT.
 
-## Six-stage investigation
+## Architecture and technical detail
 
-1. Observe. Verify the configured proxy, transaction, log, topic, and decoded
-   implementation.
-2. Plan. Choose exactly one immutable versioned plan with a fixed capability
+### Six-stage investigation
+
+1. **Observe.** Verify the configured proxy, transaction, log, topic, and
+   decoded implementation.
+2. **Plan.** Choose exactly one immutable versioned plan with a fixed capability
    and read budget.
-3. Check. Read implementation state at N-1 and N and confirm bytecode at N.
-4. Investigate. On a configured live ether.fi scan, the bounded agent may
+3. **Check.** Read implementation state at N-1 and N and confirm bytecode at N.
+4. **Investigate.** On a configured live ether.fi scan, the bounded agent may
    request only remaining check IDs from the selected plan. Deterministic code
    resolves and executes every RPC parameter.
-5. Decide. Deterministic rules derive severity and the final disposition after
-   every required plan check has executed.
-6. Verify. Bind the trigger, plan, checks, limitations, links, and disposition
-   into receipt v1 and recompute its SHA-256 ID in the browser.
+5. **Decide.** Deterministic rules derive severity and the final disposition
+   after every required plan check has executed.
+6. **Verify.** Bind the trigger, plan, checks, limitations, links, and
+   disposition into receipt v1 and recompute its SHA-256 ID in the browser.
 
-The interface tells the full 60-second story: choose one of the three profiles,
-inspect its real historical event, follow plan selection and bounded checks,
-see the disposition resolve, open the receipt, then recompute its SHA-256 ID in
-the browser. Every investigation is explicitly labeled `Live RPC
-investigation`, `Verified fixture replay`, `Incomplete investigation`, or
-`Failed investigation`. A replay never appears as a live scan.
+The interface labels each result as `Live RPC investigation`, `Verified
+fixture replay`, `Incomplete investigation`, or `Failed investigation`. A
+replay never appears as a live scan.
 
-## What the evidence proves
+### What the evidence proves
 
 A complete investigation establishes that Watchtower observed the configured
 upgrade event in the qualifying transaction, verified its block, transaction,
@@ -145,12 +170,11 @@ Each receipt records:
 
 The receipt ID is a SHA-256 hash of a canonical payload that excludes the ID
 itself and measured `elapsedMs` fields. Timings remain in the receipt and API
-response, but they are not hash-bound because real execution duration varies
-between otherwise identical replays. Server validation checks consistency
-across the trigger, evidence, plan, checks, disposition, and links. The receipt view independently
-reconstructs the canonical payload, normalizes Ethereum addresses, and
-recomputes the ID with browser Web Crypto. Equivalent address casing produces
-the same receipt ID.
+response, but are not hash-bound because real execution duration varies between
+otherwise identical replays. Server validation checks consistency across the
+trigger, evidence, plan, checks, disposition, and links. The browser receipt
+view normalizes Ethereum addresses and independently recomputes the ID with
+Web Crypto. Equivalent address casing produces the same receipt ID.
 
 Committed fixture replays do not invent runtime duration. Their trace states
 `Timing not recorded for fixture replay` when a check has no measured fixture
@@ -165,7 +189,7 @@ The final disposition, severity, assertions, and receipt hash are deterministic.
 The model may choose approved follow-up order and produce a public narrative,
 but it cannot supply RPC parameters or participate in the verdict path.
 
-## Investigation outcomes
+### Investigation outcomes
 
 | Outcome | Meaning |
 | --- | --- |
@@ -178,7 +202,7 @@ A `corroborated` outcome records agreement between this bounded evidence set and
 its configured assertions. It does not prove implementation safety, intent,
 identity, governance legitimacy, or broader protocol security.
 
-## Architecture
+### System flow
 
 ```text
 Closed target registry
@@ -214,73 +238,10 @@ Express API and in-memory store -> vanilla investigation workspace
 - Vanilla HTML, CSS, and JavaScript render the archive, investigation trace,
   evidence details, failures, receipt downloads, and browser-side receipt
   verification.
-- Process memory is sufficient because the bounded scans and deterministic IDs
-  reproduce the same records from Base. Committed fixtures provide the public
-  archive.
+- Process memory is sufficient for the bounded scans and deterministic IDs.
+  Committed fixtures provide the public archive.
 
-## Run the demo
-
-Requirements:
-
-- Node.js 24.x
-- npm 11.x
-
-```sh
-git clone https://github.com/AjKadri/watchtower-agent.git
-cd watchtower-agent
-nvm use
-npm ci
-cp .env.example .env
-npm test
-npm run typecheck
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000). The three fixture replays
-are available immediately.
-
-The live ether.fi investigation needs an archive-capable Base mainnet endpoint.
-Set `BASE_RPC_URL` only in the ignored `.env` file, then run:
-
-```sh
-npm run build
-npm run scan
-```
-
-The scan is fixed to block `23487559` and the configured qualifying transaction.
-A verified complete run produces one informational `contract_upgrade` alert,
-complete evidence, a corroborated investigation, and no failures.
-`npm run scan` executes the compiled `dist/cli/scan.js` entrypoint and therefore
-requires `npm run build` after a fresh checkout. It does not load the
-development-only `tsx` package. Use `npm run scan:dev` only for source-level
-development.
-
-To enable the optional bounded agent for a live ether.fi scan, set both values
-only in the ignored `.env` file:
-
-```sh
-OPENROUTER_API_KEY=your-server-side-key
-WATCHTOWER_AGENT_MODEL=your-openrouter-model-id
-```
-
-With either value missing, the evidence record reports the agent as
-`unavailable` and the deterministic investigation continues. Provider timeout,
-failure, malformed output, or an invalid tool request is reported as `failed`.
-Fixtures always report `not-run` and never imitate a live model execution.
-
-Build and run the compiled production artifact:
-
-```sh
-npm run build
-npm start
-```
-
-`npm start` runs `dist/server/main.js` with plain Node.js. Production startup
-does not load `tsx`. `.nvmrc`, `packageManager`, and package engine metadata pin
-the supported toolchain. The install preflight exits with a clear message on an
-unsupported Node major version.
-
-## API
+### API
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -326,7 +287,7 @@ scan settles and cleanup finishes, so requests during cleanup receive HTTP 429.
 A later request may start after cleanup. Existing bounded viem request timeouts
 and retries remain unchanged.
 
-## Failure handling
+### Failure handling
 
 Watchtower verifies RPC chain ID `8453` before scanning. It categorizes DNS,
 timeout, rate-limit, malformed-response, wrong-chain, unsupported-history, and
@@ -341,36 +302,115 @@ Complete, partial, and failed attempts atomically replace previous artifacts
 with the same deterministic scan ID, so stale alerts or receipts cannot survive
 a rescan.
 
-## Current MVP limitations
+### Current MVP limitations
 
 - Only the three listed Base profiles are supported.
 - Only the configured `Upgraded(address)` event is detected.
 - The live API scans one server-selected profile and one approved historical
   range. The browser selector replays fixtures and cannot change scanner scope.
 - There is no continuous monitoring, notification delivery, authentication,
-  wallet access, transaction submission, database, multi-chain support, dynamic
-  proxy discovery, or arbitrary RPC execution.
+  wallet access, transaction submission, database, multi-chain support,
+  dynamic proxy discovery, or arbitrary RPC execution.
 - Ownership changes, pause events, transfers, remote LayerZero peers, DVNs,
   executors, SyncPool operations, L1 backing paths, and broader governance
   claims are outside the current evidence boundary.
-- Historical checks require an archive-capable provider. Pruned history,
-  rate limits, timeouts, and provider outages can produce an incomplete result.
+- Historical checks require an archive-capable provider. Pruned history, rate
+  limits, timeouts, and provider outages can produce an incomplete result.
 - Live agent decisions require configured OpenRouter credentials and provider
   availability. Agent failure never prevents required deterministic checks.
 - The Aave fixture records implementation bytecode presence and a verified
-  length of `22757` bytes, but no bytecode hash. The configured archive RPC
-  hostname did not resolve during final provenance verification, so an earlier
-  unsupported frontend-only hash was removed. Compound and ether.fi retain
+  length of `22757` bytes, but no bytecode hash. Compound and ether.fi retain
   their independently recorded fixture hashes.
-- Alerts and live receipts are held in memory and clear when the server restarts.
+- Alerts and live receipts are held in memory and clear when the server
+  restarts.
 
-## Verification
+## What is real vs not claimed
+
+| Capability | Status |
+| --- | --- |
+| Historical upgrade evidence | Real and deterministic for the configured profiles |
+| Browser receipt verification | Real and performed locally in the browser |
+| Review-packet JSON and Markdown export | Real in the shipped application |
+| Bounded agent follow-up planning | Real only when the configured live-agent provider is available |
+| Arbitrary contract scanning | Not supported |
+| Arbitrary RPC URLs or block ranges | Not supported |
+| Wallet access or transaction signing | Not supported |
+| Automatic deposit, withdrawal, listing, or pause decisions | Not supported |
+| Continuous monitoring or notifications | Not supported |
+| Upgrade safety guarantee | Not claimed |
+| Smart-contract audit | Not claimed |
+
+## Local setup and tests
+
+Requirements:
+
+- Node.js 24.x
+- npm 11.x
+
+```sh
+git clone https://github.com/AjKadri/watchtower-agent.git
+cd watchtower-agent
+nvm use
+npm ci
+cp .env.example .env
+npm test
+npm run typecheck
+npm run build
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). The three fixture replays
+are available immediately.
+
+The live ether.fi investigation needs an archive-capable Base mainnet endpoint.
+Set `BASE_RPC_URL` only in the ignored `.env` file, then run:
+
+```sh
+npm run build
+npm run scan
+```
+
+The scan is fixed to block `23487559` and the configured qualifying
+transaction. A verified complete run produces one informational
+`contract_upgrade` alert, complete evidence, a corroborated investigation, and
+no failures. `npm run scan` executes the compiled `dist/cli/scan.js` entrypoint
+and requires `npm run build` after a fresh checkout. It does not load the
+development-only `tsx` package. Use `npm run scan:dev` for source-level
+development.
+
+To enable the optional bounded agent for a live ether.fi scan, set both values
+only in the ignored `.env` file:
+
+```sh
+OPENROUTER_API_KEY=your-server-side-key
+WATCHTOWER_AGENT_MODEL=your-openrouter-model-id
+```
+
+With either value missing, the evidence record reports the agent as
+`unavailable` and the deterministic investigation continues. Provider timeout,
+failure, malformed output, or an invalid tool request is reported as `failed`.
+Fixtures always report `not-run` and never imitate a live model execution.
+
+Build and run the compiled production artifact:
+
+```sh
+npm run build
+npm start
+```
+
+`npm start` runs `dist/server/main.js` with plain Node.js. Production startup
+does not load `tsx`. `.nvmrc`, `packageManager`, and package engine metadata pin
+the supported toolchain. The install preflight exits with a clear message on an
+unsupported Node major version.
+
+### Verification
 
 ```sh
 npm test
 npm run typecheck
 npm run build
 npm audit --audit-level=moderate
+git diff --check
 ```
 
 GitHub Actions runs the same checks on Node 24 for pushes and pull requests. A
@@ -386,13 +426,6 @@ integrity, API behavior, malformed RPC evidence, scan cancellation, frontend
 states, production configuration, runtime pinning, CI requirements, and safe
 failure handling.
 
-Verify the current public revision directly from the tracked remote:
-
-```sh
-git fetch origin
-git rev-parse origin/main
-```
-
 Fixture provenance and detailed verified values are available in:
 
 - [`fixtures/base/aave-v3-upgrade-41105890/`](fixtures/base/aave-v3-upgrade-41105890/)
@@ -401,4 +434,4 @@ Fixture provenance and detailed verified values are available in:
 
 ## License
 
-MIT. See LICENSE.
+MIT. See [LICENSE](LICENSE).
