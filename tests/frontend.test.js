@@ -453,6 +453,7 @@ describe("dashboard view model", () => {
     expect(html).toContain('href="https://t.me/watchtowerbase"');
     expect(html).toContain('Run configured live scan');
     expect(html).toContain('Three configured profiles. Three live-scan targets.');
+    expect(html).toContain('<span>Live-scan targets</span><strong>03</strong');
     expect(app).toContain('Run configured ${profile.displayName} live scan');
     expect(app).toContain('${profile.displayName} is live-scan eligible. The scan remains bounded to its registered historical range.');
     expect(app).toContain('Verified fixture replay only. Live scanning is enabled for ${liveScanScopeLabel()}.');
