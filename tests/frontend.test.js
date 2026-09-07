@@ -747,3 +747,36 @@ describe("browser receipt verification", () => {
     expect(app).toContain('check.result.hash ?? "Not recorded"');
   });
 });
+
+describe("review packet documentation", () => {
+  it("documents the intended users, uses, verification boundary, and non-capabilities", () => {
+    const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+    const start = readme.indexOf("## Review packets");
+    const end = readme.indexOf("## Supported profiles", start);
+    const section = readme.slice(start, end).replace(/\s+/g, " ");
+
+    for (const phrase of [
+      "exchange and infrastructure teams reviewing integrations",
+      "protocol teams reviewing upgrades",
+      "crypto-agent companies",
+      "human review and annotation",
+      "machine consumption, archiving",
+      "external audit trail",
+      "canonical receipt inside the packet",
+      "ignores saved verification metadata",
+      "additional packet context",
+      "not all hash-bound",
+      "does not pause deposits",
+      "approve integrations",
+      "declare upgrades safe",
+      "generate LLM risk scores",
+      "monitor arbitrary contracts",
+      "bounded historical investigation",
+      "deterministic evidence",
+      "explicit disposition",
+      "verifiable receipt",
+    ]) {
+      expect(section.toLowerCase()).toContain(phrase.toLowerCase());
+    }
+  });
+});
