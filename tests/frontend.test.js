@@ -841,6 +841,38 @@ describe("browser receipt verification", () => {
     }
   });
 
+  it("keeps review packet disclosures aligned between README and docs", () => {
+    const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+    const docs = readFileSync(new URL("../public/docs/index.html", import.meta.url), "utf8");
+    const readmeSection = readme.slice(readme.indexOf("## Review packets"), readme.indexOf("## Supported profiles")).replace(/\s+/g, " ").toLowerCase();
+    const docsSection = docs.slice(docs.indexOf('id="review-packets"'), docs.indexOf('id="how-it-works"')).replace(/\s+/g, " ").toLowerCase();
+
+    for (const phrase of [
+      "exchange and infrastructure teams reviewing integrations",
+      "protocol teams reviewing upgrades",
+      "crypto-agent companies",
+      "human review and annotation",
+      "machine consumption, archiving",
+      "external audit trail",
+      "canonical receipt inside the packet",
+      "ignores saved verification metadata",
+      "additional packet context",
+      "not all hash-bound",
+      "does not pause deposits",
+      "approve integrations",
+      "declare upgrades safe",
+      "generate llm risk scores",
+      "monitor arbitrary contracts",
+      "bounded historical investigation",
+      "deterministic evidence",
+      "explicit disposition",
+      "verifiable receipt",
+    ]) {
+      expect(readmeSection).toContain(phrase);
+      expect(docsSection).toContain(phrase);
+    }
+  });
+
   it("ships responsive docs navigation and reduced-motion support", () => {
     const docs = readFileSync(new URL("../public/docs/index.html", import.meta.url), "utf8");
     const css = readFileSync(new URL("../public/docs/docs.css", import.meta.url), "utf8");

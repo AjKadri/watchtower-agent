@@ -224,18 +224,19 @@
               <section id="review-packets" class="docs-section" data-doc-section>
                 <p class="section-label">REVIEW PACKETS</p>
                 <h2>Share the evidence in two useful formats.</h2>
-                <p>Each investigation can be downloaded as a human-readable Markdown review packet or a machine-readable JSON review packet. Security teams, incident responders, auditors, and researchers can keep either format as an audit trail alongside the recorded evidence and explorer links.</p>
+                <p>Watchtower review packets are for exchange and infrastructure teams reviewing integrations, protocol teams reviewing upgrades, and crypto-agent companies that need deterministic protocol evidence.</p>
+                <p class="docs-section-lede">Markdown supports human review and annotation. JSON supports machine consumption, archiving, and retention in an external audit trail.</p>
+                <p class="docs-section-lede"><code>bounded historical investigation</code> → <code>deterministic evidence</code> → <code>explicit disposition</code> → <code>verifiable receipt</code></p>
                 <div class="docs-callout docs-callout-neutral">
                   <span class="docs-callout-label">BROWSER-LOCAL VERIFICATION</span>
-                  <p>Select the JSON packet in the Watchtower app to check its format and schema, confirm that a canonical receipt is present, compare the packet and receipt identifiers, and recompute the receipt’s SHA-256 ID with Web Crypto. The saved <code>browserVerification</code> value is ignored, so every selection performs a fresh check. No file is uploaded and verification makes no fetch, RPC, or scan request.</p>
+                  <p>Select the JSON packet in the Watchtower app to check its format and schema, confirm that a canonical receipt is present, compare the packet and receipt identifiers, and independently recompute the receipt’s SHA-256 ID inside the packet with Web Crypto. The verifier ignores saved verification metadata, including the <code>browserVerification</code> value, so every selection performs a fresh check. No file is uploaded and verification makes no fetch, RPC, or scan request.</p>
                 </div>
                 <ul class="docs-inline-list">
-                  <li>Markdown is intended for people reading and annotating an investigation.</li>
-                  <li>JSON is intended for tooling, archiving, and browser-local verification.</li>
-                  <li>A valid result verifies the canonical receipt payload and its identifier only.</li>
-                  <li>Packet metadata, narrative, agent investigation data, and saved verification metadata outside that payload are not covered by the receipt hash.</li>
+                  <li>Browser verification covers the canonical receipt inside the packet and its identifier only.</li>
+                  <li>Additional packet context, display metadata, saved verification metadata, agent narrative, links, and other fields outside that payload are not all hash-bound.</li>
+                  <li>Watchtower does not pause deposits, approve integrations, declare upgrades safe, generate LLM risk scores, or monitor arbitrary contracts.</li>
                 </ul>
-                <p class="docs-muted-note">Review packets do not authenticate their publisher, prove implementation safety, prevent exploits, or replace a smart-contract audit.</p>
+                <p class="docs-muted-note">Review packets do not authenticate their publisher, prevent exploits, or replace a smart-contract audit.</p>
               </section>
 
               <section id="how-it-works" class="docs-section" data-doc-section>
