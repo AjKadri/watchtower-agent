@@ -19,6 +19,7 @@ import {
   investigationStateLabel,
   isMobileLayout,
   isStructuredScanResult,
+  liveScanTransitionState,
   summarizeTraceProgression,
 } from "/view-model.js";
 
@@ -44,6 +45,7 @@ const elements = {
   failurePanel: document.querySelector("#failure-panel"),
   healthDot: document.querySelector("#health-dot"),
   healthLabel: document.querySelector("#health-label"),
+  currentSection: document.querySelector("#investigation"),
   profileSelector: document.querySelector("#profile-selector"),
   packetFile: document.querySelector("#packet-file"),
   packetVerificationResult: document.querySelector("#packet-verification-result"),
@@ -243,10 +245,18 @@ function renderFailures(failures = []) {
 }
 
 function setSourceBadge(detail, source) {
-  const label = investigationStateLabel(detail, source);
+  setSourceBadgeLabel(investigationStateLabel(detail, source));
+}
+
+function setSourceBadgeLabel(label) {
   const sourceBadge = createSourceBadge(label);
   elements.sourceBadge.className = sourceBadge.className;
   elements.sourceBadge.replaceChildren(...sourceBadge.childNodes);
+}
+
+function setScanTransitionState({ source = "verified-fixture", scanStatus = null, loading = false } = {}) {
+  if (!elements.currentSection) return;
+  elements.currentSection.dataset.scanState = liveScanTransitionState({ source, scanStatus, loading });
 }
 
 function renderProfiles() {
@@ -1000,6 +1010,49 @@ function showEmptyInvestigation(message, status = "incomplete", context = {}) {
   renderEmptyCaseSummary(status, message);
 }
 
+function renderLiveScanLoading(profile) {
+  setScanTransitionState({ loading: true });
+  setSourceBadgeLabel("Live RPC investigation in progress");
+  elements.detail.replaceChildren();
+  elements.detail.setAttribute("aria-busy", "true");
+
+  const placeholder = node("div", "detail-placeholder live-scan-loading");
+  const facts = node("dl", "detail-empty-facts");
+  for (const [label, value] of [
+    ["Profile", profile.displayName],
+    ["Configured block", profile.block.number],
+    ["Source", "Live RPC investigation"],
+  ]) {
+    const group = node("div");
+    group.append(node("dt", "", label), node("dd", "", value));
+    facts.append(group);
+  }
+  placeholder.append(
+    node("p", "kicker", "Live RPC investigation"),
+    node("h3", "", "Live RPC investigation in progress"),
+    node("p", "detail-placeholder-copy", "The committed fixture detail and receipt are hidden while Watchtower checks the configured historical block."),
+    facts,
+    node("p", "loading-note", "Read-only · registered profile · fixed RPC parameters"),
+  );
+  elements.detail.append(placeholder);
+
+  elements.caseProfileId.textContent = profile.id;
+  elements.caseProtocol.textContent = profile.displayName;
+  elements.caseTarget.textContent = `${profile.targetName} · Base mainnet · block ${profile.block.number}`;
+  elements.caseSummaryDisposition.replaceChildren(badge("Live scan loading", "incomplete"));
+  elements.caseSummaryBrief.textContent = `Live RPC investigation in progress. The fixture receipt is hidden until the configured block ${profile.block.number} resolves.`;
+  elements.caseEvent.textContent = profile.event;
+  elements.casePlan.textContent = `${profile.receipt.plan.id} · v${profile.receipt.plan.version}`;
+  elements.caseStatus.textContent = "live-scan-loading";
+  elements.caseDisposition.textContent = "not issued";
+  elements.caseJourney.textContent = "Live RPC investigation in progress";
+  elements.caseChecks.textContent = `${profile.receipt.checks.length} required checks pending`;
+  elements.caseReceipt.textContent = "Not issued";
+  elements.caseReceipt.title = "";
+  elements.caseSummaryActions.replaceChildren();
+  elements.activeProfileNote.textContent = `${profile.displayName} live scan is checking configured block ${profile.block.number}.`;
+}
+
 function selectProfile(profileId, requestedSource) {
   const profile = getArchiveProfile(profileId);
   if (!profile) return;
@@ -1010,6 +1063,7 @@ function selectProfile(profileId, requestedSource) {
   const detail = source === "live" ? liveDetail : buildFixtureDetail(profile);
   renderFailures(detail.scanFailures);
   renderDetail(detail, source);
+  setScanTransitionState({ source, scanStatus: detail.scanStatus });
   const isLiveProfile = isLiveScanEligible(profile.id);
   elements.scanButton.disabled = !isLiveProfile;
   elements.scanButton.textContent = isLiveProfile
@@ -1037,9 +1091,11 @@ async function loadStoredLiveDetail() {
 
 async function runScan() {
   if (!isLiveScanEligible(state.selectedProfileId)) return;
-  elements.scanButton.disabled = true;
   const profile = getArchiveProfile(state.selectedProfileId);
-  elements.scanStatus.textContent = `Scanning approved Base block ${profile?.block.number ?? state.config.scan.fromBlock}.`;
+  if (!profile) return;
+  elements.scanButton.disabled = true;
+  renderLiveScanLoading(profile);
+  elements.scanStatus.textContent = "Live RPC investigation in progress";
   renderFailures([]);
   try {
     const result = await request("/api/scans", {
@@ -1061,6 +1117,7 @@ async function runScan() {
       nextAction: "Review the visible failure records and retry the configured scan.",
     });
     elements.scanStatus.textContent = error.message;
+    setScanTransitionState({ source: "live", scanStatus: "failed" });
     elements.caseStatus.textContent = "failed";
     elements.caseDisposition.textContent = "not issued";
     elements.caseJourney.textContent = "Investigation failed";
@@ -1072,6 +1129,7 @@ async function runScan() {
 
 function renderScanResult(result) {
   renderFailures(result.failures);
+  setScanTransitionState({ source: "live", scanStatus: result.status });
   if (result.alerts.length === 0 || result.evidence.length === 0) {
     elements.scanStatus.textContent = `Scan ${result.status}. No complete alert is available. ${result.failures.length} failure records.`;
     const firstFailure = result.failures[0];

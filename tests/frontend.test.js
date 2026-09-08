@@ -15,6 +15,7 @@ import {
   investigationStateLabel,
   isMobileLayout,
   isStructuredScanResult,
+  liveScanTransitionState,
   reconcileAlertSelection,
   summarizeTraceProgression,
 } from "../public/view-model.js";
@@ -406,6 +407,30 @@ describe("dashboard view model", () => {
     expect(investigationStateLabel(complete, "live")).toBe("Live RPC investigation");
     expect(investigationStateLabel({ ...complete, scanStatus: "partial" }, "live")).toBe("Incomplete investigation");
     expect(investigationStateLabel({ scanStatus: "failed" }, "live")).toBe("Failed investigation");
+  });
+
+  it("keeps the fixture-to-live transition explicit without reusing stale receipts", () => {
+    expect(liveScanTransitionState({ source: "verified-fixture", scanStatus: "complete" })).toBe("fixture-ready");
+    expect(liveScanTransitionState({ loading: true })).toBe("live-scan-loading");
+    expect(liveScanTransitionState({ source: "live", scanStatus: "complete" })).toBe("live-result");
+    expect(liveScanTransitionState({ source: "live", scanStatus: "partial" })).toBe("live-failure");
+    expect(liveScanTransitionState({ source: "live", scanStatus: "failed" })).toBe("live-failure");
+
+    const fixture = buildFixtureDetail(archiveProfiles[1]);
+    expect(fixture.evidence.investigationReceipt.receiptId).toBe(archiveProfiles[1].receipt.receiptId);
+    expect(fixture.source).toBe("verified-fixture");
+    expect(buildInvestigationTrace(fixture)[5].title).toBe("Verify");
+
+    const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+    expect(html).toContain('data-scan-state="fixture-ready"');
+    expect(app).toContain('elements.scanStatus.textContent = "Live RPC investigation in progress";');
+    expect(app).toContain("renderLiveScanLoading(profile);");
+    expect(app).toContain("The committed fixture detail and receipt are hidden while Watchtower checks the configured historical block.");
+    expect(app).toContain('setScanTransitionState({ source: "live", scanStatus: result.status });');
+    expect(app).toContain('setSourceBadgeLabel("Live RPC investigation in progress");');
+    expect(app).toContain('if (source === "live") {');
+    expect(app).toContain('Download receipt JSON');
   });
 
   it("ships valid deterministic fixture receipts and receipt links", () => {

@@ -91,6 +91,12 @@ export function investigationStateLabel(detail, source) {
   return source === "live" ? "Live RPC investigation" : "Verified fixture replay";
 }
 
+export function liveScanTransitionState({ source = "verified-fixture", scanStatus = null, loading = false } = {}) {
+  if (loading) return "live-scan-loading";
+  if (source !== "live") return "fixture-ready";
+  return scanStatus === "complete" ? "live-result" : "live-failure";
+}
+
 export function isMobileLayout(viewportWidth) {
   return Number.isFinite(viewportWidth) && viewportWidth <= 720;
 }

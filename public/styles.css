@@ -175,6 +175,7 @@ h3, h4 { line-height: 1.25; }
 .detail-panel { min-width: 0; max-width: 100%; padding: 38px 42px 48px; background: var(--color-surface); }
 .detail-placeholder, .detail-empty { min-height: 420px; display: grid; align-content: center; justify-items: start; gap: var(--space-3); max-width: 620px; }
 .detail-placeholder { padding: var(--space-8); border: 1px dashed var(--color-border-strong); background: var(--color-bg); }
+.detail-placeholder.live-scan-loading { width: 100%; max-width: none; border-color: var(--color-accent); background: var(--color-accent-soft); }
 .loading-mark { width: 9px; height: 9px; margin-bottom: var(--space-2); border-radius: 50%; background: var(--color-link); box-shadow: 0 0 0 5px var(--color-link-soft); }
 .detail-placeholder-copy { max-width: 500px; margin: 0; color: var(--color-text-muted); font-size: var(--text-md); line-height: var(--leading-reading); }
 .loading-note { margin: var(--space-3) 0 0; color: var(--color-text-faint); font-family: var(--font-mono); font-size: var(--text-xs); }
