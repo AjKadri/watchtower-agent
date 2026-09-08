@@ -50,7 +50,7 @@ can be reproduced locally.
 All three profiles are configured for live scanning and have verified fixture
 replays. The live path requires an archive-capable Base RPC endpoint.
 
-![Watchtower investigation workspace showing a verified ether.fi fixture replay and receipt](./public/screenshots/watchtower-live-investigation.jpg)
+![Watchtower investigation workspace showing three live-eligible Base profiles, deterministic evidence, and a browser-verifiable receipt](./public/screenshots/watchtower-live-investigation.jpg)
 
 ## What Watchtower checks
 

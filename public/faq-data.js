@@ -24,8 +24,8 @@ export const watchtowerFaq = Object.freeze([
     id: "how-watchtower-decides",
     question: "How does Watchtower decide something deserves attention?",
     category: "core-concepts",
-    shortAnswer: "Deterministic rules validate the event, choose a registered plan, and assign severity. On a configured live ether.fi scan, a bounded agent may choose the order of approved follow-up checks, but deterministic code executes every required check and decides the final disposition.",
-    longAnswer: "Watchtower first validates the configured event and applies the profile's deterministic severity rule. On a configured live ether.fi scan, the bounded agent may request only remaining check IDs from that immutable plan; server code supplies every RPC parameter and executes every required check even if the agent fails. The model cannot change severity, disposition, receipt contents, or the meaning of recorded chain evidence, and a flagged result is not proof of malicious intent.",
+    shortAnswer: "Deterministic rules validate the event, choose a registered plan, and assign severity. On a configured live Aave, Compound III, or ether.fi scan, the bounded agent may select only registered follow-up checks, while deterministic code executes every required check and derives the final disposition.",
+    longAnswer: "Watchtower first validates the configured event and applies the profile's deterministic severity rule. On a configured live Aave, Compound III, or ether.fi scan, the bounded agent may request only remaining check IDs from that immutable plan; server code supplies every fixed RPC parameter and executes every required check even if the agent fails. The model cannot change severity, disposition, receipt contents, or the meaning of recorded chain evidence, and a flagged result is not proof of malicious intent.",
   },
   {
     id: "verify-watchtower-alert",

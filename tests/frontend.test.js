@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -997,6 +997,11 @@ describe("browser receipt verification", () => {
     expect(watchtowerFaq.every(({ question, shortAnswer, longAnswer }) => (
       question && shortAnswer && longAnswer && shortAnswer.length < longAnswer.length
     ))).toBe(true);
+    const agentAnswer = watchtowerFaq.find(({ id }) => id === "how-watchtower-decides");
+    expect(agentAnswer).toBeDefined();
+    expect(agentAnswer.shortAnswer).toContain("Aave, Compound III, or ether.fi");
+    expect(agentAnswer.longAnswer).toContain("Aave, Compound III, or ether.fi");
+    expect(`${agentAnswer.shortAnswer} ${agentAnswer.longAnswer}`).not.toMatch(/live ether\.fi scan/i);
     expect(watchtowerFaq.map(({ question }) => question)).toEqual([
       "What is Watchtower?",
       "What does Watchtower monitor?",
@@ -1011,6 +1016,17 @@ describe("browser receipt verification", () => {
     expect(app).toContain("function initializeFaq()");
     expect(app).toContain('answer.setAttribute("aria-hidden", String(!open))');
     expect(app).toContain("initializeFaq();");
+  });
+
+  it("keeps the current screenshot and skip-link contrast contract in sync", () => {
+    const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+    const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+
+    expect(existsSync(new URL("../public/screenshots/watchtower-live-investigation.jpg", import.meta.url))).toBe(true);
+    expect(readme).toMatch(/!\[Watchtower investigation workspace showing three live-eligible Base profiles, deterministic evidence, and a browser-verifiable receipt\]\(\.\/public\/screenshots\/watchtower-live-investigation\.jpg\)/);
+    expect(css).toContain(".skip-link:focus { transform: none; }");
+    expect(css).toContain("color: #ffffff; background: var(--accent)");
+    expect(css).toContain('html[data-theme="dark"] .skip-link { color: #073f2b; }');
   });
 
   it("labels decorative monitoring visuals as illustrative instead of live state", () => {
