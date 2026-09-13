@@ -47,6 +47,7 @@ const elements = {
   healthLabel: document.querySelector("#health-label"),
   currentSection: document.querySelector("#investigation"),
   profileSelector: document.querySelector("#profile-selector"),
+  registryBoundary: document.querySelector(".registry-boundary"),
   packetFile: document.querySelector("#packet-file"),
   packetVerificationResult: document.querySelector("#packet-verification-result"),
   scanButton: document.querySelector("#scan-button"),
@@ -63,6 +64,40 @@ const state = {
 };
 
 const themePreferenceKey = "watchtower-theme";
+const registryBoundaryCopy = "Only these registered profiles can be selected. Contract addresses and calls remain fixed server-side.";
+
+function setProfileRegistryState(status) {
+  if (!elements.profileSelector) return;
+  const messages = {
+    loading: "Loading the server-approved profile registry.",
+    hydrating: "Profiles are ready. Hydrating stored live details in the background.",
+    ready: registryBoundaryCopy,
+    "hydration-error": "Stored live details could not be loaded. Profiles remain available and fixture evidence is shown until a live result is available.",
+    error: "The server-approved profile registry is unavailable. Verified fixture profiles remain visible; live scanning is disabled.",
+  };
+  elements.profileSelector.dataset.registryState = status;
+  elements.profileSelector.setAttribute("aria-busy", String(status === "loading"));
+  if (elements.registryBoundary && messages[status]) elements.registryBoundary.textContent = messages[status];
+}
+
+async function hydrateConfiguredProfiles({ activeProfileId, state: profileState, selectProfile, loadStoredLiveDetail, setRegistryState }) {
+  // Selecting the profile renders the server-approved cards before any stored
+  // alert detail is requested. Hydration can therefore never blank the registry.
+  selectProfile(activeProfileId);
+  setRegistryState("hydrating");
+  let hydrationFailed = false;
+  try {
+    await loadStoredLiveDetail();
+  } catch {
+    profileState.liveDetails.clear();
+    hydrationFailed = true;
+  }
+  // A visitor may select another profile while hydration is in flight. Keep
+  // that selection when the stored detail pass completes.
+  selectProfile(profileState.selectedProfileId ?? activeProfileId);
+  setRegistryState(hydrationFailed ? "hydration-error" : "ready");
+  return hydrationFailed ? "hydration-error" : "ready";
+}
 
 function applyTheme(theme) {
   const selectedTheme = theme === "dark" ? "dark" : "light";
@@ -1239,6 +1274,7 @@ async function initialize() {
   elements.scanButton.addEventListener("click", runScan);
   initializePacketVerifier();
   renderArchive();
+  setProfileRegistryState("loading");
   await updateHealth();
   try {
     state.config = await request("/api/config");
@@ -1248,14 +1284,16 @@ async function initialize() {
       : [state.activeProfileId];
     state.selectedProfileId = state.activeProfileId;
     if (!getArchiveProfile(state.activeProfileId)) throw new Error("The active server profile is outside the verified frontend registry.");
-    try {
-      await loadStoredLiveDetail();
-    } catch {
-      state.liveDetails.clear();
-    }
-    selectProfile(state.activeProfileId);
+    await hydrateConfiguredProfiles({
+      activeProfileId: state.activeProfileId,
+      state,
+      selectProfile,
+      loadStoredLiveDetail,
+      setRegistryState: setProfileRegistryState,
+    });
   } catch (error) {
     renderProfiles();
+    setProfileRegistryState("error");
     showEmptyInvestigation(`Dashboard initialization failed: ${error.message}`, "failed", {
       category: "dashboard-initialization",
       stage: "Profile loading",

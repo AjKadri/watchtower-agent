@@ -26,6 +26,112 @@ import { investigationReceiptSchema } from "../src/domain/schemas.js";
 import { createInvestigationReceipt } from "../src/investigation/receipt.js";
 import { getTargetProfile } from "../src/profiles/registry.js";
 
+function loadProfileHydrator() {
+  const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+  const start = app.indexOf("async function hydrateConfiguredProfiles");
+  const end = app.indexOf("\n}\n\nfunction applyTheme", start);
+  if (start < 0 || end < 0) throw new Error("Profile hydration boundary is missing.");
+  return new Function(`return (${app.slice(start, end + 2)});`)();
+}
+
+describe("profile registry initialization", () => {
+  it("renders every configured card before delayed stored details and keeps the selected profile", async () => {
+    const hydrateConfiguredProfiles = loadProfileHydrator();
+    const cards = archiveProfiles.map(({ id }) => id);
+    const state = { selectedProfileId: "aave-v3-base-core", liveDetails: new Map() };
+    const renders = [];
+    const registryStates = [];
+    let resolveDetails;
+    const details = new Promise((resolve) => { resolveDetails = resolve; });
+    const promise = hydrateConfiguredProfiles({
+      activeProfileId: "aave-v3-base-core",
+      state,
+      selectProfile: (id) => {
+        state.selectedProfileId = id;
+        renders.push({ selectedProfileId: id, cards: cards.slice() });
+      },
+      loadStoredLiveDetail: () => details,
+      setRegistryState: (status) => registryStates.push(status),
+    });
+
+    await Promise.resolve();
+    expect(renders).toHaveLength(1);
+    expect(renders[0].cards).toHaveLength(3);
+    expect(registryStates).toEqual(["hydrating"]);
+
+    state.selectedProfileId = "compound-iii-base-usdc-comet";
+    resolveDetails();
+    await expect(promise).resolves.toBe("ready");
+    expect(renders.at(-1)).toMatchObject({
+      selectedProfileId: "compound-iii-base-usdc-comet",
+      cards,
+    });
+    expect(registryStates).toEqual(["hydrating", "ready"]);
+  });
+
+  it("keeps the rendered registry when stored detail hydration fails", async () => {
+    const hydrateConfiguredProfiles = loadProfileHydrator();
+    const state = {
+      selectedProfileId: "aave-v3-base-core",
+      liveDetails: new Map([["aave-v3-base-core", { source: "live" }]]),
+    };
+    const renders = [];
+    const promise = hydrateConfiguredProfiles({
+      activeProfileId: "aave-v3-base-core",
+      state,
+      selectProfile: (id) => renders.push({ id, cards: archiveProfiles.map(({ id: profileId }) => profileId) }),
+      loadStoredLiveDetail: async () => { throw new Error("stored detail unavailable"); },
+      setRegistryState: () => {},
+    });
+
+    await expect(promise).resolves.toBe("hydration-error");
+    expect(renders).toHaveLength(2);
+    expect(renders.every(({ cards }) => cards.length === 3)).toBe(true);
+    expect(state.liveDetails.size).toBe(0);
+  });
+
+  it("keeps all cards when one stored alert detail fails", async () => {
+    const hydrateConfiguredProfiles = loadProfileHydrator();
+    const state = { selectedProfileId: "aave-v3-base-core", liveDetails: new Map() };
+    const renders = [];
+    const detailRequests = [
+      Promise.resolve({ id: "aave" }),
+      Promise.reject(new Error("expired detail")),
+      Promise.resolve({ id: "etherfi" }),
+    ];
+    const promise = hydrateConfiguredProfiles({
+      activeProfileId: "aave-v3-base-core",
+      state,
+      selectProfile: (id) => renders.push({ id, cards: archiveProfiles.map(({ id: profileId }) => profileId) }),
+      loadStoredLiveDetail: async () => {
+        for (const detailRequest of detailRequests) {
+          try {
+            await detailRequest;
+          } catch {
+            // The production loader keeps the other profile details available.
+          }
+        }
+      },
+      setRegistryState: () => {},
+    });
+
+    await expect(promise).resolves.toBe("ready");
+    expect(renders).toHaveLength(2);
+    expect(renders.every(({ cards }) => cards.length === 3)).toBe(true);
+  });
+
+  it("keeps an honest loading and configuration-failure state around the registry", () => {
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+    expect(app).toContain('setProfileRegistryState("loading");');
+    expect(app).toContain('setProfileRegistryState("error");');
+    expect(app).toContain("Verified fixture profiles remain visible; live scanning is disabled.");
+    expect(app.indexOf('setProfileRegistryState("loading");')).toBeLessThan(app.indexOf('state.config = await request("/api/config");'));
+    const initialize = app.slice(app.indexOf("async function initialize()"));
+    expect(initialize).toContain("await hydrateConfiguredProfiles({");
+    expect(initialize).toContain("loadStoredLiveDetail,");
+  });
+});
+
 describe("structured scan response handling", () => {
   it("recognizes a failed scan body returned with a non-2xx status", () => {
     expect(isStructuredScanResult({
