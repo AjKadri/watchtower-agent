@@ -8,11 +8,17 @@ export type StoredAlertDetail = {
 
 export class ScanStore {
   readonly #scans = new Map<string, ScanResult>();
+  readonly #history = new Map<string, ScanResult[]>();
   readonly #alerts = new Map<string, Alert>();
   readonly #evidence = new Map<string, Evidence>();
   readonly #receipts = new Map<string, InvestigationReceipt>();
 
   save(result: ScanResult): void {
+    const history = this.#history.get(result.scanId) ?? [];
+    history.push(result);
+    if (history.length > 10) history.shift();
+    this.#history.set(result.scanId, history);
+
     const previous = this.#scans.get(result.scanId);
     if (previous) {
       for (const alert of previous.alerts) this.#alerts.delete(alert.id);
@@ -31,6 +37,11 @@ export class ScanStore {
 
   getScan(scanId: string): ScanResult | undefined {
     return this.#scans.get(scanId);
+  }
+
+  getPreviousScan(scanId: string): ScanResult | undefined {
+    const history = this.#history.get(scanId);
+    return history && history.length >= 2 ? history[history.length - 2] : undefined;
   }
 
   listAlerts(): Alert[] {
