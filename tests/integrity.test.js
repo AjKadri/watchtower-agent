@@ -179,6 +179,13 @@ describe("evidence integrity lab", () => {
       refusalCode: "malformed-evidence",
     });
 
+    const malformedUpstream = structuredClone(fixtureScan());
+    malformedUpstream.failures = [{ code: "malformed-rpc-log", stage: "rpc", category: "malformed-response", message: "Malformed provider response." }];
+    expect(evaluate(malformedUpstream, "live", "live-rpc")).toMatchObject({
+      outcome: "INCOMPLETE",
+      refusalCode: "incomplete-evidence",
+    });
+
     const incomplete = structuredClone(fixtureScan());
     incomplete.status = "partial";
     incomplete.evidence[0].status = "incomplete";

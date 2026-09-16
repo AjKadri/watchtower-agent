@@ -570,6 +570,7 @@ export function evaluateEvidenceIntegrity(input: EvidenceIntegrityInput): Eviden
   }
 
   const incomplete = result.status !== "complete"
+    || result.failures.length > 0
     || evidence.status !== "complete"
     || evidence.upgradeInvestigation.evidenceStatus !== "complete"
     || evidence.upgradeInvestigation.disposition === "incomplete"
