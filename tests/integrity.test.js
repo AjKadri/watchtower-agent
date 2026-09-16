@@ -117,6 +117,12 @@ describe("evidence integrity lab", () => {
     expect(checkResult.outcome).toBe("EVIDENCE_MISMATCH");
     expect(checkResult.failedPaths).toContain("checks[2].result");
 
+    const alteredParameters = structuredClone(fixtureScan());
+    alteredParameters.evidence[0].upgradeInvestigation.checks[3].parameters.data = "0xdeadbeef";
+    const parameterResult = evaluate(alteredParameters, "live", "live-rpc");
+    expect(parameterResult.outcome).toBe("EVIDENCE_MISMATCH");
+    expect(parameterResult.failedPaths).toContain("checks[3].parameters");
+
     const alteredSeverity = structuredClone(fixtureScan());
     alteredSeverity.evidence[0].severity.result = "suspicious";
     const severityResult = evaluate(alteredSeverity, "live", "live-rpc");

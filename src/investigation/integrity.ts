@@ -198,6 +198,18 @@ function expectedCheckResult(definition: ProfileInvestigationCheck): unknown {
   return definition.expectedAddress;
 }
 
+function expectedCheckParameters(definition: ProfileInvestigationCheck, implementation: string): Record<string, string> {
+  if (definition.kind === "storage-address") return { address: definition.address, slot: definition.slot };
+  if (definition.kind === "implementation-code") return { address: implementation };
+  return { to: definition.to, data: definition.data };
+}
+
+function expectedCheckAssertion(definition: ProfileInvestigationCheck): string {
+  if (definition.kind === "implementation-code") return `${definition.expectedByteLength} bytes`;
+  if (definition.kind === "call-uint256") return definition.expectedValue;
+  return definition.expectedAddress;
+}
+
 function receiptMatchesEvidence(evidence: Evidence, receipt: InvestigationReceipt): EvidenceIntegrityComparison[] {
   const trigger = receipt.trigger;
   const comparisons = [
@@ -499,6 +511,8 @@ export function evaluateEvidenceIntegrity(input: EvidenceIntegrityInput): Eviden
       comparison(`checks[${index}].blockTag`, definition.block === "previous"
         ? `0x${BigInt(profile.investigation.previousBlock).toString(16)}`
         : `0x${BigInt(profile.investigation.upgradeBlock).toString(16)}`, check.blockTag, "check-block-mismatch"),
+      comparison(`checks[${index}].parameters`, expectedCheckParameters(definition, implementation), check.parameters, "check-parameters-mismatch"),
+      comparison(`checks[${index}].assertion.expected`, expectedCheckAssertion(definition), check.assertion.expected, "check-assertion-mismatch"),
       comparison(`checks[${index}].result`, expectedCheckResult(definition), observedCheckResult(check), "check-result-mismatch"),
       comparison(`checks[${index}].status`, expectedCheckStatus(definition, check, implementation), check.status, "check-status-mismatch"),
     );
@@ -523,6 +537,8 @@ export function evaluateEvidenceIntegrity(input: EvidenceIntegrityInput): Eviden
     "check-out-of-scope",
     "check-method-mismatch",
     "check-block-mismatch",
+    "check-parameters-mismatch",
+    "check-assertion-mismatch",
     "check-results-mismatch",
     "disposition-mismatch",
     "receipt-id-mismatch",
