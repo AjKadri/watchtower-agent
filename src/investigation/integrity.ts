@@ -294,16 +294,17 @@ function incompleteResult(
   return baseResult(input, snapshot, "INCOMPLETE", message, refusalCode, receipt, {}, {}, [sourceComparison(input)]);
 }
 
-function rawEvidenceMismatchPaths(value: unknown): string[] {
+function rawEvidenceMismatchComparisons(value: unknown): EvidenceIntegrityComparison[] {
   const record = value && typeof value === "object" ? value as Record<string, unknown> : null;
   const evidenceValue = record && Array.isArray(record.evidence) ? record.evidence[0] : null;
   const evidence = evidenceValue && typeof evidenceValue === "object" ? evidenceValue as Record<string, unknown> : null;
   const receiptValue = evidence?.investigationReceipt;
   const receipt = receiptValue && typeof receiptValue === "object" ? receiptValue as Record<string, unknown> : null;
   const trigger = receipt?.trigger && typeof receipt.trigger === "object" ? receipt.trigger as Record<string, unknown> : null;
-  const mismatches: string[] = [];
-  const add = (path: string, left: unknown, right: unknown) => {
-    if (!evmAwareEqual(left, right)) mismatches.push(path);
+  const mismatches: EvidenceIntegrityComparison[] = [];
+  const add = (path: string, expected: unknown, observed: unknown, code = "evidence-mismatch") => {
+    const comparisonResult = comparison(path, expected, observed, code);
+    if (comparisonResult.status === "mismatch") mismatches.push(comparisonResult);
   };
   if (!evidence || !receipt || !trigger) return mismatches;
   const evidenceBlock = evidence.block && typeof evidence.block === "object" ? evidence.block as Record<string, unknown> : null;
@@ -326,15 +327,15 @@ function rawEvidenceMismatchPaths(value: unknown): string[] {
   const receiptChecks = Array.isArray(receipt.checks) ? receipt.checks : [];
   const evidenceChecks = Array.isArray(evidencePlan?.checks) ? evidencePlan.checks : [];
 
-  add("block.number", evidenceBlock?.number, triggerBlock?.number);
-  add("block.hash", evidenceBlock?.hash, triggerBlock?.hash);
-  add("transaction.hash", evidenceTransaction?.hash, triggerTransaction?.hash);
-  add("event.emitter", evidenceLog?.emitter, triggerLog?.emitter);
-  add("event.signature", evidenceEvent?.signature, trigger.eventSignature);
-  add("event.decodedArguments.implementation", evidenceDecoded?.implementation, triggerDecoded?.implementation);
-  add("severity.result", (evidence.severity as Record<string, unknown> | undefined)?.result, detector?.severity);
-  add("plan", evidencePlan?.plan, receipt.plan);
-  add("finalDisposition", evidencePlan?.disposition, receipt.finalDisposition);
+  add("block.number", triggerBlock?.number, evidenceBlock?.number, "block-number-mismatch");
+  add("block.hash", triggerBlock?.hash, evidenceBlock?.hash, "block-hash-mismatch");
+  add("transaction.hash", triggerTransaction?.hash, evidenceTransaction?.hash, "transaction-hash-mismatch");
+  add("event.emitter", triggerLog?.emitter, evidenceLog?.emitter, "event-emitter-mismatch");
+  add("event.signature", trigger.eventSignature, evidenceEvent?.signature, "event-signature-mismatch");
+  add("event.decodedArguments.implementation", triggerDecoded?.implementation, evidenceDecoded?.implementation, "implementation-mismatch");
+  add("severity.result", detector?.severity, (evidence.severity as Record<string, unknown> | undefined)?.result, "severity-mismatch");
+  add("plan", receipt.plan, evidencePlan?.plan, "plan-mismatch");
+  add("finalDisposition", receipt.finalDisposition, evidencePlan?.disposition, "disposition-mismatch");
   for (let index = 0; index < Math.max(evidenceChecks.length, receiptChecks.length); index += 1) {
     const evidenceCheck = evidenceChecks[index];
     const receiptCheck = receiptChecks[index];
@@ -342,9 +343,11 @@ function rawEvidenceMismatchPaths(value: unknown): string[] {
       const evidenceRecord = evidenceCheck && typeof evidenceCheck === "object" ? evidenceCheck as Record<string, unknown> : null;
       const receiptRecord = receiptCheck && typeof receiptCheck === "object" ? receiptCheck as Record<string, unknown> : null;
       for (const field of ["id", "result", "status", "assertion", "method", "parameters", "blockTag", "failure"]) {
-        add(`checks[${index}].${field}`, evidenceRecord?.[field], receiptRecord?.[field]);
+        add(`checks[${index}].${field}`, receiptRecord?.[field], evidenceRecord?.[field], "check-results-mismatch");
       }
-      if (!mismatches.some((path) => path.startsWith(`checks[${index}].`))) mismatches.push(`checks[${index}]`);
+      if (!mismatches.some(({ path }) => path.startsWith(`checks[${index}].`))) {
+        mismatches.push(comparison(`checks[${index}]`, receiptCheck, evidenceCheck, "check-results-mismatch"));
+      }
     }
   }
   return mismatches;
@@ -353,9 +356,8 @@ function rawEvidenceMismatchPaths(value: unknown): string[] {
 function evidenceMismatchFromParse(
   input: EvidenceIntegrityInput,
   snapshot: ScanSnapshot,
-  value: unknown,
   receiptState: ReceiptState,
-  issuePaths: string[],
+  comparisons: EvidenceIntegrityComparison[],
 ): EvidenceIntegrityResult {
   return baseResult(
     input,
@@ -365,8 +367,8 @@ function evidenceMismatchFromParse(
     "evidence-mismatch",
     receiptState,
     {},
-    { issuePaths, result: value },
-    issuePaths.map((path) => comparison(path, "recorded evidence", "changed", "evidence-mismatch")),
+    { issuePaths: comparisons.map(({ path }) => path) },
+    comparisons,
   );
 }
 
@@ -404,15 +406,17 @@ export function evaluateEvidenceIntegrity(input: EvidenceIntegrityInput): Eviden
         : null;
       const receiptParse = investigationReceiptSchema.safeParse(rawReceipt);
       if (receiptParse.success) {
+        const rawComparisons = rawEvidenceMismatchComparisons(input.result);
+        const rawPaths = new Set(rawComparisons.map(({ path }) => path));
+        const issueComparisons = parsedResult.error.issues
+          .map(({ path }) => path.join("."))
+          .filter((path) => path && !rawPaths.has(path))
+          .map((path) => comparison(path, "recorded evidence", "changed", "evidence-mismatch"));
         return evidenceMismatchFromParse(
           input,
           snapshot,
-          input.result,
           initialReceipt,
-          [...new Set([
-            ...parsedResult.error.issues.map(({ path }) => path.join(".")).filter(Boolean),
-            ...rawEvidenceMismatchPaths(input.result),
-          ])],
+          [...rawComparisons, ...issueComparisons],
         );
       }
       return invalidReceiptResult(input, snapshot, input.result, initialReceipt, "malformed-receipt-or-evidence");
