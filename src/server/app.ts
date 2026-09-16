@@ -7,6 +7,7 @@ import type { AgentRuntime } from "../agent/provider.js";
 import type { ChainReader } from "../chain/types.js";
 import type { TargetConfig } from "../config/schema.js";
 import { investigationReceiptSchema, scanResultSchema, type ScanResult } from "../domain/schemas.js";
+import { evaluateEvidenceIntegrity } from "../investigation/integrity.js";
 import { createScanId } from "../pipeline/ids.js";
 import { compareScanResults } from "../investigation/changes.js";
 import { scanApprovedRange } from "../pipeline/scanner.js";
@@ -261,25 +262,6 @@ export function createApp(dependencies: AppDependencies): Express {
       return;
     }
     response.json(scan);
-  });
-
-  app.get("/api/scans/:scanId/changes", (request, response) => {
-    const parsedId = scanIdSchema.safeParse(request.params.scanId);
-    if (!parsedId.success) {
-      response.status(400).json({ error: { code: "invalid-scan-id", message: "The scan ID format is invalid." } });
-      return;
-    }
-    const current = store.getScan(parsedId.data);
-    if (!current) {
-      response.status(404).json({ error: { code: "scan-not-found", message: "No in-memory scan has that ID." } });
-      return;
-    }
-    const baseline = store.getPreviousScan(parsedId.data);
-    if (!baseline) {
-      response.status(404).json({ error: { code: "baseline-not-found", message: "No previous scan is available for comparison." } });
-      return;
-    }
-    response.json(compareScanResults(baseline, current));
   });
 
   app.get("/api/alerts", (_request, response) => {

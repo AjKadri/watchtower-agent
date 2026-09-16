@@ -193,6 +193,22 @@ The final disposition, severity, assertions, and receipt hash are deterministic.
 The model may choose approved follow-up order and produce a public narrative,
 but it cannot supply RPC parameters or participate in the verdict path.
 
+### Evidence integrity lab
+
+`GET /api/scans/:scanId/integrity` returns a read-only proof view for a stored
+scan. It compares the configured profile, network, exact block, transaction,
+event, registered plan, executed checks, severity, disposition, receipt hash,
+and source provenance. The response reports matched paths, failed paths, the
+expected and observed values, and a refusal code when Watchtower cannot
+corroborate the record.
+
+The lab distinguishes `CORROBORATED`, `CONTRADICTED`, `INCOMPLETE`,
+`EVIDENCE_MISMATCH`, `RPC_UNAVAILABLE`, `FIXTURE_ONLY`, and `INVALID_RECEIPT`.
+Fixture results remain explicitly fixture-only. Receipt verification is
+application-level tamper evidence. It does not anchor a receipt onchain,
+authenticate its publisher, or prove that every context field outside the
+canonical receipt was hash-bound.
+
 ### Investigation outcomes
 
 | Outcome | Meaning |
@@ -253,6 +269,7 @@ Express API and in-memory store -> vanilla investigation workspace
 | `GET` | `/api/config` | Public server-selected profile configuration |
 | `POST` | `/api/scans` | Run the approved bounded scan; optionally provide a registered live `profileId` |
 | `GET` | `/api/scans/:scanId` | Read one in-memory scan result |
+| `GET` | `/api/scans/:scanId/integrity` | Compare expected and observed evidence and receipt integrity |
 | `GET` | `/api/alerts` | List current in-memory alerts |
 | `GET` | `/api/alerts/:alertId` | Read alert and evidence detail |
 | `GET` | `/api/receipts/:receiptId` | Download a validated JSON receipt |

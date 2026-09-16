@@ -219,6 +219,7 @@
                 </div>
                 <ul class="docs-inline-list"><li>Reproducibility through canonical JSON</li><li>Independent SHA-256 verification in the browser</li><li>Explorer links for the recorded transaction, block, and addresses</li></ul>
                 <p class="docs-muted-note">Committed fixtures can be replayed in the browser. Live alerts and receipts are held in process memory and clear when the server restarts.</p>
+                <div class="docs-callout docs-callout-neutral"><span class="docs-callout-label">EVIDENCE INTEGRITY LAB</span><p><code>GET /api/scans/:scanId/integrity</code> compares the configured profile, network, exact block, transaction, event, registered plan, executed checks, severity, disposition, receipt hash, and live or fixture provenance. It returns matched and failed paths, expected and observed values, and a refusal code when the record cannot be corroborated. Receipt verification is application-level tamper evidence, not blockchain anchoring, publisher authentication, or proof that every packet field is hash-bound.</p></div>
               </section>
 
               <section id="review-packets" class="docs-section" data-doc-section>

@@ -287,6 +287,8 @@ describe("Watchtower API", () => {
     const receiptId = scan.evidence[0].investigationReceipt.receiptId;
     const receiptResponse = await fetch(`${baseUrl}/api/receipts/${receiptId}`);
     const downloadedReceipt = await receiptResponse.json();
+    const integrityResponse = await fetch(`${baseUrl}/api/scans/${scan.scanId}/integrity`);
+    const integrity = await integrityResponse.json();
 
     expect((await storedScan.json()).scanId).toBe(scan.scanId);
     expect(alerts.alerts).toHaveLength(1);
@@ -312,6 +314,24 @@ describe("Watchtower API", () => {
     expect(receiptResponse.headers.get("cache-control")).toBe("no-store");
     expect(downloadedReceipt).toEqual(scan.evidence[0].investigationReceipt);
     expect(JSON.stringify(downloadedReceipt)).not.toContain("BASE_RPC_URL");
+    expect(integrityResponse.status).toBe(200);
+    expect(integrityResponse.headers.get("cache-control")).toBe("no-store");
+    expect(integrity).toMatchObject({
+      schemaVersion: 1,
+      outcome: "CORROBORATED",
+      source: { declared: "live", provenance: "live-rpc", consistent: true },
+      receipt: { present: true, verified: true, receiptId },
+    });
+    expect(integrity.matchedPaths).toEqual(expect.arrayContaining([
+      "block.number",
+      "block.hash",
+      "transaction.hash",
+      "event.emitter",
+      "event.signature",
+      "event.decodedArguments.implementation",
+      "investigation.plan",
+      "severity.result",
+    ]));
   });
 
   it("selects the registered ether.fi live profile", async () => {
@@ -382,10 +402,13 @@ describe("Watchtower API", () => {
     const baseUrl = await serve(new ApiFixtureReader());
 
     const invalidScan = await fetch(`${baseUrl}/api/scans/not-a-scan`);
+    const invalidIntegrity = await fetch(`${baseUrl}/api/scans/not-a-scan/integrity`);
     const invalidAlert = await fetch(`${baseUrl}/api/alerts/not-an-alert`);
     const invalidReceipt = await fetch(`${baseUrl}/api/receipts/not-a-receipt`);
     expect(invalidScan.status).toBe(400);
     expect(await invalidScan.json()).toMatchObject({ error: { code: "invalid-scan-id" } });
+    expect(invalidIntegrity.status).toBe(400);
+    expect(await invalidIntegrity.json()).toMatchObject({ error: { code: "invalid-scan-id" } });
     expect(invalidAlert.status).toBe(400);
     expect(await invalidAlert.json()).toMatchObject({ error: { code: "invalid-alert-id" } });
     expect(invalidReceipt.status).toBe(400);
