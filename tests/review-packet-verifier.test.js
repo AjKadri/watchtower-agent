@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { archiveProfiles } from "../public/archive-data.js";
+import { createPortableArtifact } from "../public/portable-integrity-verifier.js";
 import { buildFixtureDetail } from "../public/view-model.js";
 import { verifyReceipt } from "../public/receipt-verifier.js";
+import { scanResultSchema } from "../src/domain/schemas.js";
+import { createScanId } from "../src/pipeline/ids.js";
 import {
   buildReviewPacket,
   serializeReviewPacketJson,
@@ -23,6 +26,27 @@ async function packetFor(profile) {
 }
 
 describe("browser review packet verification", () => {
+  it("dispatches a portable integrity proof through the existing browser verifier", async () => {
+    const profile = archiveProfiles[2];
+    const detail = buildFixtureDetail(profile);
+    const scan = scanResultSchema.parse({
+      scanId: createScanId(8453, profile.id, BigInt(profile.block.number), BigInt(profile.block.number)),
+      targetId: profile.id,
+      range: { fromBlock: profile.block.number, toBlock: profile.block.number },
+      status: "complete",
+      alerts: [],
+      evidence: [detail.evidence],
+      failures: [],
+    });
+    const result = await verifyReviewPacketText(JSON.stringify(await createPortableArtifact(scan, {
+      declared: "fixture",
+      provenance: "verified-fixture",
+    })));
+
+    expect(result).toMatchObject({ status: "verified", verified: true, outcome: "FIXTURE_ONLY" });
+    expect(result.message).toContain("committed fixture replay");
+  });
+
   it("verifies the exported JSON packet for every committed fixture", async () => {
     for (const profile of archiveProfiles) {
       const result = await verifyReviewPacketText(serializeReviewPacketJson(await packetFor(profile)));

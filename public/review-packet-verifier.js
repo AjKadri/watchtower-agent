@@ -1,4 +1,5 @@
 import { verifyReceipt } from "./receipt-verifier.js";
+import { PORTABLE_INTEGRITY_FORMAT, verifyPortableIntegrityArtifact } from "./portable-integrity-verifier.js";
 import { REVIEW_PACKET_FORMAT, REVIEW_PACKET_SCHEMA_VERSION } from "./review-packet.js";
 
 export const REVIEW_PACKET_VERIFICATION_STATUS = Object.freeze({
@@ -141,8 +142,19 @@ export async function verifyReviewPacket(packet) {
   );
 }
 
-export async function verifyReviewPacketText(text) {
+async function verifyReviewPacketTextInternal(text) {
   const parsed = parseReviewPacketText(text);
   if (parsed.status !== "parsed") return parsed;
   return verifyReviewPacket(parsed.packet);
+}
+
+export async function verifyReviewPacketText(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return verifyReviewPacketTextInternal(text);
+  }
+  if (parsed?.format === PORTABLE_INTEGRITY_FORMAT) return verifyPortableIntegrityArtifact(parsed);
+  return verifyReviewPacketTextInternal(text);
 }

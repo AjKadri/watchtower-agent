@@ -1206,6 +1206,8 @@ async function updateHealth() {
 
 const packetVerificationTitles = {
   valid: "Valid review packet",
+  verified: "Portable proof verified",
+  refused: "Portable proof refused",
   tampered: "Receipt verification failed",
   malformed: "Malformed packet",
   "unsupported-schema": "Unsupported schema",
@@ -1217,7 +1219,9 @@ const packetVerificationTitles = {
 function renderPacketVerification(result) {
   const panel = elements.packetVerificationResult;
   if (!panel) return;
-  const title = packetVerificationTitles[result.status] ?? "Verification unavailable";
+  const title = result.outcome
+    ? `Portable proof · ${result.outcome}`
+    : packetVerificationTitles[result.status] ?? "Verification unavailable";
   const statusClass = result.status === "valid" ? "valid" : result.status;
   panel.className = `packet-verification-result ${statusClass}`;
   panel.replaceChildren(
@@ -1229,6 +1233,12 @@ function renderPacketVerification(result) {
   if (result.receiptIdentifier) details.push(["Packet receipt ID", result.receiptIdentifier]);
   if (result.canonicalReceiptId) details.push(["Canonical receipt ID", result.canonicalReceiptId]);
   if (result.computedReceiptId) details.push(["Recomputed receipt ID", result.computedReceiptId]);
+  if (result.artifactId) details.push(["Artifact ID", result.artifactId]);
+  if (result.computedArtifactId) details.push(["Recomputed artifact ID", result.computedArtifactId]);
+  if (result.outcome) details.push(["Outcome", result.outcome]);
+  if (result.refusalCode) details.push(["Refusal code", result.refusalCode]);
+  if (Array.isArray(result.failedPaths) && result.failedPaths.length > 0) details.push(["Failed paths", result.failedPaths.join(", ")]);
+  if (result.provenanceAuthenticated === false && result.outcome) details.push(["Live provenance", "Not authenticated offline"]);
   if (details.length === 0) return;
   const list = node("dl", "packet-verification-details");
   for (const [label, value] of details) {

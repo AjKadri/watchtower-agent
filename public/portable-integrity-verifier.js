@@ -39,6 +39,15 @@ function equal(left, right) {
 }
 
 function result(status, outcome = null, refusalCode = null, details = {}) {
+  const defaultMessage = outcome === "FIXTURE_ONLY"
+    ? "Portable proof verified as a committed fixture replay."
+    : outcome === "CORROBORATED"
+      ? "Portable proof verified against the closed profile registry. Live provenance is not authenticated offline."
+      : outcome
+        ? `Portable proof result: ${outcome}.`
+        : refusalCode
+          ? `Portable proof refused: ${refusalCode}.`
+          : "Portable proof verification unavailable.";
   return {
     status,
     verified: status === "verified",
@@ -49,6 +58,7 @@ function result(status, outcome = null, refusalCode = null, details = {}) {
     receiptId: details.receiptId ?? null,
     computedReceiptId: details.computedReceiptId ?? null,
     provenanceAuthenticated: false,
+    message: details.message ?? defaultMessage,
     matchedPaths: details.matchedPaths ?? [],
     failedPaths: details.failedPaths ?? [],
     ...details,

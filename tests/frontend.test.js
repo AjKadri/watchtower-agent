@@ -309,6 +309,9 @@ describe("dashboard view model", () => {
     expect(app).toContain('"Download JSON"');
     expect(app).toContain("buildReviewPacket");
     expect(app).toContain("verifyReviewPacketText");
+    expect(app).toContain("Portable proof");
+    expect(app).toContain("Not authenticated offline");
+    expect(app).toContain("failedPaths");
     expect(app).toContain('markdown.addEventListener("click", () => exportPacket("markdown", markdown));');
     expect(app).toContain('json.addEventListener("click", () => exportPacket("json", json));');
     expect(app).toContain("createSourceBadge");
