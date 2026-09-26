@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { ChainBlock, ChainLog, ChainReader, ChainReceipt, ChainTransaction, Hex, LogFilter } from "../src/chain/types.js";
+import { createPortableIntegrityArtifact } from "../src/investigation/portable.js";
 import { getTargetProfile } from "../src/profiles/registry.js";
 import { createApp } from "../src/server/app.js";
 import { readJson } from "./helpers.js";
@@ -289,6 +290,8 @@ describe("Watchtower API", () => {
     const downloadedReceipt = await receiptResponse.json();
     const integrityResponse = await fetch(`${baseUrl}/api/scans/${scan.scanId}/integrity`);
     const integrity = await integrityResponse.json();
+    const portableResponse = await fetch(`${baseUrl}/api/scans/${scan.scanId}/integrity?format=portable`);
+    const portable = await portableResponse.json();
 
     expect((await storedScan.json()).scanId).toBe(scan.scanId);
     expect(alerts.alerts).toHaveLength(1);
@@ -332,6 +335,11 @@ describe("Watchtower API", () => {
       "investigation.plan",
       "severity.result",
     ]));
+    expect(portableResponse.status).toBe(200);
+    expect(portableResponse.headers.get("content-type")).toContain("application/json");
+    expect(portableResponse.headers.get("content-disposition")).toBe(`attachment; filename="watchtower-${scan.scanId}-portable-integrity.json"`);
+    expect(portableResponse.headers.get("cache-control")).toBe("no-store");
+    expect(portable).toEqual(await createPortableIntegrityArtifact(scan, { declared: "live", provenance: "live-rpc" }));
   });
 
   it("selects the registered ether.fi live profile", async () => {

@@ -8,6 +8,7 @@ import type { ChainReader } from "../chain/types.js";
 import type { TargetConfig } from "../config/schema.js";
 import { investigationReceiptSchema, scanResultSchema, type ScanResult } from "../domain/schemas.js";
 import { evaluateEvidenceIntegrity } from "../investigation/integrity.js";
+import { createPortableIntegrityArtifact } from "../investigation/portable.js";
 import { createScanId } from "../pipeline/ids.js";
 import { compareScanResults } from "../investigation/changes.js";
 import { scanApprovedRange } from "../pipeline/scanner.js";
@@ -273,6 +274,16 @@ export function createApp(dependencies: AppDependencies): Express {
     const scan = store.getScan(parsedId.data);
     if (!scan) {
       response.status(404).json({ error: { code: "scan-not-found", message: "No in-memory scan has that ID." } });
+      return;
+    }
+    if (request.query.format === "portable") {
+      response.set({
+        "Cache-Control": "no-store",
+        "Content-Disposition": `attachment; filename="watchtower-${scan.scanId}-portable-integrity.json"`,
+      }).json(createPortableIntegrityArtifact(scan, {
+        declared: "live",
+        provenance: "live-rpc",
+      }));
       return;
     }
     response.set("Cache-Control", "no-store").json(evaluateEvidenceIntegrity({
