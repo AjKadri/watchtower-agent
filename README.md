@@ -92,8 +92,8 @@ protocol teams reviewing upgrades, and crypto-agent companies that need
 deterministic protocol evidence. Watchtower provides evidence for the decision.
 It does not make the operational decision.
 
-To verify a JSON packet, choose it in the dashboard's **Verify an exported
-packet** control. Verification stays in the browser. It checks the packet
+To verify a JSON review packet or portable proof, choose it in the dashboard's
+**Verify an exported proof** control. Verification stays in the browser. It checks the packet
 format and schema, ignores saved verification metadata, compares the packet and
 canonical receipt identifiers, and independently recomputes the canonical
 receipt ID with Web Crypto. No file is uploaded, fetched, or sent to an RPC.
@@ -209,6 +209,34 @@ application-level tamper evidence. It does not anchor a receipt onchain,
 authenticate its publisher, or prove that every context field outside the
 canonical receipt was hash-bound.
 
+### Portable integrity proofs
+
+Append `?format=portable` to the integrity route to download a portable proof:
+
+```text
+GET /api/scans/:scanId/integrity?format=portable
+```
+
+The JSON artifact is versioned as `watchtower-portable-integrity` v1. Its
+`artifactId` covers the source declaration and embedded `ScanResult`, while the
+existing receipt ID covers the canonical trigger, plan, checks, errors,
+limitations, disposition, and explorer links. Object keys are canonicalized,
+arrays retain their order, null values remain explicit, and Ethereum addresses
+use the existing checksum normalization.
+
+Choose the downloaded JSON in the dashboard's **Verify an exported proof**
+control to verify it locally. The browser performs no upload, fetch, RPC call,
+storage, signing, or external service request. It checks the closed profile
+registry, Base chain, approved historical range, qualifying transaction, event,
+plan, checks, severity, disposition, artifact ID, and receipt ID.
+
+An artifact ID detects changes to the exported artifact. It does not prove an
+onchain fact, authenticate the publisher, or authenticate a `live-rpc`
+provenance claim offline. A fixture result remains `FIXTURE_ONLY`, and an
+incomplete or unavailable evidence path never becomes a negative security
+finding. A fresh read-only Base RPC run is required to independently establish
+live chain provenance.
+
 ### Investigation outcomes
 
 | Outcome | Meaning |
@@ -269,7 +297,7 @@ Express API and in-memory store -> vanilla investigation workspace
 | `GET` | `/api/config` | Public server-selected profile configuration |
 | `POST` | `/api/scans` | Run the approved bounded scan; optionally provide a registered live `profileId` |
 | `GET` | `/api/scans/:scanId` | Read one in-memory scan result |
-| `GET` | `/api/scans/:scanId/integrity` | Compare expected and observed evidence and receipt integrity |
+| `GET` | `/api/scans/:scanId/integrity` | Compare expected and observed evidence and receipt integrity; add `?format=portable` to download a portable proof |
 | `GET` | `/api/alerts` | List current in-memory alerts |
 | `GET` | `/api/alerts/:alertId` | Read alert and evidence detail |
 | `GET` | `/api/receipts/:receiptId` | Download a validated JSON receipt |

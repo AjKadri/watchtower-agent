@@ -1176,6 +1176,22 @@ describe("browser receipt verification", () => {
 });
 
 describe("review packet documentation", () => {
+  it("documents portable proof scope and offline provenance limits", () => {
+    const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+    for (const phrase of [
+      "watchtower-portable-integrity",
+      "?format=portable",
+      "artifact ID detects changes",
+      "does not prove an onchain fact",
+      "authenticate a `live-rpc`",
+      "FIXTURE_ONLY",
+      "never becomes a negative security finding",
+      "fresh read-only Base RPC run",
+    ]) {
+      expect(readme).toContain(phrase);
+    }
+  });
+
   it("documents the intended users, uses, verification boundary, and non-capabilities", () => {
     const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
     const start = readme.indexOf("## Review packets");
