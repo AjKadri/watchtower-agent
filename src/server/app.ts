@@ -264,6 +264,24 @@ export function createApp(dependencies: AppDependencies): Express {
     response.json(scan);
   });
 
+  app.get("/api/scans/:scanId/integrity", (request, response) => {
+    const parsedId = scanIdSchema.safeParse(request.params.scanId);
+    if (!parsedId.success) {
+      response.status(400).json({ error: { code: "invalid-scan-id", message: "The scan ID format is invalid." } });
+      return;
+    }
+    const scan = store.getScan(parsedId.data);
+    if (!scan) {
+      response.status(404).json({ error: { code: "scan-not-found", message: "No in-memory scan has that ID." } });
+      return;
+    }
+    response.set("Cache-Control", "no-store").json(evaluateEvidenceIntegrity({
+      result: scan,
+      source: "live",
+      provenance: "live-rpc",
+    }));
+  });
+
   app.get("/api/alerts", (_request, response) => {
     response.json({ alerts: store.listAlerts() });
   });
