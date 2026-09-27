@@ -473,11 +473,13 @@ git diff --check
 ```
 
 GitHub Actions runs the same checks on Node 24 for pushes and pull requests. A
-separate production job runs `npm ci --omit=dev`, rebuilds `dist/`, invokes the
-compiled scan CLI against a non-routable placeholder and validates its safe
-structured failure, starts the compiled server directly, requests
-`GET /api/health`, and sends a graceful SIGTERM. CI does not require a live RPC
-provider or secret.
+separate production job runs `npm ci --omit=dev`, rebuilds `dist/`, loads the
+committed fixture through the compiled app, and verifies portable export,
+offline verification, fixture-only provenance, tamper refusal, and download
+headers. It then starts the compiled server with a loopback-only RPC URL,
+waits for its listening marker, checks the health and dashboard routes, and
+verifies graceful SIGTERM shutdown and port release. CI does not require a live
+RPC provider, external DNS, or secrets.
 
 The exact current test count is reported by `npm test`. Coverage includes all
 three profiles, bounded agent and tool failures, deterministic receipt

@@ -51,20 +51,13 @@ describe("release runtime and CI configuration", () => {
       "artifact-id-mismatch",
       "portable compiled smoke assertions passed",
       "BASE_RPC_URL: http://127.0.0.1:18545",
-      "node --env-file-if-exists=.env dist/server/main.js",
-      "http://127.0.0.1:3000/api/health",
-      "kill -TERM",
-      'wait "$node_pid"',
-      '"$node_status" -ne 0',
-      'probe.listen(3000, "127.0.0.1"',
-      '"$node_state" != Z*',
-      'cat "$log_file"',
-      "Health check passed with HTTP",
-      "Compiled Node PID:",
-      "Sending SIGTERM",
-      "Compiled Node wait status:",
-      "Port 3000 is free.",
-      "Final compiled Node process state:",
+      "spawn(process.execPath, [\"--env-file-if-exists=.env\", \"dist/server/main.js\"]",
+      "Watchtower listening at http://localhost:3000",
+      "setTimeout",
+      "api/health",
+      'child.kill("SIGTERM")',
+      'probe.listen(port, "127.0.0.1"',
+      "Compiled SIGTERM and port-release assertions passed.",
     ]) {
       expect(workflow).toContain(required);
     }
@@ -75,15 +68,12 @@ describe("release runtime and CI configuration", () => {
     expect(workflow).not.toContain("actions/setup-node@v4");
     expect(workflow).not.toContain("npm start >");
     expect(workflow).not.toContain("secrets.");
-
-    const signalIndex = workflow.indexOf('kill -TERM "$node_pid"');
-    const waitIndex = workflow.indexOf('wait "$node_pid"');
-    const portProbeIndex = workflow.indexOf('probe.listen(3000, "127.0.0.1"');
-    const processStateIndex = workflow.indexOf('Final compiled Node process state:');
-    expect(signalIndex).toBeGreaterThan(-1);
-    expect(waitIndex).toBeGreaterThan(signalIndex);
-    expect(portProbeIndex).toBeGreaterThan(waitIndex);
-    expect(processStateIndex).toBeGreaterThan(portProbeIndex);
+    expect(workflow).not.toContain("sleep 1");
+    expect(workflow).not.toContain("for _ in {1..30}");
+    expect(workflow.indexOf("Watchtower listening at http://localhost:3000")).toBeGreaterThan(-1);
+    expect(workflow.indexOf("spawn(process.execPath")).toBeGreaterThan(workflow.indexOf("Watchtower listening at http://localhost:3000"));
+    expect(workflow.indexOf('child.kill("SIGTERM")')).toBeGreaterThan(workflow.indexOf("api/health"));
+    expect(workflow.indexOf('probe.listen(port, "127.0.0.1"')).toBeGreaterThan(workflow.indexOf('child.kill("SIGTERM")'));
 
   });
 });

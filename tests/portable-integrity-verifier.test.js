@@ -187,6 +187,18 @@ describe("portable integrity artifact verifier", () => {
     }
   });
 
+  it("keeps a reissued stop-incomplete receipt incomplete", async () => {
+    const scan = fixtureScan();
+    bindPlan(scan, testPlan(archiveProfiles[2], "incomplete"), "contradicted", []);
+
+    const portable = await verifyPortableIntegrityArtifact(await reissue(scan));
+    const server = evaluateEvidenceIntegrity({ result: scan, source: "live", provenance: "live-rpc" });
+
+    expect(portable.outcome).toBe("INVALID_RECEIPT");
+    expect(portable.outcome).not.toBe("CORROBORATED");
+    expect(server.outcome).toBe("INVALID_RECEIPT");
+  });
+
   it.each([
     ["wrong plan ID", (scan) => {
       const evidence = scan.evidence[0];
@@ -499,6 +511,14 @@ describe("portable integrity artifact verifier", () => {
     incomplete.evidence[0].errors = [{ code: "missing-block", message: "Block unavailable." }];
     incomplete.evidence[0].investigationReceipt = null;
     expect(await verifyPortableIntegrityArtifact(await reissue(incomplete))).toMatchObject({ outcome: "INCOMPLETE" });
+
+    const failed = fixtureScan();
+    failed.status = "failed";
+    failed.evidence[0].investigationReceipt = null;
+    const failedPortable = await verifyPortableIntegrityArtifact(await reissue(failed));
+    const failedServer = evaluateEvidenceIntegrity({ result: failed, source: "live", provenance: "live-rpc" });
+    expect(failedPortable).toMatchObject({ outcome: "RPC_UNAVAILABLE", refusalCode: "rpc-unavailable" });
+    expect(failedServer).toMatchObject({ outcome: "RPC_UNAVAILABLE", refusalCode: "rpc-unavailable" });
   });
 
   it.each([

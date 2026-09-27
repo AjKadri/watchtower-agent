@@ -675,10 +675,10 @@ function checkComparisons(expectedChecks, observedChecks, implementation, profil
   const structuralMismatch = comparisons.some(({ path, status }) => status === "mismatch"
     && (path === "checks" || [...structuralPaths].some((suffix) => path.endsWith(`.${suffix}`))));
   const requiredChecks = observedChecks.filter(({ required }) => required);
-  const derivedDisposition = expectedChecks.length === 0
-    ? null
-    : planId === "stop-incomplete"
-      ? "incomplete"
+  const derivedDisposition = planId === "stop-incomplete"
+    ? "incomplete"
+    : expectedChecks.length === 0
+      ? null
       : requiredChecks.some(({ status }) => status === "mismatch")
         ? "contradicted"
         : requiredChecks.some(({ status }) => status === "failed" || status === "unsupported")
@@ -781,7 +781,12 @@ async function verifyPortableIntegrityArtifactUnsafe(artifact) {
   if (scan.evidence.length === 0) return result("verified", rpcFailure ? "RPC_UNAVAILABLE" : "INCOMPLETE", rpcFailure ? `rpc-${rpcFailure.category}` : "missing-evidence", { ...baseDetails(artifact, null, null, scanComparisons) });
   const evidence = scan.evidence[0];
   const receipt = evidence.investigationReceipt;
-  if (!receipt) return result("verified", rpcFailure ? "RPC_UNAVAILABLE" : "INCOMPLETE", rpcFailure ? `rpc-${rpcFailure.category}` : "missing-receipt", { ...baseDetails(artifact, null, null, scanComparisons) });
+  if (!receipt) {
+    const unavailable = scan.status === "failed" || rpcFailure;
+    return result("verified", unavailable ? "RPC_UNAVAILABLE" : "INCOMPLETE", unavailable
+      ? `rpc-${rpcFailure?.category ?? "unavailable"}`
+      : "missing-receipt", { ...baseDetails(artifact, null, null, scanComparisons) });
+  }
   const receiptState = receiptShape(receipt);
   if (!receiptState.ok) return result("verified", "INVALID_RECEIPT", receiptState.code, { artifactId: artifact.artifactId, computedArtifactId, receiptId: receipt.receiptId ?? null, failedPaths: [receiptState.path] });
   let computedReceiptId;
