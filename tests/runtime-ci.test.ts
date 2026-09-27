@@ -43,17 +43,14 @@ describe("release runtime and CI configuration", () => {
       "npm audit --audit-level=moderate",
       "npm ci --omit=dev",
       "Smoke test compiled portable integrity export and offline verification",
+      "createPortableArtifact",
       "format=portable",
       "http://127.0.0.1:3140/",
       "content-disposition",
       "FIXTURE_ONLY",
       "artifact-id-mismatch",
       "portable compiled smoke assertions passed",
-      "trap 'rm -f .env' EXIT",
-      "printf '%s\\n' 'BASE_RPC_URL=https://example.invalid' > .env",
-      "npm run --silent scan",
-      "/tmp/watchtower-scan.json",
-      "Compiled scan CLI output exposed configuration or credential material.",
+      "BASE_RPC_URL: http://127.0.0.1:18545",
       "node --env-file-if-exists=.env dist/server/main.js",
       "http://127.0.0.1:3000/api/health",
       "kill -TERM",
@@ -71,7 +68,9 @@ describe("release runtime and CI configuration", () => {
     ]) {
       expect(workflow).toContain(required);
     }
-    expect(workflow).toContain("BASE_RPC_URL: https://example.invalid");
+    expect(workflow).toContain("BASE_RPC_URL: http://127.0.0.1:18545");
+    expect(workflow).not.toContain("npm run --silent scan");
+    expect(workflow).not.toContain("example.invalid");
     expect(workflow).not.toContain("actions/checkout@v4");
     expect(workflow).not.toContain("actions/setup-node@v4");
     expect(workflow).not.toContain("npm start >");
@@ -86,9 +85,5 @@ describe("release runtime and CI configuration", () => {
     expect(portProbeIndex).toBeGreaterThan(waitIndex);
     expect(processStateIndex).toBeGreaterThan(portProbeIndex);
 
-    const scanEnvironmentIndex = workflow.indexOf("printf '%s\\n' 'BASE_RPC_URL=https://example.invalid' > .env");
-    const scanCommandIndex = workflow.indexOf("npm run --silent scan");
-    expect(scanEnvironmentIndex).toBeGreaterThan(-1);
-    expect(scanCommandIndex).toBeGreaterThan(scanEnvironmentIndex);
   });
 });

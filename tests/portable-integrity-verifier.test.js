@@ -49,6 +49,86 @@ function recomputeReceipt(scan) {
   return scan;
 }
 
+function testPlan(profile, key) {
+  if (profile.plans?.[key]) return structuredClone(profile.plans[key]);
+  const approved = structuredClone(profile.receipt.plan);
+  if (key === "approved") return approved;
+  if (key === "escalation") {
+    return {
+      ...approved,
+      id: "escalate-unapproved-upgrade",
+      selectionReason: {
+        code: "unapproved-target",
+        text: "The deterministic severity rule identified a zero or unapproved decoded implementation.",
+      },
+      selectedChecks: approved.selectedChecks.slice(0, 4),
+      skippedChecks: approved.selectedChecks.slice(4),
+      capabilityBudget: {
+        maximumReads: 4,
+        capabilities: [
+          { name: "historical-storage-read", maximumUses: 2 },
+          { name: "historical-code-read", maximumUses: 1 },
+          { name: "historical-contract-call", maximumUses: 1 },
+        ],
+      },
+    };
+  }
+  return {
+    ...approved,
+    id: "stop-incomplete",
+    selectionReason: {
+      code: "trigger-evidence-incomplete",
+      text: "Complete trigger evidence is unavailable, so no historical investigation reads are permitted.",
+    },
+    selectedChecks: [],
+    skippedChecks: approved.selectedChecks,
+    capabilityBudget: { maximumReads: 0, capabilities: [] },
+  };
+}
+
+function bindPlan(scan, plan, disposition, checks) {
+  const evidence = scan.evidence[0];
+  evidence.upgradeInvestigation.plan = structuredClone(plan);
+  evidence.upgradeInvestigation.disposition = disposition;
+  evidence.upgradeInvestigation.evidenceStatus = disposition === "incomplete" ? "incomplete" : "complete";
+  evidence.upgradeInvestigation.checks = structuredClone(checks);
+  evidence.investigationReceipt.plan = structuredClone(plan);
+  evidence.investigationReceipt.finalDisposition = disposition;
+  evidence.investigationReceipt.checks = structuredClone(checks);
+  evidence.investigationReceipt.errors = checks.flatMap((check) => check.failure ? [check.failure] : []);
+  return recomputeReceipt(scan);
+}
+
+function unapprovedEscalationScan(profile = archiveProfiles[2]) {
+  const scan = fixtureScan(profile);
+  const evidence = scan.evidence[0];
+  const implementation = `0x${"5".repeat(40)}`;
+  evidence.event.decodedArguments.implementation = implementation;
+  evidence.severity.ruleId = "target-is-not-approved";
+  evidence.severity.inputs = { implementation, approved: "false", isZeroAddress: "false" };
+  evidence.severity.result = "suspicious";
+  evidence.investigationReceipt.trigger.decodedArguments.implementation = implementation;
+  evidence.investigationReceipt.trigger.detector.severityRuleId = "target-is-not-approved";
+  evidence.investigationReceipt.trigger.detector.severity = "suspicious";
+  const checks = evidence.upgradeInvestigation.checks.filter(({ id }) => testPlan(profile, "escalation").selectedChecks.includes(id));
+  const implementationCheck = checks.find(({ id }) => id === "implementation-at-upgrade");
+  implementationCheck.result = { kind: "address", value: implementation };
+  implementationCheck.assertion.actual = implementation;
+  implementationCheck.assertion.matches = false;
+  implementationCheck.status = "mismatch";
+  const bytecodeCheck = checks.find(({ id }) => id === "implementation-bytecode");
+  bytecodeCheck.parameters.address = implementation;
+  bytecodeCheck.result.byteLength = "1";
+  bytecodeCheck.assertion.actual = "1 bytes";
+  bytecodeCheck.assertion.matches = false;
+  bytecodeCheck.status = "mismatch";
+  scan.alerts[0].severity = "suspicious";
+  scan.alerts[0].severityRuleId = "target-is-not-approved";
+  scan.alerts[0].investigation.interpretation.severityRuleId = "target-is-not-approved";
+  bindPlan(scan, testPlan(profile, "escalation"), "contradicted", checks);
+  return scan;
+}
+
 describe("portable integrity artifact verifier", () => {
   it("verifies a valid fixture artifact without network access", async () => {
     const result = await verifyPortableIntegrityArtifact(await fixtureArtifact());
@@ -85,6 +165,64 @@ describe("portable integrity artifact verifier", () => {
       expect(portable.outcome).toBe(server.outcome);
       expect(portable.failedPaths).toEqual(server.failedPaths);
     }
+  });
+
+  it.each([
+    ["approved", "corroborated", (profile) => fixtureScan(profile)],
+    ["escalation", "contradicted", (profile) => unapprovedEscalationScan(profile)],
+    ["incomplete", "incomplete", (profile) => {
+      const scan = fixtureScan(profile);
+      const evidence = scan.evidence[0];
+      bindPlan(scan, testPlan(profile, "incomplete"), "incomplete", []);
+      evidence.investigationReceipt.errors = [];
+      return scan;
+    }],
+  ])("matches server outcome for the registered %s plan", async (_label, expectedOutcome, buildScan) => {
+    for (const profile of archiveProfiles) {
+      const scan = buildScan(profile);
+      const portable = await verifyPortableIntegrityArtifact(await reissue(scan));
+      const server = evaluateEvidenceIntegrity({ result: scan, source: "live", provenance: "live-rpc" });
+      expect(portable.outcome).toBe(expectedOutcome.toUpperCase());
+      expect(portable.outcome).toBe(server.outcome);
+    }
+  });
+
+  it.each([
+    ["wrong plan ID", (scan) => {
+      const evidence = scan.evidence[0];
+      const wrong = { ...structuredClone(evidence.upgradeInvestigation.plan), id: "stop-incomplete", selectedChecks: [], skippedChecks: evidence.upgradeInvestigation.plan.selectedChecks };
+      bindPlan(scan, wrong, "incomplete", []);
+    }],
+    ["cross-profile plan", (scan) => {
+      const wrong = testPlan(archiveProfiles[0], "approved");
+      bindPlan(scan, wrong, "corroborated", scan.evidence[0].upgradeInvestigation.checks);
+    }],
+    ["changed plan version", (scan) => {
+      const changed = { ...structuredClone(scan.evidence[0].upgradeInvestigation.plan), version: "2.0.0" };
+      bindPlan(scan, changed, "corroborated", scan.evidence[0].upgradeInvestigation.checks);
+    }],
+    ["changed plan checks", (scan) => {
+      const changed = { ...structuredClone(scan.evidence[0].upgradeInvestigation.plan), selectedChecks: ["implementation-before"] };
+      bindPlan(scan, changed, "corroborated", scan.evidence[0].upgradeInvestigation.checks);
+    }],
+    ["changed plan order", (scan) => {
+      const changed = { ...structuredClone(scan.evidence[0].upgradeInvestigation.plan), selectedChecks: [...scan.evidence[0].upgradeInvestigation.plan.selectedChecks].reverse() };
+      bindPlan(scan, changed, "corroborated", scan.evidence[0].upgradeInvestigation.checks);
+    }],
+    ["changed plan method", (scan) => { scan.evidence[0].upgradeInvestigation.checks[0].method = "eth_call"; recomputeReceipt(scan); }],
+    ["changed plan parameters", (scan) => { scan.evidence[0].upgradeInvestigation.checks[0].parameters.slot = "0xdeadbeef"; recomputeReceipt(scan); }],
+    ["changed plan block tag", (scan) => { scan.evidence[0].upgradeInvestigation.checks[0].blockTag = "0x1"; recomputeReceipt(scan); }],
+  ])("refuses %s without accepting it as a valid conclusion", async (_label, mutate) => {
+    const scan = fixtureScan();
+    mutate(scan);
+    const portable = await verifyPortableIntegrityArtifact(await reissue(scan));
+    if (_label === "changed plan version") {
+      expect(portable).toMatchObject({ status: "refused", refusalCode: "malformed-artifact" });
+      return;
+    }
+    expect(portable.outcome).toBe("EVIDENCE_MISMATCH");
+    expect(portable.outcome).not.toBe("CORROBORATED");
+    expect(portable.outcome).not.toBe("CONTRADICTED");
   });
 
   it("refuses raw artifact tampering before semantic verification", async () => {

@@ -567,6 +567,14 @@ function profileFor(targetId) {
   return archiveProfiles.find(({ id }) => id === targetId) ?? null;
 }
 
+function planForProfile(profile, planId) {
+  if (!profile?.plans) return null;
+  if (planId === "corroborate-approved-upgrade") return profile.plans.approved;
+  if (planId === "escalate-unapproved-upgrade") return profile.plans.escalation;
+  if (planId === "stop-incomplete") return profile.plans.incomplete;
+  return null;
+}
+
 function expectedSeverity(implementation, profile) {
   return implementation.toLowerCase() === profile.implementation.toLowerCase()
     ? "informational"
@@ -789,7 +797,9 @@ async function verifyPortableIntegrityArtifactUnsafe(artifact) {
   const implementation = evidence.event.decodedArguments.implementation;
   const severity = expectedSeverity(implementation, profile);
   const severityRule = expectedSeverityRule(implementation, profile);
-  const expectedChecks = profile.checks.filter(({ id }) => receipt.plan.selectedChecks.includes(id));
+  const expectedPlan = planForProfile(profile, receipt.plan.id);
+  if (!expectedPlan) return result("verified", "EVIDENCE_MISMATCH", "plan-out-of-scope", baseDetails(artifact, receipt, computedReceiptId, scanComparisons));
+  const expectedChecks = expectedPlan.selectedChecks.map((id) => profile.checks.find((check) => check.id === id)).filter(Boolean);
   const checkState = checkComparisons(expectedChecks, evidence.upgradeInvestigation.checks, implementation, profile, receipt.plan.id);
   const evidenceComparisons = [
     ...scanComparisons,
@@ -814,7 +824,7 @@ async function verifyPortableIntegrityArtifactUnsafe(artifact) {
     comparison("severity.ruleId", severityRule, evidence.severity.ruleId, "severity-rule-mismatch"),
     comparison("severity.inputs", expectedSeverityInputs(implementation, profile), evidence.severity.inputs, "severity-input-mismatch"),
     comparison("severity.result", severity, evidence.severity.result, "severity-mismatch"),
-    comparison("investigation.plan", profile.receipt.plan, evidence.upgradeInvestigation.plan, "plan-out-of-scope"),
+    comparison("investigation.plan", expectedPlan, evidence.upgradeInvestigation.plan, "plan-out-of-scope"),
     comparison("investigation.disposition", evidence.upgradeInvestigation.disposition, receipt.finalDisposition, "disposition-mismatch"),
     comparison("sources", profile.receipt.explorerLinks, evidence.sources, "explorer-links-mismatch"),
     comparison("receipt.trigger.network", evidence.network, trigger.network, "receipt-trigger-network-mismatch"),

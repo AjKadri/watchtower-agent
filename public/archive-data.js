@@ -11,6 +11,59 @@ const capabilityBudget = {
   ],
 };
 
+const escalationChecksByProfile = {
+  "aave-v3-base-core": ["implementation-before", "implementation-at-upgrade", "implementation-bytecode", "configured-pool"],
+  "compound-iii-base-usdc-comet": ["implementation-before", "implementation-at-upgrade", "implementation-bytecode", "governor-before"],
+  "etherfi-base-weeth-oft": ["implementation-before", "implementation-at-upgrade", "implementation-bytecode", "endpoint-at-upgrade"],
+};
+
+function registeredPlans(profileId, selectedChecks) {
+  const escalationChecks = escalationChecksByProfile[profileId];
+  const skippedEscalation = selectedChecks.filter((id) => !escalationChecks.includes(id));
+  return {
+    approved: {
+      id: "corroborate-approved-upgrade",
+      version: "1.0.0",
+      selectionReason: {
+        code: "approved-target",
+        text: "The deterministic severity rule identified the decoded implementation as the configured approved target.",
+      },
+      selectedChecks,
+      skippedChecks: [],
+      capabilityBudget,
+    },
+    escalation: {
+      id: "escalate-unapproved-upgrade",
+      version: "1.0.0",
+      selectionReason: {
+        code: "unapproved-target",
+        text: "The deterministic severity rule identified a zero or unapproved decoded implementation.",
+      },
+      selectedChecks: escalationChecks,
+      skippedChecks: skippedEscalation,
+      capabilityBudget: {
+        maximumReads: 4,
+        capabilities: [
+          { name: "historical-storage-read", maximumUses: 2 },
+          { name: "historical-code-read", maximumUses: 1 },
+          { name: "historical-contract-call", maximumUses: 1 },
+        ],
+      },
+    },
+    incomplete: {
+      id: "stop-incomplete",
+      version: "1.0.0",
+      selectionReason: {
+        code: "trigger-evidence-incomplete",
+        text: "Complete trigger evidence is unavailable, so no historical investigation reads are permitted.",
+      },
+      selectedChecks: [],
+      skippedChecks: selectedChecks,
+      capabilityBudget: { maximumReads: 0, capabilities: [] },
+    },
+  };
+}
+
 function passedCheck({ id, required = true, method, parameters, blockTag, result, description, expected, actual = expected }) {
   return {
     id,
@@ -85,6 +138,7 @@ function explorerLinks(profile) {
 
 function buildProfile(input) {
   const selectedChecks = input.checks.map(({ id }) => id);
+  const plans = registeredPlans(input.id, selectedChecks);
   const plan = {
     id: "corroborate-approved-upgrade",
     version: "1.0.0",
@@ -124,7 +178,7 @@ function buildProfile(input) {
     finalDisposition: "corroborated",
     explorerLinks: links,
   };
-  return Object.freeze({ ...input, event: "Upgraded(address)", disposition: "corroborated", source: "verified-fixture", links, receipt });
+  return Object.freeze({ ...input, event: "Upgraded(address)", disposition: "corroborated", source: "verified-fixture", links, receipt, plans });
 }
 
 const aaveProxy = "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5";
