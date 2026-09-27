@@ -230,6 +230,10 @@ storage, signing, or external service request. It checks the closed profile
 registry, Base chain, approved historical range, qualifying transaction, event,
 plan, checks, severity, disposition, artifact ID, and receipt ID.
 
+Complete evidence must be error-free, its declared disposition must agree with
+the registered check results, and its alert identity, evidence link, severity,
+status, and sources must match the verified state.
+
 An artifact ID detects changes to the exported artifact. It does not prove an
 onchain fact, authenticate the publisher, or authenticate a `live-rpc`
 provenance claim offline. A fixture result remains `FIXTURE_ONLY`, and an

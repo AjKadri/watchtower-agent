@@ -437,11 +437,15 @@ function evidenceShape(evidence, path) {
   if (failure) return failure;
   failure = sourceLinksShape(evidence.sources, `${path}.sources`);
   if (failure) return failure;
-  return arrayValue(evidence.errors, `${path}.errors`, (item, itemPath) => {
+  failure = arrayValue(evidence.errors, `${path}.errors`, (item, itemPath) => {
     let itemFailure = strictObject(item, ["code", "message"], itemPath);
     if (itemFailure) return itemFailure;
     return stringValue(item.code, `${itemPath}.code`) || stringValue(item.message, `${itemPath}.message`);
   });
+  if (failure) return failure;
+  if (evidence.status === "complete" && evidence.errors.length > 0) return issue(`${path}.errors`, "malformed-evidence");
+  if (evidence.status === "incomplete" && evidence.errors.length === 0) return issue(`${path}.errors`, "incomplete-evidence");
+  return null;
 }
 
 function alertShape(alert, path) {
@@ -537,6 +541,10 @@ async function createScanId(targetId, fromBlock, toBlock) {
   return `scan_${await sha256Hex(["8453", targetId, fromBlock, toBlock].join("\n"))}`;
 }
 
+export async function createPortableAlertId(chainId, transactionHash, logIndex, detectorId) {
+  return `alert_${await sha256Hex([String(chainId), transactionHash.toLowerCase(), String(logIndex), detectorId].join("\n"))}`;
+}
+
 function comparison(path, expected, observed, code = "evidence-mismatch") {
   const available = observed !== undefined && (observed !== null || expected === null);
   return {
@@ -575,6 +583,16 @@ function expectedSeverityRule(implementation, profile) {
       : "target-is-not-approved";
 }
 
+function expectedSeverityInputs(implementation, profile) {
+  const normalized = implementation.toLowerCase();
+  const approved = normalized === profile.implementation.toLowerCase();
+  return {
+    implementation,
+    approved: String(approved),
+    isZeroAddress: String(/^0x0{40}$/i.test(implementation)),
+  };
+}
+
 function expectedCheckParameters(profileCheck, implementation) {
   if (profileCheck.id === "implementation-bytecode") return { address: implementation };
   return profileCheck.parameters;
@@ -603,12 +621,12 @@ function expectedAssertionActual(check) {
   return check.result.value;
 }
 
-function checkComparisons(expectedChecks, observedChecks, implementation, profile) {
+function checkComparisons(expectedChecks, observedChecks, implementation, profile, planId) {
   const comparisons = [];
   const contradictionPaths = new Set();
   if (!Array.isArray(observedChecks) || observedChecks.length !== expectedChecks.length) {
     comparisons.push(comparison("checks", expectedChecks.map(({ id }) => id), Array.isArray(observedChecks) ? observedChecks.map((check) => check?.id ?? null) : observedChecks, "check-results-mismatch"));
-    return { comparisons, contradictionPaths };
+    return { comparisons, contradictionPaths, structuralMismatch: true, derivedDisposition: null };
   }
   for (let index = 0; index < expectedChecks.length; index += 1) {
     const expected = expectedChecks[index];
@@ -642,7 +660,23 @@ function checkComparisons(expectedChecks, observedChecks, implementation, profil
   const expectedIds = expectedChecks.map(({ id }) => id);
   const observedIds = observedChecks.map(({ id }) => id);
   if (!equal(expectedIds, observedIds)) comparisons.push(comparison("checks", expectedIds, observedIds, "check-order-mismatch"));
-  return { comparisons, contradictionPaths };
+  const structuralPaths = new Set([
+    "id", "required", "method", "blockTag", "parameters", "assertion.description", "assertion.expected",
+    "status", "assertion.actual", "assertion.matches", "failure",
+  ]);
+  const structuralMismatch = comparisons.some(({ path, status }) => status === "mismatch"
+    && (path === "checks" || [...structuralPaths].some((suffix) => path.endsWith(`.${suffix}`))));
+  const requiredChecks = observedChecks.filter(({ required }) => required);
+  const derivedDisposition = expectedChecks.length === 0
+    ? null
+    : planId === "stop-incomplete"
+      ? "incomplete"
+      : requiredChecks.some(({ status }) => status === "mismatch")
+        ? "contradicted"
+        : requiredChecks.some(({ status }) => status === "failed" || status === "unsupported")
+          ? "incomplete"
+          : "corroborated";
+  return { comparisons, contradictionPaths, structuralMismatch, derivedDisposition };
 }
 
 function failedComparisons(comparisons) {
@@ -658,6 +692,28 @@ function baseDetails(artifact, receipt, computedReceiptId, comparisons) {
     computedReceiptId,
     ...paths,
   };
+}
+
+async function alertComparisons(scan, evidence, profile, severity, severityRule) {
+  const comparisons = [];
+  const requiresAlert = scan.status === "complete" && evidence.status === "complete";
+  if (requiresAlert) {
+    comparisons.push(comparison("alerts", 1, scan.alerts.length, "alert-cardinality-mismatch"));
+  }
+  if (scan.alerts.length !== 1) return comparisons;
+  const alert = scan.alerts[0];
+  comparisons.push(
+    comparison("alerts[0].id", await createPortableAlertId(8453, evidence.transaction.hash, evidence.log.index, evidence.detector.id), alert.id, "alert-identity-mismatch"),
+    comparison("alerts[0].scanId", scan.scanId, alert.scanId, "alert-scan-mismatch"),
+    comparison("alerts[0].targetId", scan.targetId, alert.targetId, "alert-target-mismatch"),
+    comparison("alerts[0].evidenceId", evidence.id, alert.evidenceId, "alert-evidence-mismatch"),
+    comparison("alerts[0].severity", severity, alert.severity, "alert-severity-mismatch"),
+    comparison("alerts[0].severityRuleId", severityRule, alert.severityRuleId, "alert-severity-rule-mismatch"),
+    comparison("alerts[0].investigation.interpretation.severityRuleId", severityRule, alert.investigation.interpretation.severityRuleId, "alert-severity-rule-mismatch"),
+    comparison("alerts[0].evidenceStatus", evidence.status, alert.evidenceStatus, "alert-status-mismatch"),
+    comparison("alerts[0].sources", evidence.sources, alert.sources, "alert-sources-mismatch"),
+  );
+  return comparisons;
 }
 
 function artifactEnvelopeShape(artifact) {
@@ -679,6 +735,12 @@ async function verifyPortableIntegrityArtifactUnsafe(artifact) {
   if (envelopeFailure) {
     if (envelopeFailure.code === "wrong-format") return result("refused", null, "wrong-format");
     if (envelopeFailure.code === "unsupported-artifact-version") return result("refused", null, "unsupported-artifact-version");
+    if (envelopeFailure.code === "malformed-evidence") {
+      return result("verified", "EVIDENCE_MISMATCH", "malformed-evidence", { failedPaths: [envelopeFailure.path] });
+    }
+    if (envelopeFailure.code === "incomplete-evidence") {
+      return result("verified", "INCOMPLETE", "incomplete-evidence", { failedPaths: [envelopeFailure.path] });
+    }
     return malformed(`Portable artifact validation failed at ${envelopeFailure.path}.`, { failedPaths: [envelopeFailure.path] });
   }
 
@@ -728,7 +790,7 @@ async function verifyPortableIntegrityArtifactUnsafe(artifact) {
   const severity = expectedSeverity(implementation, profile);
   const severityRule = expectedSeverityRule(implementation, profile);
   const expectedChecks = profile.checks.filter(({ id }) => receipt.plan.selectedChecks.includes(id));
-  const checkState = checkComparisons(expectedChecks, evidence.upgradeInvestigation.checks, implementation, profile);
+  const checkState = checkComparisons(expectedChecks, evidence.upgradeInvestigation.checks, implementation, profile, receipt.plan.id);
   const evidenceComparisons = [
     ...scanComparisons,
     comparison("network.name", profile.receipt.trigger.network.name, evidence.network.name, "network-mismatch"),
@@ -750,6 +812,7 @@ async function verifyPortableIntegrityArtifactUnsafe(artifact) {
     comparison("detector.id", profile.detectorId, evidence.detector.id, "detector-mismatch"),
     comparison("detector.inputs", { configuredEmitter: profile.emitter, configuredTopic0: profile.receipt.trigger.log.topic0 }, evidence.detector.inputs, "detector-input-mismatch"),
     comparison("severity.ruleId", severityRule, evidence.severity.ruleId, "severity-rule-mismatch"),
+    comparison("severity.inputs", expectedSeverityInputs(implementation, profile), evidence.severity.inputs, "severity-input-mismatch"),
     comparison("severity.result", severity, evidence.severity.result, "severity-mismatch"),
     comparison("investigation.plan", profile.receipt.plan, evidence.upgradeInvestigation.plan, "plan-out-of-scope"),
     comparison("investigation.disposition", evidence.upgradeInvestigation.disposition, receipt.finalDisposition, "disposition-mismatch"),
@@ -786,6 +849,7 @@ async function verifyPortableIntegrityArtifactUnsafe(artifact) {
     comparison("receipt.finalDisposition", evidence.upgradeInvestigation.disposition, receipt.finalDisposition, "disposition-mismatch"),
     ...checkState.comparisons,
   ];
+  evidenceComparisons.push(...await alertComparisons(scan, evidence, profile, severity, severityRule));
   for (let index = 0; index < Math.max(profile.addresses.length, evidence.relevantAddresses.length); index += 1) {
     const expectedAddress = profile.addresses[index];
     const observedAddress = evidence.relevantAddresses[index];
@@ -800,6 +864,13 @@ async function verifyPortableIntegrityArtifactUnsafe(artifact) {
   );
   const failed = failedComparisons(evidenceComparisons);
   const disposition = evidence.upgradeInvestigation.disposition;
+  if (!checkState.structuralMismatch && checkState.derivedDisposition
+    && (disposition !== checkState.derivedDisposition || receipt.finalDisposition !== checkState.derivedDisposition)) {
+    return result("verified", "INVALID_RECEIPT", "malformed-receipt", {
+      ...baseDetails(artifact, receipt, computedReceiptId, evidenceComparisons),
+      failedPaths: ["finalDisposition"],
+    });
+  }
   const structuralFailure = failed.some(({ path }) => {
     if (path === "event.decodedArguments.implementation" && disposition === "contradicted") return false;
     if (path === "receipt.trigger.decodedArguments" && disposition === "contradicted") return false;

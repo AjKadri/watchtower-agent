@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { archiveProfiles } from "../public/archive-data.js";
-import { createPortableArtifact } from "../public/portable-integrity-verifier.js";
+import { createPortableAlertId, createPortableArtifact } from "../public/portable-integrity-verifier.js";
 import { buildFixtureDetail } from "../public/view-model.js";
 import { verifyReceipt } from "../public/receipt-verifier.js";
 import { scanResultSchema } from "../src/domain/schemas.js";
@@ -29,12 +29,22 @@ describe("browser review packet verification", () => {
   it("dispatches a portable integrity proof through the existing browser verifier", async () => {
     const profile = archiveProfiles[2];
     const detail = buildFixtureDetail(profile);
+    const scanId = createScanId(8453, profile.id, BigInt(profile.block.number), BigInt(profile.block.number));
+    const alertId = await createPortableAlertId(8453, detail.evidence.transaction.hash, detail.evidence.log.index, detail.evidence.detector.id);
     const scan = scanResultSchema.parse({
-      scanId: createScanId(8453, profile.id, BigInt(profile.block.number), BigInt(profile.block.number)),
+      scanId,
       targetId: profile.id,
       range: { fromBlock: profile.block.number, toBlock: profile.block.number },
       status: "complete",
-      alerts: [],
+      alerts: [{
+        ...detail.alert,
+        id: alertId,
+        scanId,
+        evidenceId: detail.evidence.id,
+        incidentClass: "contract_upgrade",
+        eventType: "proxy_upgraded",
+        severityRuleId: detail.evidence.severity.ruleId,
+      }],
       evidence: [detail.evidence],
       failures: [],
     });

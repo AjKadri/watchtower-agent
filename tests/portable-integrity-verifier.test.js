@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 import { archiveProfiles } from "../public/archive-data.js";
@@ -7,14 +8,28 @@ import { scanResultSchema } from "../src/domain/schemas.js";
 import { evaluateEvidenceIntegrity } from "../src/investigation/integrity.js";
 import { createScanId, createReceiptId } from "../src/pipeline/ids.js";
 
+function fixtureAlertId(transactionHash, logIndex, detectorId) {
+  return `alert_${createHash("sha256").update(["8453", transactionHash.toLowerCase(), String(logIndex), detectorId].join("\n")).digest("hex")}`;
+}
+
 function fixtureScan(profile = archiveProfiles[2]) {
   const detail = buildFixtureDetail(profile);
+  const scanId = createScanId(8453, profile.id, BigInt(profile.block.number), BigInt(profile.block.number));
+  const alertId = fixtureAlertId(detail.evidence.transaction.hash, Number(detail.evidence.log.index), detail.evidence.detector.id);
   return scanResultSchema.parse({
-    scanId: createScanId(8453, profile.id, BigInt(profile.block.number), BigInt(profile.block.number)),
+    scanId,
     targetId: profile.id,
     range: { fromBlock: profile.block.number, toBlock: profile.block.number },
     status: "complete",
-    alerts: [],
+    alerts: [{
+      ...detail.alert,
+      id: alertId,
+      scanId,
+      evidenceId: detail.evidence.id,
+      incidentClass: "contract_upgrade",
+      eventType: "proxy_upgraded",
+      severityRuleId: detail.evidence.severity.ruleId,
+    }],
     evidence: [detail.evidence],
     failures: [],
   });
@@ -186,6 +201,7 @@ describe("portable integrity artifact verifier", () => {
     const implementation = `0x${"5".repeat(40)}`;
     evidence.event.decodedArguments.implementation = implementation;
     evidence.severity.ruleId = "target-is-not-approved";
+    evidence.severity.inputs = { implementation, approved: "false", isZeroAddress: "false" };
     evidence.severity.result = "suspicious";
     evidence.upgradeInvestigation.disposition = "contradicted";
     const implementationCheck = evidence.upgradeInvestigation.checks.find(({ id }) => id === "implementation-at-upgrade");
@@ -204,6 +220,9 @@ describe("portable integrity artifact verifier", () => {
     receipt.checks = structuredClone(evidence.upgradeInvestigation.checks);
     receipt.finalDisposition = "contradicted";
     receipt.receiptId = createReceiptId(receipt);
+    scan.alerts[0].severity = "suspicious";
+    scan.alerts[0].severityRuleId = "target-is-not-approved";
+    scan.alerts[0].investigation.interpretation.severityRuleId = "target-is-not-approved";
 
     const result = await verifyPortableIntegrityArtifact(await reissue(scan));
 
@@ -291,6 +310,87 @@ describe("portable integrity artifact verifier", () => {
     unknown.evidence[0].investigationReceipt.checks = structuredClone(unknown.evidence[0].upgradeInvestigation.checks);
     recomputeReceipt(unknown);
     await expect(verifyPortableIntegrityArtifact(await reissue(unknown))).resolves.toMatchObject({ outcome: "EVIDENCE_MISMATCH" });
+  });
+
+  it.each([
+    ["all checks pass but declared contradicted", (scan) => {
+      scan.evidence[0].upgradeInvestigation.disposition = "contradicted";
+      scan.evidence[0].investigationReceipt.finalDisposition = "contradicted";
+    }],
+    ["a valid check mismatch but declared corroborated", (scan) => {
+      const evidence = scan.evidence[0];
+      const check = evidence.upgradeInvestigation.checks[1];
+      check.result.value = `0x${"5".repeat(40)}`;
+      check.assertion.actual = check.result.value;
+      check.assertion.matches = false;
+      check.status = "mismatch";
+      evidence.upgradeInvestigation.disposition = "corroborated";
+      evidence.investigationReceipt.finalDisposition = "corroborated";
+      evidence.investigationReceipt.checks = structuredClone(evidence.upgradeInvestigation.checks);
+    }],
+  ])("refuses inconsistent declared disposition: %s", async (_label, mutate) => {
+    const scan = fixtureScan();
+    mutate(scan);
+    recomputeReceipt(scan);
+    const portable = await verifyPortableIntegrityArtifact(await reissue(scan));
+    const server = evaluateEvidenceIntegrity({ result: scan, source: "live", provenance: "live-rpc" });
+    expect(portable.outcome).toBe("INVALID_RECEIPT");
+    expect(portable.refusalCode).toBe("malformed-receipt");
+    expect(server.outcome).toBe("INVALID_RECEIPT");
+  });
+
+  it.each([
+    ["non-empty errors", [{ code: "forged-error", message: "forged" }]],
+    ["malformed error", [{ code: "forged-error", message: 7 }]],
+    ["null error item", [null]],
+  ])("never corroborates complete evidence with %s", async (_label, errors) => {
+    const scan = fixtureScan();
+    scan.evidence[0].errors = errors;
+    const result = await verifyPortableIntegrityArtifact(await reissue(scan));
+    expect(result.outcome).not.toBe("CORROBORATED");
+    expect(result.refusalCode).toBe(_label === "non-empty errors" ? "malformed-evidence" : "malformed-artifact");
+  });
+
+  it("preserves empty errors for complete evidence and requires errors for incomplete evidence", async () => {
+    const complete = await verifyPortableIntegrityArtifact(await fixtureArtifact());
+    expect(complete.outcome).toBe("FIXTURE_ONLY");
+
+    const incomplete = fixtureScan();
+    incomplete.status = "partial";
+    incomplete.evidence[0].status = "incomplete";
+    incomplete.evidence[0].errors = [{ code: "missing-block", message: "Block unavailable." }];
+    incomplete.evidence[0].investigationReceipt = null;
+    expect(await verifyPortableIntegrityArtifact(await reissue(incomplete))).toMatchObject({ outcome: "INCOMPLETE" });
+  });
+
+  it.each([
+    ["implementation", "0x1111111111111111111111111111111111111111"],
+    ["approved", "false"],
+    ["isZeroAddress", "true"],
+  ])("binds severity input %s", async (key, value) => {
+    const scan = fixtureScan();
+    scan.evidence[0].severity.inputs[key] = value;
+    const result = await verifyPortableIntegrityArtifact(await reissue(scan));
+    expect(result.outcome).toBe("EVIDENCE_MISMATCH");
+    expect(result.failedPaths).toContain(`severity.inputs`);
+    expect(result.outcome).not.toBe("CONTRADICTED");
+  });
+
+  it.each([
+    ["extra", (scan) => { scan.alerts.push(structuredClone(scan.alerts[0])); }],
+    ["removed", (scan) => { scan.alerts = []; }],
+    ["cross-profile", (scan) => { scan.alerts[0].targetId = "aave-v3-base-core"; }],
+    ["wrong evidence ID", (scan) => { scan.alerts[0].evidenceId = "evidence_forged"; }],
+    ["wrong severity", (scan) => { scan.alerts[0].severity = "high"; }],
+    ["wrong status", (scan) => { scan.alerts[0].evidenceStatus = "incomplete"; }],
+    ["wrong sources", (scan) => { scan.alerts[0].sources.transaction = "https://example.invalid/forged"; }],
+  ])("refuses alert mutation: %s", async (_label, mutate) => {
+    const scan = fixtureScan();
+    mutate(scan);
+    const result = await verifyPortableIntegrityArtifact(await reissue(scan));
+    expect(result.outcome).not.toBe("CORROBORATED");
+    expect(result.outcome).not.toBe("FIXTURE_ONLY");
+    expect(result.refusalCode).toBe("evidence-mismatch");
   });
 
   it("distinguishes incomplete and RPC-unavailable results", async () => {

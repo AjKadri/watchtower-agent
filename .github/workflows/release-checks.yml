@@ -37,6 +37,69 @@ jobs:
         run: |
           npm ci --omit=dev
           npm run build
+      - name: Smoke test compiled portable integrity export and offline verification
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+          import assert from "node:assert/strict";
+          import { archiveProfiles } from "./public/archive-data.js";
+          import { buildFixtureDetail } from "./public/view-model.js";
+          import { createPortableArtifact, createPortableAlertId, verifyPortableIntegrityArtifact } from "./public/portable-integrity-verifier.js";
+          import { scanResultSchema } from "./dist/domain/schemas.js";
+          import { createScanId } from "./dist/pipeline/ids.js";
+          import { getTargetProfile } from "./dist/profiles/registry.js";
+          import { createApp } from "./dist/server/app.js";
+          import { listenForRequests } from "./dist/server/main.js";
+          import { ScanStore } from "./dist/server/store.js";
+
+          const profile = archiveProfiles.find(({ id }) => id === "etherfi-base-weeth-oft");
+          const detail = buildFixtureDetail(profile);
+          const scanId = createScanId(8453, profile.id, BigInt(profile.block.number), BigInt(profile.block.number));
+          const alertId = await createPortableAlertId(8453, detail.evidence.transaction.hash, detail.evidence.log.index, detail.evidence.detector.id);
+          const scan = scanResultSchema.parse({
+            scanId,
+            targetId: profile.id,
+            range: { fromBlock: profile.block.number, toBlock: profile.block.number },
+            status: "complete",
+            alerts: [{
+              ...detail.alert,
+              id: alertId,
+              scanId,
+              evidenceId: detail.evidence.id,
+              incidentClass: "contract_upgrade",
+              eventType: "proxy_upgraded",
+              severityRuleId: detail.evidence.severity.ruleId,
+            }],
+            evidence: [detail.evidence],
+            failures: [],
+          });
+          const store = new ScanStore();
+          store.save(scan);
+          const server = await listenForRequests(createApp({
+            reader: {},
+            config: getTargetProfile(profile.id),
+            store,
+            publicDirectory: "./public",
+          }), 3140);
+          try {
+            const dashboard = await fetch("http://127.0.0.1:3140/");
+            assert.equal(dashboard.status, 200);
+            const response = await fetch(`http://127.0.0.1:3140/api/scans/${scanId}/integrity?format=portable`);
+            assert.equal(response.status, 200);
+            assert.match(response.headers.get("content-type") ?? "", /^application\/json/);
+            assert.match(response.headers.get("content-disposition") ?? "", /^attachment; filename="watchtower-scan_[0-9a-f]{64}-portable-integrity\.json"$/);
+            const exported = await response.json();
+            assert.deepEqual(await verifyPortableIntegrityArtifact(exported).then(({ outcome }) => outcome), "CORROBORATED");
+
+            const fixture = await createPortableArtifact(scan, { declared: "fixture", provenance: "verified-fixture" });
+            assert.deepEqual(await verifyPortableIntegrityArtifact(fixture).then(({ outcome }) => outcome), "FIXTURE_ONLY");
+            fixture.scanResult.evidence[0].block.number = "1";
+            assert.deepEqual(await verifyPortableIntegrityArtifact(fixture).then(({ refusalCode }) => refusalCode), "artifact-id-mismatch");
+            console.log("portable compiled smoke assertions passed");
+          } finally {
+            await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+          }
+          EOF
       - name: Smoke test compiled scan CLI without a live RPC secret
         run: |
           set -euo pipefail
