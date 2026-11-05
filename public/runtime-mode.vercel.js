@@ -1,0 +1,1 @@
+window.WATCHTOWER_STATIC_DEMO = true;

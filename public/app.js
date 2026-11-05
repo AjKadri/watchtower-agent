@@ -72,6 +72,7 @@ function setProfileRegistryState(status) {
     loading: "Loading the server-approved profile registry.",
     hydrating: "Profiles are ready. Hydrating stored live details in the background.",
     ready: registryBoundaryCopy,
+    "static-demo": "Static portfolio demo · bundled verified fixtures only; live API and scans are disabled.",
     "hydration-error": "Stored live details could not be loaded. Profiles remain available and fixture evidence is shown until a live result is available.",
     error: "The server-approved profile registry is unavailable. Verified fixture profiles remain visible; live scanning is disabled.",
   };
@@ -1284,6 +1285,23 @@ async function initialize() {
   elements.scanButton.addEventListener("click", runScan);
   initializePacketVerifier();
   renderArchive();
+  if (window.WATCHTOWER_STATIC_DEMO === true) {
+    const profile = getArchiveProfile("etherfi-base-weeth-oft") ?? archiveProfiles[0];
+    state.liveProfileIds = [];
+    if (profile) {
+      state.activeProfileId = profile.id;
+      state.selectedProfileId = profile.id;
+      selectProfile(profile.id, "verified-fixture");
+      setProfileRegistryState("static-demo");
+      elements.healthLabel.textContent = "Static portfolio demo";
+      elements.healthDot.className = "health-dot";
+    } else {
+      setProfileRegistryState("error");
+      elements.healthLabel.textContent = "Static demo unavailable";
+      elements.healthDot.className = "health-dot unhealthy";
+    }
+    return;
+  }
   setProfileRegistryState("loading");
   await updateHealth();
   try {

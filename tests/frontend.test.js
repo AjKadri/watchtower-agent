@@ -659,6 +659,28 @@ describe("dashboard view model", () => {
     expect(css).not.toContain("border-color: #d9bf8f");
   });
 
+  it("selects a fixture-only Vercel portfolio mode without an API rewrite", () => {
+    const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+    const index = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+    const liveMode = readFileSync(new URL("../public/runtime-mode.js", import.meta.url), "utf8");
+    const vercelMode = readFileSync(new URL("../public/runtime-mode.vercel.js", import.meta.url), "utf8");
+    const config = JSON.parse(readFileSync(new URL("../public/vercel.json", import.meta.url), "utf8"));
+    const staticBranch = app.indexOf("if (window.WATCHTOWER_STATIC_DEMO === true)");
+    const staticBootstrap = app.slice(staticBranch, app.indexOf('setProfileRegistryState("loading")', staticBranch));
+
+    expect(index.indexOf('src="/runtime-mode.js"')).toBeLessThan(index.indexOf('src="/app.js"'));
+    expect(liveMode).toContain("WATCHTOWER_STATIC_DEMO = false");
+    expect(vercelMode).toContain("WATCHTOWER_STATIC_DEMO = true");
+    expect(staticBranch).toBeGreaterThanOrEqual(0);
+    expect(staticBootstrap).toContain('selectProfile(profile.id, "verified-fixture")');
+    expect(staticBootstrap).toContain("state.liveProfileIds = []");
+    expect(staticBootstrap).toContain("return;");
+    expect(staticBootstrap).not.toContain("request(");
+    expect(staticBootstrap).not.toContain("updateHealth(");
+    expect(config.rewrites).toBeUndefined();
+    expect(config.buildCommand).toBe("cp runtime-mode.vercel.js runtime-mode.js");
+  });
+
   it("loads the frontend health indicator from /api/health", async () => {
     const request = vi.fn().mockResolvedValue({ status: "ok" });
 
