@@ -1,11 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://api.watchtower.ajkadri.dev/api/:path*"
-    }
-  ],
+  "buildCommand": "cp runtime-mode.vercel.js runtime-mode.js",
+  "outputDirectory": ".",
   "headers": [
     {
       "source": "/(.*)",
